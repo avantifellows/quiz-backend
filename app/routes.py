@@ -1,6 +1,5 @@
 from fastapi import APIRouter
 from models import QuestionSet, Question, Type, Image, Options
-from config.db import conn
 from schemas import userEntity, usersEntity, QuestionEntity, QuestionsEntity
 from bson import objectid
 
