@@ -1,6 +1,6 @@
 # Quiz Backend
 
-Backend for the Avanti Quiz Engine!
+Backend for the Avanti Quiz Engine created using FastAPI and MongoDB!
 
 ## Installation
 
