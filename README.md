@@ -8,6 +8,18 @@ Backend for the Avanti Quiz Engine created using FastAPI and MongoDB!
 
 - Install Docker and start Docker.
 
+- Install `pre-commit`
+
+```
+pip install pre-commit
+```
+
+- Set up `pre-commit`
+
+```
+pre-commit install
+```
+
 ## Running locally
 
 Simply run:
@@ -31,7 +43,7 @@ sam deploy --stack-name QuizBackendStaging --s3-bucket quiz-backend-staging --ca
 If the deployment was successful, you should see a message as shown in the image below:
 ![deployment successful](images/deployment-succeeded.png)
 
-The app will be deployed on the URL corresponding to `Value` in the image above! 
+The app will be deployed on the URL corresponding to `Value` in the image above!
 
 ### Production
 
