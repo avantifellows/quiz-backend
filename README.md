@@ -42,4 +42,4 @@ INFO:     127.0.0.1:58550 - "GET /docs HTTP/1.1" 200 OK
 INFO:     127.0.0.1:58550 - "GET /openapi.json HTTP/1.1" 200 OK
 ```
 
-Navigate to `http://127.0.0.1:8000`! :dancer:
+Use `http://127.0.0.1:8000` as the base URL of the endpoints and navigate to `http://127.0.0.1:8000/docs` to see the auto-generated docs! :dancer:
