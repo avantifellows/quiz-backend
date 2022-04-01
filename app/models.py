@@ -30,8 +30,3 @@ class Question(BaseModel):
                 "type": "subjective"
             }
         }
-
-
-# class QuestionSet(BaseModel):
-#     uuid: str
-#     questions: List[int] = []
