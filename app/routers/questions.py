@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter, status, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from database import client
@@ -23,3 +23,11 @@ async def create_question(question: Question):
     return JSONResponse(
         status_code=status.HTTP_201_CREATED, content=created_question
     )
+
+
+@router.get('/{question_id}')
+async def get_question(question_id: str):
+    if (student := client.quiz.questions.find_one({"$id": question_id})) is not None:
+        return student
+
+    raise HTTPException(status_code=404, detail=f"Question {id} not found")

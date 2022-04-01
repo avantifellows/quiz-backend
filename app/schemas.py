@@ -19,8 +19,6 @@ class PyObjectId(ObjectId):
 
 
 class QuestionType(Enum):
-    single_choice = 'single-choice'
-    multi_choice = 'multi-choice'
-    subjective = 'subjective'
-    numerical = 'numerical'
-    match = 'match'
+    single_choice = "single-choice"
+    multi_choice = "multi-choice"
+    subjective = "subjective"
