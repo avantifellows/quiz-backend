@@ -4,9 +4,23 @@ Backend for the Avanti Quiz Engine created using FastAPI and MongoDB!
 
 ## Installation
 
-- Install [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
+- Create a virtual environment (make sure that `virtualenv` is installed on your system):
 
-- Install Docker and start Docker.
+```bash
+virtualenv venv
+```
+
+- Activate the environment:
+
+```bash
+source venv/bin/activate
+```
+
+- Install the dependencies:
+
+```bash
+pip install -r app/requirements.txt
+```
 
 - Install `pre-commit`
 
@@ -25,12 +39,28 @@ pre-commit install
 Simply run:
 
 ```
-sam local start-api
+cd app; uvicorn main:app --reload
 ```
 
-Once the docker image has completed building, you can use `http://127.0.0.1:3000` as the base URL of the endpoints and navigate to `http://127.0.0.1:3000/docs` to see the auto-generated docs! :dancer:
+You should see a message like:
+
+```
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [98098] using watchgod
+INFO:     Started server process [98100]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:58550 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58550 - "GET /openapi.json HTTP/1.1" 200 OK
+```
+
+Use `http://127.0.0.1:8000` as the base URL of the endpoints and navigate to `http://127.0.0.1:8000/docs` to see the auto-generated docs! :dancer:
 
 ## Deployment
+
+- Install [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
+
+- Install Docker and start Docker.
 
 ### Staging
 
