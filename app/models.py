@@ -1,7 +1,7 @@
 from typing import Optional, List
 from bson import ObjectId
 from pydantic import BaseModel, Field
-from schemas import QuestionType, PyObjectId
+from schemas import QuestionType, PyObjectId, NavigationMode, QuizLanguage, QuizType
 
 
 class Image(BaseModel):
@@ -20,6 +20,11 @@ class MarkingScheme(BaseModel):
     skipped: float
 
 
+class QuizTimeLimit(BaseModel):
+    min: int
+    max: int
+
+
 class QuestionMetadata(BaseModel):
     grade: str
     subject: str
@@ -27,6 +32,14 @@ class QuestionMetadata(BaseModel):
     topic: str
     competency: List[str]
     difficulty: str
+
+
+class QuizMetadata(BaseModel):
+    quizType: QuizType
+    grade: str
+    subject: str
+    chapter: str
+    topic: str
 
 
 class Question(BaseModel):
@@ -41,6 +54,7 @@ class Question(BaseModel):
     graded: bool = True
     markingScheme: MarkingScheme = None
     solution: Optional[List[str]] = []
+    metadata: QuestionMetadata = None
 
     class Config:
         allow_population_by_field_name = True
@@ -67,5 +81,61 @@ class Question(BaseModel):
                 "correct_answer": [0, 2],
                 "graded": True,
                 "markingScheme": {"correct": 4, "wrong": -1, "skipped": 0},
+            }
+        }
+
+
+class QuestionSet(BaseModel):
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    questions: List[Question]
+
+
+class Quiz(BaseModel):
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    question_sets: List[QuestionSet]
+    maxMarks: int
+    numGradedQuestions: int
+    shuffle: bool = False
+    numAttemptsAllowed: int = 1
+    timeLimit: QuizTimeLimit = None
+    navigation_mode: NavigationMode = "linear"
+    instructions: Optional[str] = None
+    language: QuizLanguage = "en"
+    metadata: QuizMetadata = None
+
+    class Config:
+        allow_population_by_field_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+        schema_extra = {
+            "example": {
+                "question_sets": [
+                    {
+                        "questions": [
+                            {
+                                "text": "Which grade are you in?",
+                                "type": "multi-choice",
+                                "options": [
+                                    {"text": "Option 1"},
+                                    {"text": "Option 2"},
+                                    {"text": "Option 3"},
+                                ],
+                                "graded": False,
+                            },
+                            {
+                                "text": "Which subject are you studying?",
+                                "type": "multi-choice",
+                                "options": [
+                                    {"text": "Option 1"},
+                                    {"text": "Option 2"},
+                                    {"text": "Option 3"},
+                                ],
+                                "graded": False,
+                            },
+                        ]
+                    }
+                ],
+                "maxMarks": 10,
+                "numGradedQuestions": 3,
             }
         }
