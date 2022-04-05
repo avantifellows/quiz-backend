@@ -1,12 +1,12 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: FastAPI on Lambda
+Description: Quiz Backend - Staging - FastAPI on Lambda
 
 Resources:
   Function:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: "FastAPILambda"
+      FunctionName: "QuizBackendStaging"
       CodeUri: app
       Handler: main.handler
       Runtime: python3.9

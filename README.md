@@ -64,10 +64,10 @@ Use `http://127.0.0.1:8000` as the base URL of the endpoints and navigate to `ht
 
 ### Staging
 
-Run:
+- Create the deployment stack (only required for the first time):
 
-```
-sam deploy --stack-name QuizBackendStaging --s3-bucket quiz-backend-staging --capabilities CAPABILITY_IAM
+```bash
+sam deploy --stack-name QuizBackendStaging --s3-bucket quiz-staging-backend --capabilities CAPABILITY_IAM -t sam-template-staging.yaml
 ```
 
 If the deployment was successful, you should see a message as shown in the image below:
@@ -75,10 +75,36 @@ If the deployment was successful, you should see a message as shown in the image
 
 The app will be deployed on the URL corresponding to `Value` in the image above!
 
-### Production
+- Once the stack has been deployed, subsequent changes to the code can be uploaded to the lambda function by running:
 
-Similar to Staging, simply run:
+```bash
+sam sync --stack-name QuizBackendStaging -t sam-template-staging.yaml
+```
+
+- If you want your files to automatically be synced to your deployment, simply add `--watch` at the end of the previous command.
 
 ```
-sam deploy --stack-name QuizBackendProd --s3-bucket quiz-backend-prod --capabilities CAPABILITY_IAM
+sam sync --stack-name QuizBackendStaging -t sam-template-staging.yaml --watch
+```
+
+### Production
+
+The steps are similar to that in Staging.
+
+- Create the deployment stack (only required for the first time):
+
+```
+sam deploy --stack-name QuizBackendProd --s3-bucket quiz-prod-backend --capabilities CAPABILITY_IAM -t sam-template-prod.yaml
+```
+
+- Once the stack has been deployed, subsequent changes to the code can be uploaded to the lambda function by running:
+
+```
+sam sync --stack-name QuizBackendProd -t sam-template-prod.yaml
+```
+
+- If you want your files to automatically be synced to your deployment, simply add `--watch` at the end of the previous command.
+
+```
+sam sync --stack-name QuizBackendProd -t sam-template-prod.yaml --watch
 ```
