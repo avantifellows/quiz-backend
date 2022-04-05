@@ -10,10 +10,10 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
   - repo: https://github.com/aws-cloudformation/cfn-python-lint
-    rev: v0.58.4 # The version of cfn-lint to use
+    rev: v0.58.4
     hooks:
       - id: cfn-python-lint
-        files: "sam-template"
+        files: "sam"
   - repo: https://github.com/psf/black
     rev: 22.3.0
     hooks:
