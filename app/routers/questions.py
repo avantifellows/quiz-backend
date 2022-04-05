@@ -23,7 +23,7 @@ async def create_question(question: Question):
 
 @router.get("/{question_id}")
 async def get_question(question_id: str):
-    if (question := client.quiz.questions.find_one({"$id": question_id})) is not None:
+    if (question := client.quiz.questions.find_one({"_id": question_id})) is not None:
         return question
 
     raise HTTPException(status_code=404, detail=f"Question {id} not found")
