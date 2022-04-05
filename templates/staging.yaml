@@ -7,7 +7,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: "QuizBackendStaging"
-      CodeUri: app
+      CodeUri: ../app
       Handler: main.handler
       Runtime: python3.9
       Events:
