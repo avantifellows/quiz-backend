@@ -52,7 +52,7 @@ class Question(BaseModel):
     max_char_limit: Optional[int] = None
     correct_answer: Optional[List[int]] = None
     graded: bool = True
-    markingScheme: MarkingScheme = None
+    marking_scheme: MarkingScheme = None
     solution: Optional[List[str]] = []
     metadata: QuestionMetadata = None
 
@@ -80,7 +80,7 @@ class Question(BaseModel):
                 ],
                 "correct_answer": [0, 2],
                 "graded": True,
-                "markingScheme": {"correct": 4, "wrong": -1, "skipped": 0},
+                "marking_scheme": {"correct": 4, "wrong": -1, "skipped": 0},
             }
         }
 
