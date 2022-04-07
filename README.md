@@ -19,7 +19,19 @@ source venv/bin/activate
 - Install the dependencies:
 
 ```bash
-pip install -r requirements.txt
+pip install -r app/requirements.txt
+```
+
+- Install `pre-commit`
+
+```
+pip install pre-commit
+```
+
+- Set up `pre-commit`
+
+```
+pre-commit install
 ```
 
 ## Running locally
@@ -43,3 +55,56 @@ INFO:     127.0.0.1:58550 - "GET /openapi.json HTTP/1.1" 200 OK
 ```
 
 Use `http://127.0.0.1:8000` as the base URL of the endpoints and navigate to `http://127.0.0.1:8000/docs` to see the auto-generated docs! :dancer:
+
+## Deployment
+
+- Install [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
+
+- Install Docker and start Docker.
+
+### Staging
+
+- Create the deployment stack (only required for the first time):
+
+```bash
+sam deploy --stack-name QuizBackendStaging --s3-bucket quiz-staging-backend --capabilities CAPABILITY_IAM -t templates/staging.yaml
+```
+
+If the deployment was successful, you should see a message as shown in the image below:
+![deployment successful](images/deployment-succeeded.png)
+
+The app will be deployed on the URL corresponding to `Value` in the image above!
+
+- Once the stack has been deployed, subsequent changes to the code can be uploaded to the lambda function by running:
+
+```bash
+sam sync --stack-name QuizBackendStaging -t templates/staging.yaml
+```
+
+- If you want your files to automatically be synced to your deployment, simply add `--watch` at the end of the previous command.
+
+```
+sam sync --stack-name QuizBackendStaging -t templates/staging.yaml --watch
+```
+
+### Production
+
+The steps are similar to that in Staging.
+
+- Create the deployment stack (only required for the first time):
+
+```
+sam deploy --stack-name QuizBackendProd --s3-bucket quiz-prod-backend --capabilities CAPABILITY_IAM -t templates/prod.yaml
+```
+
+- Once the stack has been deployed, subsequent changes to the code can be uploaded to the lambda function by running:
+
+```
+sam sync --stack-name QuizBackendProd -t templates/prod.yaml
+```
+
+- If you want your files to automatically be synced to your deployment, simply add `--watch` at the end of the previous command.
+
+```
+sam sync --stack-name QuizBackendProd -t templates/prod.yaml --watch
+```
