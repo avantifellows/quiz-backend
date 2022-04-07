@@ -35,7 +35,7 @@ class QuestionMetadata(BaseModel):
 
 
 class QuizMetadata(BaseModel):
-    quizType: QuizType
+    quiz_type: QuizType
     grade: str
     subject: str
     chapter: str
@@ -93,11 +93,11 @@ class QuestionSet(BaseModel):
 class Quiz(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     question_sets: List[QuestionSet]
-    maxMarks: int
-    numGradedQuestions: int
+    max_marks: int
+    num_graded_questions: int
     shuffle: bool = False
-    numAttemptsAllowed: int = 1
-    timeLimit: QuizTimeLimit = None
+    num_attempts_allowed: int = 1
+    time_limit: QuizTimeLimit = None
     navigation_mode: NavigationMode = "linear"
     instructions: Optional[str] = None
     language: QuizLanguage = "en"
@@ -135,7 +135,7 @@ class Quiz(BaseModel):
                         ]
                     }
                 ],
-                "maxMarks": 10,
-                "numGradedQuestions": 3,
+                "max_marks": 10,
+                "num_graded_questions": 3,
             }
         }
