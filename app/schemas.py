@@ -22,3 +22,18 @@ class QuestionType(Enum):
     single_choice = "single-choice"
     multi_choice = "multi-choice"
     subjective = "subjective"
+
+
+class NavigationMode(Enum):
+    linear = "linear"
+    non_linear = "non-linear"
+
+
+class QuizLanguage(Enum):
+    english = "en"
+    hindi = "hi"
+
+
+class QuizType(Enum):
+    assessment = "assessment"
+    jee = "JEE"
