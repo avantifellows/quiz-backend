@@ -1,4 +1,4 @@
-name: Quiz CI
+name: CI
 
 on:
   pull_request:
