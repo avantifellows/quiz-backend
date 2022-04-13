@@ -27,3 +27,14 @@ repos:
           # check out their meaning here
           # https://flake8.pycqa.org/en/latest/user/error-codes.html
           - "--ignore=E501,E203,W503"
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit.com hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ""
+  autoupdate_commit_msg: "[pre-commit.ci] pre-commit autoupdate"
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false
