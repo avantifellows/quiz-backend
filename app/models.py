@@ -43,6 +43,8 @@ class QuizMetadata(BaseModel):
 
 
 class Question(BaseModel):
+    """Model for the body of the request that creates a question"""
+
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     text: str
     type: QuestionType
@@ -86,6 +88,8 @@ class Question(BaseModel):
 
 
 class QuestionResponse(Question):
+    """Model for the response of any request that returns a question"""
+
     question_set_id: str
 
     class Config:
@@ -121,6 +125,8 @@ class QuestionSet(BaseModel):
 
 
 class Quiz(BaseModel):
+    """Model for the body of the request that creates a quiz"""
+
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     question_sets: List[QuestionSet]
     max_marks: int
@@ -193,6 +199,8 @@ class Quiz(BaseModel):
 
 
 class QuizResponse(Quiz):
+    """Model for the response of any request that returns a quiz"""
+
     class Config:
         schema_extra = {
             "example": {
@@ -255,6 +263,8 @@ class QuizResponse(Quiz):
 
 
 class SessionAnswer(BaseModel):
+    """Model for the body of the request that creates a session answer"""
+
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     question_id: str
     answer: Union[List[int], None] = None
@@ -267,6 +277,8 @@ class SessionAnswer(BaseModel):
 
 
 class UpdateSessionAnswer(BaseModel):
+    """Model for the body of the request that updates a session answer"""
+
     answer: Union[List[int], None]
 
     class Config:
@@ -274,10 +286,14 @@ class UpdateSessionAnswer(BaseModel):
 
 
 class SessionAnswerResponse(SessionAnswer):
+    """Model for the response of any request that returns a session answer"""
+
     session_id: str
 
 
 class Session(BaseModel):
+    """Model for the body of the request that creates a session"""
+
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     user_id: str
     quiz_id: str
@@ -295,6 +311,8 @@ class Session(BaseModel):
 
 
 class SessionResponse(Session):
+    """Model for the response of any request that returns a session"""
+
     is_first: bool
     session_answers: List[SessionAnswer]
 
