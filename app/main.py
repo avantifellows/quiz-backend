@@ -5,7 +5,11 @@ from mangum import Mangum
 
 app = FastAPI()
 
-origins = ["http://localhost:8080"]
+origins = [
+    "http://localhost:8080",
+    "https://staging-quiz.avantifellows.org",
+    "https://quiz.avantifellows.org",
+]
 
 app.add_middleware(
     CORSMiddleware,
