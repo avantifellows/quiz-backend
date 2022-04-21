@@ -2,12 +2,12 @@ from fastapi import APIRouter, status, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from database import client
-from models import Quiz
+from models import Quiz, QuizResponse
 
-router = APIRouter(prefix="/quiz", tags=["quiz"])
+router = APIRouter(prefix="/quiz", tags=["Quiz"])
 
 
-@router.post("/", response_model=Quiz)
+@router.post("/", response_model=QuizResponse)
 async def create_quiz(quiz: Quiz):
     quiz = jsonable_encoder(quiz)
     new_quiz = client.quiz.quizzes.insert_one(quiz)
@@ -23,9 +23,11 @@ async def create_quiz(quiz: Quiz):
     return JSONResponse(status_code=status.HTTP_201_CREATED, content=created_quiz)
 
 
-@router.get("/{quiz_id}")
+@router.get("/{quiz_id}", response_model=QuizResponse)
 async def get_quiz(quiz_id: str):
     if (quiz := client.quiz.quizzes.find_one({"_id": quiz_id})) is not None:
         return quiz
 
-    raise HTTPException(status_code=404, detail=f"quiz {id} not found")
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND, detail=f"quiz {quiz_id} not found"
+    )
