@@ -49,14 +49,13 @@ async def create_session(session: Session):
         session_answers = list(
             client.quiz.session_answers.find({"session_id": previous_session["_id"]})
         )
-        if session_answers:
-            for index, session_answer in enumerate(session_answers):
-                for key in ["_id", "session_id"]:
-                    session_answer.pop(key)
+        for index, session_answer in enumerate(session_answers):
+            for key in ["_id", "session_id"]:
+                session_answer.pop(key)
 
-                session_answers[index] = jsonable_encoder(
-                    SessionAnswer.parse_obj(session_answer)
-                )
+            session_answers[index] = jsonable_encoder(
+                SessionAnswer.parse_obj(session_answer)
+            )
 
     session["session_answers"] = session_answers
 
