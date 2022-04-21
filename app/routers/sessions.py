@@ -1,6 +1,7 @@
 from fastapi import APIRouter, status, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
+import pymongo
 from database import client
 from models import Session, SessionAnswer, SessionResponse
 
@@ -29,7 +30,9 @@ async def create_session(session: Session):
         # since we know that there is going to be only one question set for now
         if "question_sets" in quiz and quiz["question_sets"]:
             question_set_id = quiz["question_sets"][0]["_id"]
-            questions = client.quiz.questions.find({"question_set_id": question_set_id})
+            questions = client.quiz.questions.find(
+                {"question_set_id": question_set_id}, sort=[("_id", pymongo.ASCENDING)]
+            )
             if questions:
 
                 for question in questions:
