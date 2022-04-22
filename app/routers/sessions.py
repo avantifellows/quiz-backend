@@ -51,7 +51,10 @@ async def create_session(session: Session):
 
         # restore the answers from the previous sessions
         session_answers = list(
-            client.quiz.session_answers.find({"session_id": previous_session["_id"]})
+            client.quiz.session_answers.find(
+                {"session_id": previous_session["_id"]},
+                sort=[("_id", pymongo.ASCENDING)],
+            )
         )
         for index, session_answer in enumerate(session_answers):
             for key in ["_id", "session_id"]:
