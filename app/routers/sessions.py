@@ -19,8 +19,10 @@ async def create_session(session: Session):
             status_code=404, detail=f"quiz {session['quiz_id']} not found"
         )
 
+    # TODO: add creation date to model of sessions and sort by creation date
     previous_session = client.quiz.sessions.find_one(
-        {"quiz_id": session["quiz_id"], "user_id": session["user_id"]}
+        {"quiz_id": session["quiz_id"], "user_id": session["user_id"]},
+        sort=[("_id", pymongo.DESCENDING)],
     )
 
     session_answers = []
@@ -30,6 +32,7 @@ async def create_session(session: Session):
         # since we know that there is going to be only one question set for now
         if "question_sets" in quiz and quiz["question_sets"]:
             question_set_id = quiz["question_sets"][0]["_id"]
+            # TODO: add creation date to model of questions and sort by creation date
             questions = client.quiz.questions.find(
                 {"question_set_id": question_set_id}, sort=[("_id", pymongo.ASCENDING)]
             )
@@ -49,6 +52,7 @@ async def create_session(session: Session):
         session["is_first"] = False
 
         # restore the answers from the previous sessions
+        # TODO: add creation date to model of session answers and sort by creation date
         session_answers = list(
             client.quiz.session_answers.find({"session_id": previous_session["_id"]})
         )
