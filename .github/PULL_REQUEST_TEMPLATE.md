@@ -16,34 +16,3 @@ Fixes #{issue id}
 ## Summary
 
 <!-- Explain the **motivation** for making this change. What existing problem does the pull request solve? -->
-
-## Test Plan
-
-<!-- Demonstrate that the code is solid. Example: The exact commands you ran and their output, screenshots / videos if the pull request changes the user interface. -->
-
-- [ ] Test Responsiveness
-  - [ ] Laptop (1200px)
-  - [ ] Tablet (760px)
-  - [ ] Phone (320px)
-- [ ] Cross-Browser Testing
-  - [ ] Chrome
-  - [ ] Firefox
-- [ ] ~Local Language Support~
-- [ ] Hygiene and Housekeeping
-  - [ ] Self-review
-  - [ ] Comments have been added appropriately
-  - [ ] Check for bundle size [here](https://bundlephobia.com/) if adding a package
-  - [ ] Added relevant details like Labels/Projects/Milestones etc.
-  - [ ] If adding or removing any environment variable, update `docs/ENV.md` and `.env.example`.
-- [ ] Testing
-  - [ ] Wrote tests
-  - [ ] Tested locally
-  - [ ] Tested on staging
-  - [ ] Tested on an actual physical phone
-  - [ ] Tested on production
-- [ ] Lighthouse Checks
-  - [ ] Images have `alt` attributes
-  - [ ] Any `<img>` tags have `width` and `height` specified
-  - [ ] Any `target="_blank"` links have `rel="noopener"`
-  - [ ] Only SVGs are used as images. If PNGs are used, their size has been optimised.
-  - [ ] Any SVG buttons without text have their `aria-label` attributes set
