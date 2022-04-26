@@ -1,7 +1,7 @@
 from typing import Optional, List, Union
 from bson import ObjectId
 from pydantic import BaseModel, Field
-from schemas import QuestionType, PyObjectId, NavigationMode, QuizLanguage, QuizType
+from .schemas import QuestionType, PyObjectId, NavigationMode, QuizLanguage, QuizType
 
 
 class Image(BaseModel):

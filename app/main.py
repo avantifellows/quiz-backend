@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import questions, quizzes, session_answers, sessions
+from .routers import questions, quizzes, session_answers, sessions
 from mangum import Mangum
 
 app = FastAPI()
