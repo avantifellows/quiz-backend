@@ -32,7 +32,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Build
-        run: sam build --use-container -t templates/staging.yaml -e MONGO_AUTH_CREDENTIALS=${{ secrets.MONGO_AUTH_CREDENTIALS }}
+        run: sam build --use-container -t templates/staging.yaml
 
       - name: Deploy
         run: sam deploy --stack-name QuizBackendStaging --s3-bucket quiz-staging-backend --no-confirm-changeset --no-fail-on-empty-changeset --region us-east-1 --capabilities CAPABILITY_IAM
