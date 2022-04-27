@@ -34,4 +34,4 @@ jobs:
         run: sam build --use-container -t templates/prod.yaml
 
       - name: Deploy
-        run: sam deploy --stack-name QuizBackendProd --s3-bucket quiz-prod-backend --no-confirm-changeset --no-fail-on-empty-changeset --region us-east-1 --capabilities CAPABILITY_IAM
+        run: sam deploy --stack-name QuizBackendProd --s3-bucket quiz-prod-backend --no-confirm-changeset --no-fail-on-empty-changeset --region us-east-1 --capabilities CAPABILITY_IAM --parameter-overrides MongoAuthCredentials=${{ secrets.MONGO_AUTH_CREDENTIALS }}

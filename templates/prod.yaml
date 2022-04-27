@@ -2,6 +2,11 @@ AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: Quiz Backend - Prod - FastAPI on Lambda
 
+Parameters:
+  MongoAuthCredentials:
+    Type: String
+    Description: Credentials to connect with MongoDB
+
 Resources:
   Function:
     Type: AWS::Serverless::Function
@@ -10,6 +15,9 @@ Resources:
       CodeUri: ../app
       Handler: main.handler
       Runtime: python3.9
+      Environment:
+        Variables:
+          MONGO_AUTH_CREDENTIALS: !Ref MongoAuthCredentials
       Events:
         Api:
           Type: HttpApi
