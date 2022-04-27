@@ -35,4 +35,4 @@ jobs:
         run: sam build --use-container -t templates/staging.yaml -e MONGO_AUTH_CREDENTIALS=${{ secrets.MONGO_AUTH_CREDENTIALS }}
 
       - name: Deploy
-        run: sam deploy --stack-name QuizBackendStaging --s3-bucket quiz-staging-backend --no-confirm-changeset --no-fail-on-empty-changeset --region us-east-1 --capabilities CAPABILITY_IAM  --force-upload
+        run: sam deploy --stack-name QuizBackendStaging --s3-bucket quiz-staging-backend --no-confirm-changeset --no-fail-on-empty-changeset --region us-east-1 --capabilities CAPABILITY_IAM
