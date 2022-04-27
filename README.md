@@ -34,6 +34,8 @@ pip install pre-commit
 pre-commit install
 ```
 
+- Copy `.env.example` to `.env` and set all the environment variables as mentioned in `docs/ENV.md`.
+
 ## Running locally
 
 Simply run:
@@ -58,4 +60,4 @@ Use `http://127.0.0.1:8000` as the base URL of the endpoints and navigate to `ht
 
 ## Deployment
 
-The actual deployment happens through Github Actions. Look at `.github/workflows/deploy_to_staging.yml` for understanding the deployment to `Staging` and `.github/workflows/deploy_to_prod.yml` for `Production`.
+The actual deployment happens through Github Actions. Look at `.github/workflows/deploy_to_staging.yml` for understanding the deployment to `Staging` and `.github/workflows/deploy_to_prod.yml` for `Production`. Make sure to set all the environment variables mentioned in `docs/ENV.md` in the `Production` and `Staging` environments in your Github repository.

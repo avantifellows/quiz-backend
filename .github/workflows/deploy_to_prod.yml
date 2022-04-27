@@ -1,6 +1,7 @@
 # This workflow will update the code for the production environment
 
 on:
+  pull_request:
   push:
     branches: ["release"]
 
