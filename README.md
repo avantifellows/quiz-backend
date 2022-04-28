@@ -108,3 +108,27 @@ sam sync --stack-name QuizBackendProd -t templates/prod.yaml
 ```
 sam sync --stack-name QuizBackendProd -t templates/prod.yaml --watch
 ```
+
+## Tests
+
+### Installation
+
+- Install mongoengine
+
+```
+python -m pip install mongoengine
+```
+
+- Install pytest
+
+```
+pip install -U pytest
+```
+
+### Testing
+
+- Run command
+
+```
+py -m pytest app/tests/questions.py
+```

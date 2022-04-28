@@ -8,8 +8,8 @@ client = TestClient(app)
 
 
 class QuestionsTestCase(unittest.TestCase):
-
     question_id = ""
+    text = ""
 
     @classmethod
     def setUpClass(cls):
@@ -19,13 +19,7 @@ class QuestionsTestCase(unittest.TestCase):
     def tearDownClass(cls):
         disconnect()
 
-    def test_get_question_if_id_invalid(self):
-        response = client.get("/questions/00")
-        assert response.status_code == 404, response.text
-        message = response.json()
-        assert message["detail"] == "Question 00 not found"
-
-    def test_get_question_if_id_valid(self):
+    def setUp(self):
         response = client.post(
             "/quiz/",
             json={
@@ -77,7 +71,16 @@ class QuestionsTestCase(unittest.TestCase):
         )
         res = response.content
         res = json.loads(res)
-        id = res["question_sets"][0]["questions"][0]["_id"]
-        response = client.get(f"/questions/{id}")
+        self.question_id = res["question_sets"][0]["questions"][0]["_id"]
+        self.text = res["question_sets"][0]["questions"][0]["text"]
+
+    def test_get_question_if_id_invalid(self):
+        response = client.get("/questions/00")
+        assert response.status_code == 404, response.text
+        message = response.json()
+        assert message["detail"] == "Question 00 not found"
+
+    def test_get_question_if_id_valid(self):
+        response = client.get(f"/questions/{self.question_id}")
         question = response.json()
-        assert question["text"] == res["question_sets"][0]["questions"][0]["text"]
+        assert question["text"] == self.text
