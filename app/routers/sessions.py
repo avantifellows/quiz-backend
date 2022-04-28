@@ -1,8 +1,9 @@
 from fastapi import APIRouter, status, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
-from app.database import client
-from app.models import Session, SessionAnswer, SessionResponse
+import pymongo
+from database import client
+from models import Session, SessionAnswer, SessionResponse
 
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
 
@@ -19,7 +20,8 @@ async def create_session(session: Session):
         )
 
     previous_session = client.quiz.sessions.find_one(
-        {"quiz_id": session["quiz_id"], "user_id": session["user_id"]}
+        {"quiz_id": session["quiz_id"], "user_id": session["user_id"]},
+        sort=[("_id", pymongo.DESCENDING)],
     )
 
     session_answers = []
@@ -29,7 +31,9 @@ async def create_session(session: Session):
         # since we know that there is going to be only one question set for now
         if "question_sets" in quiz and quiz["question_sets"]:
             question_set_id = quiz["question_sets"][0]["_id"]
-            questions = client.quiz.questions.find({"question_set_id": question_set_id})
+            questions = client.quiz.questions.find(
+                {"question_set_id": question_set_id}, sort=[("_id", pymongo.ASCENDING)]
+            )
             if questions:
 
                 for question in questions:
@@ -47,7 +51,10 @@ async def create_session(session: Session):
 
         # restore the answers from the previous sessions
         session_answers = list(
-            client.quiz.session_answers.find({"session_id": previous_session["_id"]})
+            client.quiz.session_answers.find(
+                {"session_id": previous_session["_id"]},
+                sort=[("_id", pymongo.ASCENDING)],
+            )
         )
         for index, session_answer in enumerate(session_answers):
             for key in ["_id", "session_id"]:
