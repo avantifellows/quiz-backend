@@ -1,12 +1,12 @@
 from fastapi.testclient import TestClient
 import unittest
 from mongoengine import connect, disconnect
-from .main import app
+from app.main import app
 
 client = TestClient(app)
 
 
-class test_get_questions(unittest.TestCase):
+class QuestionsTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         connect("mongoenginetest", host="mongomock://127.0.0.1:8000")

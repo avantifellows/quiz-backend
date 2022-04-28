@@ -2,8 +2,8 @@ from fastapi import APIRouter, status, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 import pymongo
-from database import client
-from models import Session, SessionAnswer, SessionResponse
+from app.database import client
+from app.models import Session, SessionAnswer, SessionResponse
 
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
 
