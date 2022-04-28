@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 import unittest
+import json
 from mongoengine import connect, disconnect
 from app.main import app
 
@@ -18,9 +19,15 @@ class QuestionsTestCase(unittest.TestCase):
     def tearDownClass(cls):
         disconnect()
 
-    def setUp(self):
-        client.post(
-            "/quiz",
+    def test_get_question_if_id_invalid(self):
+        response = client.get("/questions/00")
+        assert response.status_code == 404, response.text
+        message = response.json()
+        assert message["detail"] == "Question 00 not found"
+
+    def test_get_question_if_id_valid(self):
+        response = client.post(
+            "/quiz/",
             json={
                 "question_sets": [
                     {
@@ -60,17 +67,17 @@ class QuestionsTestCase(unittest.TestCase):
                 ],
                 "max_marks": 10,
                 "num_graded_questions": 1,
+                "shuffle": False,
+                "num_attempts_allowed": 1,
+                "time_limit": None,
+                "navigation_mode": "linear",
+                "language": "en",
                 "metadata": {"quiz_type": "JEE", "subject": "Maths", "grade": "8"},
             },
         )
-
-    def test_get_question_if_id_invalid(self):
-        response = client.get("/questions/00")
-        assert response.status_code == 404, response.text
-        message = response.json()
-        assert message["detail"] == "Question 00 not found"
-
-    def test_get_question_if_id_valid(self):
-        response = client.get("/questions/" + self.question_id)
+        res = response.content
+        res = json.loads(res)
+        id = res["question_sets"][0]["questions"][0]["_id"]
+        response = client.get(f"/questions/{id}")
         question = response.json()
-        assert question["text"] == "Which grade are you in?"
+        assert question["text"] == res["question_sets"][0]["questions"][0]["text"]
