@@ -1,6 +1,9 @@
 from fastapi import APIRouter, status, HTTPException
 from app.database import client
 from app.models import QuestionResponse
+import ipdb
+
+ipdb.set_trace()
 
 router = APIRouter(prefix="/questions", tags=["Questions"])
 
