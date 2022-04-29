@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 import unittest
 import json
 from mongoengine import connect, disconnect
-from app.main import app
+from main import app
 
 client = TestClient(app)
 

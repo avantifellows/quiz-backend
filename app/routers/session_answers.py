@@ -1,8 +1,8 @@
 from fastapi import APIRouter, status, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
-from app.database import client
-from app.models import SessionAnswerResponse, UpdateSessionAnswer
+from database import client
+from models import SessionAnswerResponse, UpdateSessionAnswer
 
 router = APIRouter(prefix="/session_answers", tags=["Session Answers"])
 
