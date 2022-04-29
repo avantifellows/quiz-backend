@@ -34,6 +34,8 @@ pip install pre-commit
 pre-commit install
 ```
 
+- Copy `.env.example` to `.env` and set all the environment variables as mentioned in `docs/ENV.md`.
+
 ## Running locally
 
 Simply run:
@@ -58,56 +60,9 @@ Use `http://127.0.0.1:8000` as the base URL of the endpoints and navigate to `ht
 
 ## Deployment
 
-- Install [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
+We are deploying our FastAPI instance on AWS Lambda which is triggered via an API Gateway. In order to automate the process, we are using [AWS SAM](https://www.youtube.com/watch?v=tA9IIGR6XFo&ab_channel=JavaHomeCloud), which creates the stack required for the deployment and updates it as needed with just a couple of commands and without having to do anything manually on the AWS GUI. Refer to [this](https://www.eliasbrange.dev/posts/deploy-fastapi-on-aws-part-1-lambda-api-gateway/) blog post for more details.
 
-- Install Docker and start Docker.
-
-### Staging
-
-- Create the deployment stack (only required for the first time):
-
-```bash
-sam deploy --stack-name QuizBackendStaging --s3-bucket quiz-staging-backend --capabilities CAPABILITY_IAM -t templates/staging.yaml
-```
-
-If the deployment was successful, you should see a message as shown in the image below:
-![deployment successful](images/deployment-succeeded.png)
-
-The app will be deployed on the URL corresponding to `Value` in the image above!
-
-- Once the stack has been deployed, subsequent changes to the code can be uploaded to the lambda function by running:
-
-```bash
-sam sync --stack-name QuizBackendStaging -t templates/staging.yaml
-```
-
-- If you want your files to automatically be synced to your deployment, simply add `--watch` at the end of the previous command.
-
-```
-sam sync --stack-name QuizBackendStaging -t templates/staging.yaml --watch
-```
-
-### Production
-
-The steps are similar to that in Staging.
-
-- Create the deployment stack (only required for the first time):
-
-```
-sam deploy --stack-name QuizBackendProd --s3-bucket quiz-prod-backend --capabilities CAPABILITY_IAM -t templates/prod.yaml
-```
-
-- Once the stack has been deployed, subsequent changes to the code can be uploaded to the lambda function by running:
-
-```
-sam sync --stack-name QuizBackendProd -t templates/prod.yaml
-```
-
-- If you want your files to automatically be synced to your deployment, simply add `--watch` at the end of the previous command.
-
-```
-sam sync --stack-name QuizBackendProd -t templates/prod.yaml --watch
-```
+The actual deployment happens through Github Actions. Look at [`.github/workflows/deploy_to_staging.yml`](.github/workflows/deploy_to_staging.yml) for understanding the deployment to `Staging` and [`.github/workflows/deploy_to_prod.yml`](.github/workflows/deploy_to_prod.yml) for `Production`. Make sure to set all the environment variables mentioned in [`docs/ENV.md`](docs/ENV.md) in the `Production` and `Staging` environments in your Github repository.
 
 ## Tests
 

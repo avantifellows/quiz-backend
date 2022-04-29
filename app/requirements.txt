@@ -4,3 +4,4 @@ pymongo==4.0.2
 uvicorn==0.17.6
 dnspython==2.2.1
 mangum==0.14.1
+python-dotenv==0.20.0
