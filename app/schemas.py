@@ -36,4 +36,4 @@ class QuizLanguage(Enum):
 
 class QuizType(Enum):
     assessment = "assessment"
-    jee = "JEE"
+    homework = "homework"
