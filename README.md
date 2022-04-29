@@ -85,5 +85,5 @@ pip install -U pytest
 - Run command
 
 ```
-py -m pytest app/tests/questions.py
+pytest
 ```
