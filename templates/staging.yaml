@@ -5,7 +5,7 @@ Description: Quiz Backend - Staging - FastAPI on Lambda
 Parameters:
   MongoAuthCredentials:
     Type: String
-    Description: Credentials to connect with MongoDB
+    Description: Credentials to connect to the MongoDB instance
 
 Resources:
   Function:
