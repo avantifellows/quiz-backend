@@ -2,7 +2,6 @@ from fastapi import APIRouter, status, HTTPException
 from database import client
 from models import QuestionResponse
 
-
 router = APIRouter(prefix="/questions", tags=["Questions"])
 
 
