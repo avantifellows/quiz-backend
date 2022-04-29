@@ -66,7 +66,7 @@ class QuestionsTestCase(unittest.TestCase):
                 "time_limit": None,
                 "navigation_mode": "linear",
                 "language": "en",
-                "metadata": {"quiz_type": "JEE", "subject": "Maths", "grade": "8"},
+                "metadata": {"quiz_type": "homework", "subject": "Maths", "grade": "8"},
             },
         )
         res = response.content
