@@ -193,7 +193,7 @@ class Quiz(BaseModel):
                 ],
                 "max_marks": 10,
                 "num_graded_questions": 3,
-                "metadata": {"quiz_type": "JEE", "subject": "Maths", "grade": "8"},
+                "metadata": {"quiz_type": "homework", "subject": "Maths", "grade": "8"},
             }
         }
 
