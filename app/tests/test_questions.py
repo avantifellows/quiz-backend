@@ -69,16 +69,15 @@ class QuestionsTestCase(unittest.TestCase):
                 "metadata": {"quiz_type": "homework", "subject": "Maths", "grade": "8"},
             },
         )
-        res = response.content
-        res = json.loads(res)
-        self.question_id = res["question_sets"][0]["questions"][0]["_id"]
-        self.text = res["question_sets"][0]["questions"][0]["text"]
+        response = json.loads(response.content)
+        question = response["question_sets"][0]["questions"][0]
+        self.question_id, self.text = question["_id"], question["text"]
 
-    def test_get_question_if_id_invalid(self):
+    def test_get_question_returns_error_if_id_invalid(self):
         response = client.get("/questions/00")
-        assert response.status_code == 404, response.text
-        message = response.json()
-        assert message["detail"] == "Question 00 not found"
+        assert response.status_code == 404
+        response = response.json()
+        assert response["detail"] == "Question 00 not found"
 
     def test_get_question_if_id_valid(self):
         response = client.get(f"/questions/{self.question_id}")

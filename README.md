@@ -66,23 +66,7 @@ The actual deployment happens through Github Actions. Look at [`.github/workflow
 
 ## Tests
 
-### Installation
-
-- Install mongoengine
-
-```
-python -m pip install mongoengine
-```
-
-- Install pytest
-
-```
-pip install -U pytest
-```
-
-### Testing
-
-- Run command
+- Run the command
 
 ```
 pytest
