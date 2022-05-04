@@ -159,4 +159,4 @@ static/admin/*
 .DS_Store
 zappa_settings.json
 
-app/templates/staging-test.yaml
+staging-test.yaml

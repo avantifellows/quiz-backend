@@ -6,6 +6,10 @@ from main import app
 
 client = TestClient(app)
 
+# We are currently not providing an endpoint for creating questions and the only way to
+# create a question is through the quiz endpoint which is why we are using the quiz endpoint
+# to create dummy questions
+
 
 class QuestionsTestCase(unittest.TestCase):
     question_id = ""
