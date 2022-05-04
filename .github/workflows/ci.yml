@@ -35,7 +35,7 @@ jobs:
         env:
           MONGO_AUTH_CREDENTIALS: "mongodb+srv://quiz:p$#p4h7y_Z44R-n@cluster0.uocfg.mongodb.net/quiz?retryWrites=true&w=majority"
         # command to run tests and generate coverage metrics
-        run: coverage run manage.py test
+        run: coverage run -m pytest
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
