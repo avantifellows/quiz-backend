@@ -38,5 +38,8 @@ jobs:
         # command to run tests and generate coverage metrics
         run: pytest --cov=app
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1
+      - name: Upload coverage to codecov.io
+        run: bash <(curl -s https://codecov.io/bash)
+        if: always()
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
