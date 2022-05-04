@@ -6,10 +6,6 @@ from main import app
 
 client = TestClient(app)
 
-# We are currently not providing an endpoint for creating questions and the only way to
-# create a question is through the quiz endpoint which is why we are using the quiz endpoint
-# to create dummy questions
-
 
 class QuestionsTestCase(unittest.TestCase):
     @classmethod
@@ -21,8 +17,11 @@ class QuestionsTestCase(unittest.TestCase):
         disconnect()
 
     def setUp(self):
-        data = open("app/dummy_data/dummy.json")
+        data = open("app/dummy_data/homework_quiz.json")
         quiz_data = json.load(data)
+        # We are currently not providing an endpoint for creating questions and the only way to
+        # create a question is through the quiz endpoint which is why we are using the quiz endpoint
+        # to create dummy questions
         response = client.post("/quiz/", json=quiz_data)
         response = json.loads(response.content)
         question = response["question_sets"][0]["questions"][0]
