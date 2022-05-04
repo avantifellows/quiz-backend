@@ -12,9 +12,6 @@ client = TestClient(app)
 
 
 class QuestionsTestCase(unittest.TestCase):
-    question_id = ""
-    text = ""
-
     @classmethod
     def setUpClass(cls):
         connect("mongoenginetest", host="mongomock://127.0.0.1:8000")
