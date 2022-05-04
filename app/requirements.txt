@@ -8,3 +8,4 @@ python-dotenv==0.20.0
 mongoengine==0.24.1
 pytest==7.1.2
 mongomock==4.0.0
+requests==2.27.1
