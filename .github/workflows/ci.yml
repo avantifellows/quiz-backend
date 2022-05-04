@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      # Install Python. This matches the Python version in Dockerfile.
+      # Install Python.
       - name: Set up Python 3.9
         uses: actions/setup-python@v2
         with:
@@ -36,10 +36,9 @@ jobs:
         env:
           MONGO_AUTH_CREDENTIALS: "mongodb+srv://quiz:p$#p4h7y_Z44R-n@cluster0.uocfg.mongodb.net/quiz?retryWrites=true&w=majority"
         # command to run tests and generate coverage metrics
-        run: pytest --cov=app
+        run: |
+          coverage run tests.py
+          coverage xml
 
-      - name: Upload coverage to codecov.io
-        run: bash <(curl -s https://codecov.io/bash)
-        if: always()
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v2
