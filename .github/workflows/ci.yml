@@ -36,11 +36,11 @@ jobs:
         env:
           MONGO_AUTH_CREDENTIALS: "mongodb+srv://quiz:p$#p4h7y_Z44R-n@cluster0.uocfg.mongodb.net/quiz?retryWrites=true&w=majority"
         # command to run tests and generate coverage metrics
-        run: |
-          coverage run -m pytest
-          coverage report
-          coverage xml
+        script:
+          - coverage run -m pytest
+          - coverage report
+          - coverage xml
         coverage: '/TOTAL.*\s([.\d]+)%/'
         artifacts:
-        reports:
-          cobertura: coverage.xml
+          reports:
+            cobertura: coverage.xml
