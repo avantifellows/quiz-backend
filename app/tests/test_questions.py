@@ -20,55 +20,9 @@ class QuestionsTestCase(unittest.TestCase):
         disconnect()
 
     def setUp(self):
-        response = client.post(
-            "/quiz/",
-            json={
-                "question_sets": [
-                    {
-                        "questions": [
-                            {
-                                "text": "Which grade are you in?",
-                                "type": "single-choice",
-                                "options": [
-                                    {"text": "Option 1"},
-                                    {"text": "Option 2"},
-                                    {"text": "Option 3"},
-                                ],
-                                "graded": False,
-                            },
-                            {
-                                "text": "Which grade are you in?",
-                                "type": "multi-choice",
-                                "image": {
-                                    "url": "https://plio-prod-assets.s3.ap-south-1.amazonaws.com/images/afbxudrmbl.png",
-                                    "alt_text": "Image",
-                                },
-                                "options": [
-                                    {"text": "Option 1"},
-                                    {
-                                        "text": "Option 2",
-                                        "image": {
-                                            "url": "https://plio-prod-assets.s3.ap-south-1.amazonaws.com/images/afbxudrmbl.png"
-                                        },
-                                    },
-                                    {"text": "Option 3"},
-                                ],
-                                "correct_answer": [0, 2],
-                                "graded": True,
-                            },
-                        ]
-                    }
-                ],
-                "max_marks": 10,
-                "num_graded_questions": 1,
-                "shuffle": False,
-                "num_attempts_allowed": 1,
-                "time_limit": None,
-                "navigation_mode": "linear",
-                "language": "en",
-                "metadata": {"quiz_type": "homework", "subject": "Maths", "grade": "8"},
-            },
-        )
+        data = open("app/dummy_data/dummy.json")
+        quiz_data = json.load(data)
+        response = client.post("/quiz/", json=quiz_data)
         response = json.loads(response.content)
         question = response["question_sets"][0]["questions"][0]
         self.question_id, self.text = question["_id"], question["text"]
