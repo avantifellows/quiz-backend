@@ -31,11 +31,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r app/requirements.txt
           pip install pytest pytest-cov
-          install_compass
 
       - name: Run Test Cases
         env:
-          MONGO_AUTH_CREDENTIALS: "mongodb://mongo:27017/quiz"
+          MONGO_AUTH_CREDENTIALS: "mongodb://mongo/quiz"
         # command to run tests and generate coverage metrics
         run: |
           coverage run -m pytest
