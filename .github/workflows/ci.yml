@@ -33,9 +33,11 @@ jobs:
           pip install pytest pytest-cov
 
       - name: Run Test Cases
+        env:
+          MONGO_AUTH_CREDENTIALS: ${{os.getenv("MONGO_AUTH_CREDENTIALS")}}
         # command to run tests and generate coverage metrics
         run: |
-          coverage run -m pytest app/tests
+          coverage run -m pytest
           coverage xml
 
       - name: Upload coverage to Codecov
