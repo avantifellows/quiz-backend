@@ -31,6 +31,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r app/requirements.txt
           pip install pytest pytest-cov
+          install_compass
 
       - name: Run Test Cases
         env:
