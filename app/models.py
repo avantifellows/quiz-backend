@@ -310,10 +310,24 @@ class Session(BaseModel):
         }
 
 
+class UpdateSession(BaseModel):
+    """Model for the body of the request that updates a session"""
+
+    hasQuizEnded: bool = False
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "hasQuizEnded": True,
+            }
+        }
+
+
 class SessionResponse(Session):
     """Model for the response of any request that returns a session"""
 
     is_first: bool
+    hasQuizEnded: Optional[bool] = False
     session_answers: List[SessionAnswer]
 
     class Config:

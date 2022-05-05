@@ -19,6 +19,12 @@ async def update_session_answer(
             detail="No value provided for 'answer'",
         )
 
+    if (client.quiz.session_answers.find_one({"_id": session_answer_id})) is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"session_answer {session_answer_id} not found",
+        )
+
     # update the document in the session_answers collection
     client.quiz.session_answers.update_one(
         {"_id": session_answer_id}, {"$set": session_answer}
