@@ -35,7 +35,7 @@ jobs:
       - name: Run Test Cases
         # command to run tests and generate coverage metrics
         run: |
-          coverage run -m pytest tests -s -v --log-cli-level=debug
+          coverage run -m pytest app/tests
           coverage xml
 
       - name: Upload coverage to Codecov
