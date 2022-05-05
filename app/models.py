@@ -313,12 +313,12 @@ class Session(BaseModel):
 class UpdateSession(BaseModel):
     """Model for the body of the request that updates a session"""
 
-    hasQuizEnded: bool = False
+    has_quiz_ended: bool = False
 
     class Config:
         schema_extra = {
             "example": {
-                "hasQuizEnded": True,
+                "has_quiz_ended": True,
             }
         }
 

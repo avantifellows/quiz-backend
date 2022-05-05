@@ -48,6 +48,7 @@ async def create_session(session: Session):
                     )
     else:
         session["is_first"] = False
+        session["has_quiz_ended"] = previous_session.get("has_quiz_ended", False)
 
         # restore the answers from the previous sessions
         session_answers = list(
@@ -81,10 +82,10 @@ async def create_session(session: Session):
 async def update_session(session_id: str, session: UpdateSession):
     session = jsonable_encoder(session)
 
-    if "hasQuizEnded" not in session:
+    if "has_quiz_ended" not in session:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No value provided for 'hasQuizEnded'",
+            detail="No value provided for 'has_quiz_ended'",
         )
 
     if (client.quiz.sessions.find_one({"_id": session_id})) is None:
