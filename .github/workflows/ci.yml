@@ -29,9 +29,9 @@ jobs:
       - name: Start MongoDB
         uses: supercharge/mongodb-github-action@1.7.0
         with:
-          mongodb-version: ${{ matrix.mongodb-version }}
+          mongodb-version: 5.0
           mongodb-replica-set: test-rs
-          mongodb-port: 42069
+          mongodb-port: 8000
 
       - name: Install Dependencies
         run: |
