@@ -9,4 +9,4 @@ if "MONGO_AUTH_CREDENTIALS" not in os.environ:
 
     load_dotenv("../.env")
 
-client = MongoClient(os.getenv("MONGO_AUTH_CREDENTIALS"), "")
+client = MongoClient(os.getenv("MONGO_AUTH_CREDENTIALS"))
