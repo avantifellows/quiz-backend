@@ -34,7 +34,7 @@ jobs:
 
       - name: Run Test Cases
         env:
-          MONGO_AUTH_CREDENTIALS: ""
+          MONGO_AUTH_CREDENTIALS:
         # command to run tests and generate coverage metrics
         run: |
           coverage run -m pytest
