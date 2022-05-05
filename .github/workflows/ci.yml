@@ -26,13 +26,6 @@ jobs:
         with:
           python-version: 3.9
 
-      - name: Start MongoDB
-        uses: supercharge/mongodb-github-action@1.7.0
-        with:
-          mongodb-version: 5.0
-          mongodb-replica-set: test-rs
-          mongodb-port: 8000
-
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
@@ -42,7 +35,7 @@ jobs:
       - name: Run Test Cases
         # command to run tests and generate coverage metrics
         run: |
-          coverage run -m pytest
+          coverage run -m pytest tests -s -v --log-cli-level=debug
           coverage xml
 
       - name: Upload coverage to Codecov
