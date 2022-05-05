@@ -3,6 +3,8 @@ from bson import ObjectId
 from pydantic import BaseModel, Field
 from schemas import QuestionType, PyObjectId, NavigationMode, QuizLanguage, QuizType
 
+answerType = Union[List[int], str, None]
+
 
 class Image(BaseModel):
     url: str
@@ -267,7 +269,7 @@ class SessionAnswer(BaseModel):
 
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     question_id: str
-    answer: Union[List[int], None] = None
+    answer: answerType = None
 
     class Config:
         allow_population_by_field_name = True
@@ -279,7 +281,7 @@ class SessionAnswer(BaseModel):
 class UpdateSessionAnswer(BaseModel):
     """Model for the body of the request that updates a session answer"""
 
-    answer: Union[List[int], None]
+    answer: answerType
 
     class Config:
         schema_extra = {"example": {"answer": [0, 1, 2]}}
