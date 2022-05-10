@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 import pymongo
 from database import client
-from models import Session, SessionAnswer, SessionResponse
+from models import Session, SessionAnswer, SessionResponse, UpdateSession
 
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
 
@@ -48,6 +48,7 @@ async def create_session(session: Session):
                     )
     else:
         session["is_first"] = False
+        session["has_quiz_ended"] = previous_session.get("has_quiz_ended", False)
 
         # restore the answers from the previous sessions
         session_answers = list(
@@ -75,6 +76,31 @@ async def create_session(session: Session):
     client.quiz.session_answers.insert_many(session_answers)
 
     return JSONResponse(status_code=status.HTTP_201_CREATED, content=created_session)
+
+
+@router.patch("/{session_id}", response_model=SessionResponse)
+async def update_session(session_id: str, session: UpdateSession):
+    session = jsonable_encoder(session)
+
+    if "has_quiz_ended" not in session:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No value provided for 'has_quiz_ended'",
+        )
+
+    if (client.quiz.sessions.find_one({"_id": session_id})) is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"session {session_id} not found",
+        )
+
+    # update the document in the sessions collection
+    client.quiz.sessions.update_one({"_id": session_id}, {"$set": session})
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content=client.quiz.sessions.find_one({"_id": session_id}),
+    )
 
 
 @router.get("/{session_id}", response_model=SessionResponse)
