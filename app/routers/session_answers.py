@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from database import client
 from models import SessionAnswerResponse, UpdateSessionAnswer
+from utils import remove_optional_unset_args
 
 router = APIRouter(prefix="/session_answers", tags=["Session Answers"])
 
@@ -11,6 +12,7 @@ router = APIRouter(prefix="/session_answers", tags=["Session Answers"])
 async def update_session_answer(
     session_answer_id: str, session_answer: UpdateSessionAnswer
 ):
+    session_answer = remove_optional_unset_args(session_answer)
     session_answer = jsonable_encoder(session_answer)
 
     if (client.quiz.session_answers.find_one({"_id": session_answer_id})) is None:
