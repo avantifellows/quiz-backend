@@ -13,12 +13,6 @@ async def update_session_answer(
 ):
     session_answer = jsonable_encoder(session_answer)
 
-    if "answer" not in session_answer:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No value provided for 'answer'",
-        )
-
     if (client.quiz.session_answers.find_one({"_id": session_answer_id})) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
