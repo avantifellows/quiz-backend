@@ -1,6 +1,10 @@
 # Quiz Backend
 
-Backend for the Avanti Quiz Engine created using FastAPI and MongoDB!
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![codecov](https://codecov.io/gh/avantifellows/quiz-backend/branch/main/graph/badge.svg)](https://codecov.io/gh/avantifellows/quiz-backend)
+[![Discord](https://img.shields.io/discord/717975833226248303.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2&style=flat-square)](https://discord.gg/29qYD7fZtZ)
+
+The backend for a generic mobile-friendly quiz engine created using FastAPI and MongoDB! The frontend can be found [here](https://github.com/avantifellows/quiz-frontend).
 
 ## Installation
 
