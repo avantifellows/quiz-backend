@@ -25,3 +25,14 @@ class BaseTestCase(unittest.TestCase):
         # to create questions and a quiz
         response = self.client.post("/quiz/", json=self.quiz_data)
         self.quiz = json.loads(response.content)
+
+
+class SessionsBaseTestCase(BaseTestCase):
+    def setUp(self):
+        super().setUp()
+
+        # create a session (and thus, session answers as well) for the dummy quiz that we have created
+        response = self.client.post(
+            "/sessions/", json={"quiz_id": self.quiz["_id"], "user_id": 1}
+        )
+        self.session = json.loads(response.content)
