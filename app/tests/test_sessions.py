@@ -1,3 +1,4 @@
+import json
 from .base import SessionsBaseTestCase
 
 
@@ -18,3 +19,13 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert response.status_code == 404
         response = response.json()
         assert response["detail"] == "session 00 not found"
+
+    def test_update_session(self):
+        updated_has_quiz_ended = True
+        response = self.client.patch(
+            f"/sessions/{self.session_id}",
+            json={"has_quiz_ended": updated_has_quiz_ended},
+        )
+        assert response.status_code == 200
+        session = json.loads(response.content)
+        assert session["has_quiz_ended"] == updated_has_quiz_ended
