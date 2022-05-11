@@ -22,7 +22,7 @@ class QuizTestCase(unittest.TestCase):
         response = client.post("/quiz/", json=self.quiz_data)
         response = json.loads(response.content)
         self.id = response["_id"]
-        self.length = len(response["question_sets"][0]["questions"])
+        self.length = len(self.quiz_data["question_sets"][0]["questions"])
 
     def test_create_quiz(self):
         response = client.post("/quiz/", json=self.quiz_data)
@@ -35,8 +35,7 @@ class QuizTestCase(unittest.TestCase):
         response = client.get(f"/quiz/{self.id}")
         assert response.status_code == 200
         response = response.json()
-        question_len = len(response["question_sets"][0]["questions"])
-        assert question_len == self.length
+        assert len(response["question_sets"][0]["questions"]) == self.length
 
     def test_get_quiz_returns_error_if_id_invalid(self):
         response = client.get("/quiz/00")
