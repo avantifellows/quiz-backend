@@ -331,7 +331,7 @@ class SessionResponse(Session):
     """Model for the response of any request that returns a session"""
 
     is_first: bool
-    hasQuizEnded: Optional[bool] = False
+    has_quiz_ended: Optional[bool] = False
     session_answers: List[SessionAnswer]
 
     class Config:
@@ -341,6 +341,7 @@ class SessionResponse(Session):
                 "user_id": "1234",
                 "quiz_id": "5678",
                 "is_first": True,
+                "has_quiz_ended": False,
                 "session_answers": [
                     {
                         "_id": "1030c00d03",
