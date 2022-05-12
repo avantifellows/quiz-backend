@@ -31,3 +31,9 @@ class SessionsTestCase(SessionsBaseTestCase):
 
         # ensure that `has_quiz_ended` has been updated
         assert session["has_quiz_ended"] == updated_has_quiz_ended
+
+    def test_create_session_with_invalid_quiz_id(self):
+        response = self.client.post("/sessions/", json={"quiz_id": "00", "user_id": 1})
+        assert response.status_code == 404
+        response = response.json()
+        assert response["detail"] == "quiz 00 not found"
