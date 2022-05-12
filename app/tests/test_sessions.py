@@ -1,4 +1,3 @@
-import json
 from .base import SessionsBaseTestCase
 
 
@@ -27,5 +26,8 @@ class SessionsTestCase(SessionsBaseTestCase):
             json={"has_quiz_ended": updated_has_quiz_ended},
         )
         assert response.status_code == 200
-        session = json.loads(response.content)
+        response = self.client.get(f"/sessions/{self.session_id}")
+        session = response.json()
+
+        # ensure that `has_quiz_ended` has been updated
         assert session["has_quiz_ended"] == updated_has_quiz_ended
