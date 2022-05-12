@@ -1,3 +1,4 @@
+import json
 from .base import SessionsBaseTestCase
 
 
@@ -37,3 +38,28 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert response.status_code == 404
         response = response.json()
         assert response["detail"] == "quiz 00 not found"
+
+    def test_create_session_with_valid_quiz_id(self):
+        data = open("app/dummy_data/homework_quiz.json")
+        quiz_data = json.load(data)
+        response = self.client.post("/quiz/", json=quiz_data)
+        quiz = json.loads(response.content)
+        response = self.client.post(
+            "/sessions/", json={"quiz_id": quiz["_id"], "user_id": 1}
+        )
+        assert response.status_code == 201
+        session = json.loads(response.content)
+        assert session["is_first"] is True
+        assert len(session["session_answers"]) == len(
+            quiz_data["question_sets"][0]["questions"]
+        )
+        response = self.client.post(
+            "/sessions/", json={"quiz_id": quiz["_id"], "user_id": 1}
+        )
+        assert response.status_code == 201
+        session = json.loads(response.content)
+        assert session["is_first"] is False
+        assert session["has_quiz_ended"] is False
+        assert len(session["session_answers"]) == len(
+            quiz_data["question_sets"][0]["questions"]
+        )
