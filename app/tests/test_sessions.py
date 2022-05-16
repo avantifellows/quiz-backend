@@ -40,7 +40,7 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert response["detail"] == "quiz 00 not found"
 
     def test_create_session_with_valid_quiz_id_and_first_session(self):
-        data = open("app/dummy_data/homework_quiz.json")
+        data = open("app/tests/dummy_data/homework_quiz.json")
         quiz_data = json.load(data)
         response = self.client.post("/quiz/", json=quiz_data)
         quiz = json.loads(response.content)
