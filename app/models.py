@@ -6,6 +6,11 @@ from schemas import QuestionType, PyObjectId, NavigationMode, QuizLanguage, Quiz
 answerType = Union[List[int], str, None]
 
 
+class Organization(BaseModel):
+    org_name: str
+    org_key: str
+
+
 class Image(BaseModel):
     url: str
     alt_text: Optional[str] = None
