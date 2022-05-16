@@ -54,7 +54,7 @@ class Question(BaseModel):
     image: Optional[Image] = None
     options: Optional[List[Option]] = []
     max_char_limit: Optional[int] = None
-    correct_answer: Union[List[int], None] = None
+    correct_answer: Union[List[float], None] = None
     graded: bool = True
     marking_scheme: MarkingScheme = None
     solution: Optional[List[str]] = []
