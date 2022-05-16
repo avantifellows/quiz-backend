@@ -21,7 +21,6 @@ class BaseTestCase(unittest.TestCase):
         # We are currently not providing an endpoint for creating questions and the only way to
         # create a question is through the quiz endpoint which is why we are using the quiz endpoint
         # to create questions and a quiz
-        print(quizzes.router.prefix)
         response = self.client.post(quizzes.router.prefix + "/", json=self.quiz_data)
         self.quiz = json.loads(response.content)
 
