@@ -1,5 +1,6 @@
 import json
 from .base import SessionsBaseTestCase
+from ..routers import session_answers
 
 
 class SessionAnswerTestCase(SessionsBaseTestCase):
@@ -10,7 +11,9 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
         self.session_answer_id = self.session_answer["_id"]
 
     def test_gets_session_answer_with_valid_id(self):
-        response = self.client.get(f"/session_answers/{self.session_answer_id}")
+        response = self.client.get(
+            f"{session_answers.router.prefix}/{self.session_answer_id}"
+        )
         assert response.status_code == 200
         session_answer = json.loads(response.content)
         for key in ["question_id", "answer", "visited"]:
@@ -19,10 +22,13 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
     def test_update_session_answer_with_only_answer(self):
         new_answer = [0, 1, 2]
         response = self.client.patch(
-            f"/session_answers/{self.session_answer_id}", json={"answer": new_answer}
+            f"{session_answers.router.prefix}/{self.session_answer_id}",
+            json={"answer": new_answer},
         )
         assert response.status_code == 200
-        response = self.client.get(f"/session_answers/{self.session_answer_id}")
+        response = self.client.get(
+            f"{session_answers.router.prefix}/{self.session_answer_id}"
+        )
         session_answer = json.loads(response.content)
 
         # ensure that `answer` has been updated
@@ -34,10 +40,13 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
     def test_update_session_answer_with_only_visited(self):
         new_visited = True
         response = self.client.patch(
-            f"/session_answers/{self.session_answer_id}", json={"visited": new_visited}
+            f"{session_answers.router.prefix}/{self.session_answer_id}",
+            json={"visited": new_visited},
         )
         assert response.status_code == 200
-        response = self.client.get(f"/session_answers/{self.session_answer_id}")
+        response = self.client.get(
+            f"{session_answers.router.prefix}/{self.session_answer_id}"
+        )
         session_answer = json.loads(response.content)
 
         # ensure that `visited` has been updated

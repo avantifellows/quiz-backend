@@ -3,6 +3,7 @@ import json
 from fastapi.testclient import TestClient
 from mongoengine import connect, disconnect
 from main import app
+from routers import quizzes, sessions
 
 
 class BaseTestCase(unittest.TestCase):
@@ -20,7 +21,8 @@ class BaseTestCase(unittest.TestCase):
         # We are currently not providing an endpoint for creating questions and the only way to
         # create a question is through the quiz endpoint which is why we are using the quiz endpoint
         # to create questions and a quiz
-        response = self.client.post("/quiz/", json=self.quiz_data)
+        print(quizzes.router.prefix)
+        response = self.client.post(quizzes.router.prefix + "/", json=self.quiz_data)
         self.quiz = json.loads(response.content)
 
 
@@ -30,6 +32,7 @@ class SessionsBaseTestCase(BaseTestCase):
 
         # create a session (and thus, session answers as well) for the dummy quiz that we have created
         response = self.client.post(
-            "/sessions/", json={"quiz_id": self.quiz["_id"], "user_id": 1}
+            sessions.router.prefix + "/",
+            json={"quiz_id": self.quiz["_id"], "user_id": 1},
         )
         self.session = json.loads(response.content)
