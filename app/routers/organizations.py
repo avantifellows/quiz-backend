@@ -8,7 +8,9 @@ router = APIRouter()
 @router.get("/check-auth-token/{api_key}", response_model=Organization)
 async def get_auth_token(api_key: str):
 
-    if (org := client.quiz.organization.find_one({"org_key": api_key})) is not None:
+    if (
+        org := client.quiz.organization.find_one({"org_key": api_key}, {"org_name": 1})
+    ) is not None:
         return org
 
     raise HTTPException(

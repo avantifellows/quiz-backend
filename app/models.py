@@ -8,7 +8,6 @@ answerType = Union[List[int], str, None]
 
 class Organization(BaseModel):
     org_name: str
-    org_key: str
 
 
 class Image(BaseModel):
