@@ -16,9 +16,16 @@ async def create_organization(org_name: str):
         urand = random.SystemRandom()
         org_key = "".join([urand.choice(char_set) for _ in range(20)])
 
-        org_data = {"org_name": org_name, "org_key": org_key}
-        client.quiz.organization.insert_one(org_data)
-        return JSONResponse(status_code=status.HTTP_201_CREATED, content=org_name)
+        # check if API key exists
+        if (client.quiz.organization.find_one({"org_key": org_key})) is None:
+            org_data = {"org_name": org_name, "org_key": org_key}
+            client.quiz.organization.insert_one(org_data)
+            return JSONResponse(status_code=status.HTTP_201_CREATED, content=org_name)
+
+        raise HTTPException(
+            status_code=500,
+            detail="Duplicate API key. Please try again.",
+        )
 
 
 @router.get("/check-auth-token/{api_key}", response_model=Organization)
