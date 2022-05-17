@@ -11,6 +11,7 @@ router = APIRouter()
 @router.post("/create-org/{org_name}")
 async def create_organization(org_name: str):
     if org_name is not None:
+        # create an API key
         char_set = string.ascii_letters + string.punctuation
         urand = random.SystemRandom()
         org_key = "".join([urand.choice(char_set) for _ in range(20)])
