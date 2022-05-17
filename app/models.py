@@ -7,7 +7,11 @@ answerType = Union[List[int], str, None]
 
 
 class Organization(BaseModel):
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     org_name: str
+
+    class Config:
+        json_encoders = {ObjectId: str}
 
 
 class Image(BaseModel):
