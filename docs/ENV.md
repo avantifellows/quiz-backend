@@ -9,5 +9,5 @@ Credentials to connect to your MongoDB instance. You might have to get the crede
 This usually looks something like this:
 
 ```
-MONGO_AUTH_CREDENTIALS="mongodb+srv://COLLECTION_NAME:PASSWORD@cluster0.uocfg.mongodb.net/DATABASE_NAME?retryWrites=true&w=majority"
+MONGO_AUTH_CREDENTIALS="mongodb+srv://USER_NAME:PASSWORD@COLLECTION_NAME.uocfg.mongodb.net/DATABASE_NAME?retryWrites=true&w=majority"
 ```
