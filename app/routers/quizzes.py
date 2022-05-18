@@ -10,15 +10,43 @@ router = APIRouter(prefix="/quiz", tags=["Quiz"])
 @router.post("/", response_model=QuizResponse)
 async def create_quiz(quiz: Quiz):
     quiz = jsonable_encoder(quiz)
-    new_quiz = client.quiz.quizzes.insert_one(quiz)
-    created_quiz = client.quiz.quizzes.find_one({"_id": new_quiz.inserted_id})
 
-    for question_set in created_quiz["question_sets"]:
+    for question_set_index, question_set in enumerate(quiz["question_sets"]):
         questions = question_set["questions"]
-        for index, _ in enumerate(questions):
-            questions[index]["question_set_id"] = question_set["_id"]
+        for question_index, _ in enumerate(questions):
+            questions[question_index]["question_set_id"] = question_set["_id"]
 
         client.quiz.questions.insert_many(questions)
+
+        subset_with_all_details = client.quiz.questions.aggregate(
+            [
+                {"$match": {"question_set_id": question_set["_id"]}},
+                {"$limit": 10},
+            ]
+        )
+
+        subset_without_details = client.quiz.questions.aggregate(
+            [
+                {"$match": {"question_set_id": question_set["_id"]}},
+                {"$skip": 10},
+                {
+                    "$project": {
+                        "graded": 1,
+                        "type": 1,
+                        "correct_answer": 1,
+                        "question_set_id": 1,
+                    }
+                },
+            ]
+        )
+
+        aggregated_questions = list(subset_with_all_details) + list(
+            subset_without_details
+        )
+        quiz["question_sets"][question_set_index]["questions"] = aggregated_questions
+
+    new_quiz = client.quiz.quizzes.insert_one(quiz)
+    created_quiz = client.quiz.quizzes.find_one({"_id": new_quiz.inserted_id})
 
     return JSONResponse(status_code=status.HTTP_201_CREATED, content=created_quiz)
 
