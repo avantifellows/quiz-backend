@@ -9,16 +9,19 @@ from fastapi.encoders import jsonable_encoder
 router = APIRouter(prefix="/organizations", tags=["Organizations"])
 
 
-@router.post("/", response_model=OrganizationResponse, response_model_exclude={"key"})
+@router.post("/", response_model=OrganizationResponse)
 async def create_organization(org: Organization):
     org = jsonable_encoder(org)
     if org["name"] is not None:
+
         # create an API key
         key = "".join(
             [secrets.choice(string.ascii_letters + string.digits) for _ in range(20)]
         )
         number_of_loops = 3
+
         while number_of_loops > 0:
+
             # check if API key exists
             if (client.quiz.organization.find_one({"key": key})) is None:
                 org["key"] = key
@@ -45,7 +48,7 @@ async def create_organization(org: Organization):
         )
 
 
-@router.get("/authenticate/{api_key}", response_model=Organization)
+@router.get("/authenticate/{api_key}", response_model=OrganizationResponse)
 async def check_auth_token(api_key: str):
 
     if (
