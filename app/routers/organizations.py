@@ -1,7 +1,6 @@
 from fastapi import APIRouter, status, HTTPException
 from database import client
 from models import Organization, OrganizationResponse
-from fastapi.responses import JSONResponse
 import secrets
 import string
 from fastapi.encoders import jsonable_encoder
@@ -29,9 +28,7 @@ async def create_organization(org: Organization):
                 created_org = client.quiz.organization.find_one(
                     {"_id": new_org.inserted_id}
                 )
-                return JSONResponse(
-                    status_code=status.HTTP_201_CREATED, content=created_org
-                )
+                return created_org
 
             else:
                 key = "".join(
