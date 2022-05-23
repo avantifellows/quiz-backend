@@ -8,10 +8,23 @@ answerType = Union[List[int], str, None]
 
 class Organization(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    org_name: str
+    name: str
 
     class Config:
+        allow_population_by_field_name = True
+        arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
+        schema_extra = {"example": {"name": "Avanti Fellows"}}
+
+
+class OrganizationResponse(Organization):
+    name: str
+
+    class Config:
+        allow_population_by_field_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+        schema_extra = {"example": {"name": "Avanti Fellows"}}
 
 
 class Image(BaseModel):

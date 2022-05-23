@@ -1,26 +1,43 @@
 from fastapi import APIRouter, status, HTTPException
 from database import client
-from models import Organization
+from models import Organization, OrganizationResponse
 from fastapi.responses import JSONResponse
+import secrets
 import string
-import random
+from fastapi.encoders import jsonable_encoder
 
-router = APIRouter()
+router = APIRouter(prefix="/organizations", tags=["Organizations"])
 
 
-@router.post("/create-org/{org_name}")
-async def create_organization(org_name: str):
-    if org_name is not None:
+@router.post("/", response_model=OrganizationResponse, response_model_exclude={"key"})
+async def create_organization(org: Organization):
+    org = jsonable_encoder(org)
+    if org["name"] is not None:
         # create an API key
-        char_set = string.ascii_letters + string.punctuation
-        urand = random.SystemRandom()
-        org_key = "".join([urand.choice(char_set) for _ in range(20)])
+        key = "".join(
+            [secrets.choice(string.ascii_letters + string.digits) for _ in range(20)]
+        )
+        number_of_loops = 3
+        while number_of_loops > 0:
+            # check if API key exists
+            if (client.quiz.organization.find_one({"key": key})) is None:
+                org["key"] = key
+                new_org = client.quiz.organization.insert_one(org)
+                created_org = client.quiz.organization.find_one(
+                    {"_id": new_org.inserted_id}
+                )
+                return JSONResponse(
+                    status_code=status.HTTP_201_CREATED, content=created_org
+                )
 
-        # check if API key exists
-        if (client.quiz.organization.find_one({"org_key": org_key})) is None:
-            org_data = {"org_name": org_name, "org_key": org_key}
-            client.quiz.organization.insert_one(org_data)
-            return JSONResponse(status_code=status.HTTP_201_CREATED, content=org_name)
+            else:
+                key = "".join(
+                    [
+                        secrets.choice(string.ascii_letters + string.digits)
+                        for _ in range(20)
+                    ]
+                )
+                number_of_loops -= 1
 
         raise HTTPException(
             status_code=500,
@@ -28,15 +45,12 @@ async def create_organization(org_name: str):
         )
 
 
-@router.get("/check-auth-token/{api_key}", response_model=Organization)
+@router.get("/authenticate/{api_key}", response_model=Organization)
 async def check_auth_token(api_key: str):
 
     if (
         org := client.quiz.organization.find_one(
-            {"org_key": api_key},
-            {
-                "org_name": 1,
-            },
+            {"key": api_key},
         )
     ) is not None:
         return org
