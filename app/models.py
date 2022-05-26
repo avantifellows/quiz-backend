@@ -59,6 +59,8 @@ class Question(BaseModel):
     marking_scheme: MarkingScheme = None
     solution: Optional[List[str]] = []
     metadata: QuestionMetadata = None
+    source: Optional[str] = None
+    source_id: Optional[str] = None
 
     class Config:
         allow_population_by_field_name = True
