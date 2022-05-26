@@ -22,8 +22,8 @@ class QuestionType(Enum):
     single_choice = "single-choice"
     multi_choice = "multi-choice"
     subjective = "subjective"
-    integer_numerical = "integer-numerical"
-    float_numerical = "float-numerical"
+    numerical_integer = "numerical-integer"
+    numerical_float = "numerical-float"
 
 
 class NavigationMode(Enum):
