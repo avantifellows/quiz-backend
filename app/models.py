@@ -59,6 +59,8 @@ class Question(BaseModel):
     marking_scheme: MarkingScheme = None
     solution: Optional[List[str]] = []
     metadata: QuestionMetadata = None
+    source: Optional[str] = None
+    source_id: Optional[str] = None
 
     class Config:
         allow_population_by_field_name = True
@@ -270,6 +272,7 @@ class SessionAnswer(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     question_id: str
     answer: answerType = None
+    visited: Union[bool, None] = False
 
     class Config:
         allow_population_by_field_name = True
@@ -281,10 +284,11 @@ class SessionAnswer(BaseModel):
 class UpdateSessionAnswer(BaseModel):
     """Model for the body of the request that updates a session answer"""
 
-    answer: answerType
+    answer: Optional[answerType]
+    visited: Optional[Union[bool, None]]
 
     class Config:
-        schema_extra = {"example": {"answer": [0, 1, 2]}}
+        schema_extra = {"example": {"answer": [0, 1, 2], "visited": True}}
 
 
 class SessionAnswerResponse(SessionAnswer):
