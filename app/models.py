@@ -3,7 +3,7 @@ from bson import ObjectId
 from pydantic import BaseModel, Field
 from schemas import QuestionType, PyObjectId, NavigationMode, QuizLanguage, QuizType
 
-answerType = Union[List[int], str, None]
+answerType = Union[List[int], str, float, None]
 
 
 class Image(BaseModel):
