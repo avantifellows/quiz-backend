@@ -132,6 +132,7 @@ class Quiz(BaseModel):
     """Model for the body of the request that creates a quiz"""
 
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    title: str = ""
     question_sets: List[QuestionSet]
     max_marks: int
     num_graded_questions: int
@@ -195,6 +196,7 @@ class Quiz(BaseModel):
                         ]
                     }
                 ],
+                "title": "hello world",
                 "max_marks": 10,
                 "num_graded_questions": 3,
                 "metadata": {"quiz_type": "homework", "subject": "Maths", "grade": "8"},
