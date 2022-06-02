@@ -28,18 +28,18 @@ class QuizTimeLimit(BaseModel):
 
 
 class QuestionMetadata(BaseModel):
-    grade: str
-    subject: str
-    chapter: str
-    topic: str
-    competency: List[str]
-    difficulty: str
+    grade: Optional[str]
+    subject: Optional[str]
+    chapter: Optional[str]
+    topic: Optional[str]
+    competency: Optional[List[str]]
+    difficulty: Optional[str]
 
 
 class QuizMetadata(BaseModel):
     quiz_type: QuizType
-    grade: str
-    subject: str
+    grade: Optional[str]
+    subject: Optional[str]
     chapter: Optional[str]
     topic: Optional[str]
 
