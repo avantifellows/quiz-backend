@@ -6,6 +6,26 @@ from schemas import QuestionType, PyObjectId, NavigationMode, QuizLanguage, Quiz
 answerType = Union[List[int], float, int, str, None]
 
 
+class Organization(BaseModel):
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    name: str
+
+    class Config:
+        allow_population_by_field_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+        schema_extra = {"example": {"name": "Avanti Fellows"}}
+
+
+class OrganizationResponse(Organization):
+    name: str
+
+    class Config:
+        allow_population_by_field_name = True
+        arbitrary_types_allowed = True
+        schema_extra = {"example": {"name": "Avanti Fellows"}}
+
+
 class Image(BaseModel):
     url: str
     alt_text: Optional[str] = None

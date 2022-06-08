@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import questions, quizzes, session_answers, sessions
+from routers import questions, quizzes, session_answers, sessions, organizations
 from mangum import Mangum
 
 app = FastAPI()
@@ -22,5 +22,6 @@ app.include_router(questions.router)
 app.include_router(quizzes.router)
 app.include_router(sessions.router)
 app.include_router(session_answers.router)
+app.include_router(organizations.router)
 
 handler = Mangum(app)
