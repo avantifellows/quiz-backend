@@ -3,7 +3,27 @@ from bson import ObjectId
 from pydantic import BaseModel, Field
 from schemas import QuestionType, PyObjectId, NavigationMode, QuizLanguage, QuizType
 
-answerType = Union[List[int], str, None]
+answerType = Union[List[int], float, int, str, None]
+
+
+class Organization(BaseModel):
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    name: str
+
+    class Config:
+        allow_population_by_field_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+        schema_extra = {"example": {"name": "Avanti Fellows"}}
+
+
+class OrganizationResponse(Organization):
+    name: str
+
+    class Config:
+        allow_population_by_field_name = True
+        arbitrary_types_allowed = True
+        schema_extra = {"example": {"name": "Avanti Fellows"}}
 
 
 class Image(BaseModel):
@@ -28,18 +48,18 @@ class QuizTimeLimit(BaseModel):
 
 
 class QuestionMetadata(BaseModel):
-    grade: str
-    subject: str
-    chapter: str
-    topic: str
-    competency: List[str]
-    difficulty: str
+    grade: Optional[str]
+    subject: Optional[str]
+    chapter: Optional[str]
+    topic: Optional[str]
+    competency: Optional[List[str]]
+    difficulty: Optional[str]
 
 
 class QuizMetadata(BaseModel):
     quiz_type: QuizType
-    grade: str
-    subject: str
+    grade: Optional[str]
+    subject: Optional[str]
     chapter: Optional[str]
     topic: Optional[str]
 
@@ -54,11 +74,13 @@ class Question(BaseModel):
     image: Optional[Image] = None
     options: Optional[List[Option]] = []
     max_char_limit: Optional[int] = None
-    correct_answer: Union[List[int], None] = None
+    correct_answer: Union[List[int], float, int, None] = None
     graded: bool = True
     marking_scheme: MarkingScheme = None
     solution: Optional[List[str]] = []
     metadata: QuestionMetadata = None
+    source: Optional[str] = None
+    source_id: Optional[str] = None
 
     class Config:
         allow_population_by_field_name = True
@@ -270,6 +292,7 @@ class SessionAnswer(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     question_id: str
     answer: answerType = None
+    visited: Union[bool, None] = False
 
     class Config:
         allow_population_by_field_name = True
@@ -281,10 +304,11 @@ class SessionAnswer(BaseModel):
 class UpdateSessionAnswer(BaseModel):
     """Model for the body of the request that updates a session answer"""
 
-    answer: answerType
+    answer: Optional[answerType]
+    visited: Optional[Union[bool, None]]
 
     class Config:
-        schema_extra = {"example": {"answer": [0, 1, 2]}}
+        schema_extra = {"example": {"answer": [0, 1, 2], "visited": True}}
 
 
 class SessionAnswerResponse(SessionAnswer):
@@ -329,7 +353,7 @@ class SessionResponse(Session):
     """Model for the response of any request that returns a session"""
 
     is_first: bool
-    hasQuizEnded: Optional[bool] = False
+    has_quiz_ended: Optional[bool] = False
     session_answers: List[SessionAnswer]
 
     class Config:
@@ -339,6 +363,7 @@ class SessionResponse(Session):
                 "user_id": "1234",
                 "quiz_id": "5678",
                 "is_first": True,
+                "has_quiz_ended": False,
                 "session_answers": [
                     {
                         "_id": "1030c00d03",
