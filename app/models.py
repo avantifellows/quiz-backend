@@ -3,7 +3,27 @@ from bson import ObjectId
 from pydantic import BaseModel, Field
 from schemas import QuestionType, PyObjectId, NavigationMode, QuizLanguage, QuizType
 
-answerType = Union[List[int], str, None]
+answerType = Union[List[int], float, int, str, None]
+
+
+class Organization(BaseModel):
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    name: str
+
+    class Config:
+        allow_population_by_field_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+        schema_extra = {"example": {"name": "Avanti Fellows"}}
+
+
+class OrganizationResponse(Organization):
+    name: str
+
+    class Config:
+        allow_population_by_field_name = True
+        arbitrary_types_allowed = True
+        schema_extra = {"example": {"name": "Avanti Fellows"}}
 
 
 class Image(BaseModel):
@@ -28,18 +48,18 @@ class QuizTimeLimit(BaseModel):
 
 
 class QuestionMetadata(BaseModel):
-    grade: str
-    subject: str
-    chapter: str
-    topic: str
-    competency: List[str]
-    difficulty: str
+    grade: Optional[str]
+    subject: Optional[str]
+    chapter: Optional[str]
+    topic: Optional[str]
+    competency: Optional[List[str]]
+    difficulty: Optional[str]
 
 
 class QuizMetadata(BaseModel):
     quiz_type: QuizType
-    grade: str
-    subject: str
+    grade: Optional[str]
+    subject: Optional[str]
     chapter: Optional[str]
     topic: Optional[str]
 
@@ -54,7 +74,7 @@ class Question(BaseModel):
     image: Optional[Image] = None
     options: Optional[List[Option]] = []
     max_char_limit: Optional[int] = None
-    correct_answer: Union[List[int], None] = None
+    correct_answer: Union[List[int], float, int, None] = None
     graded: bool = True
     marking_scheme: MarkingScheme = None
     solution: Optional[List[str]] = []
