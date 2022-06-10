@@ -132,7 +132,7 @@ class Quiz(BaseModel):
     """Model for the body of the request that creates a quiz"""
 
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    title: str = ""
+    title: Optional[str]
     question_sets: List[QuestionSet]
     max_marks: int
     num_graded_questions: int
