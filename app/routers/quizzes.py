@@ -3,8 +3,10 @@ from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from database import client
 from models import Quiz, QuizResponse
+from settings import Settings
 
 router = APIRouter(prefix="/quiz", tags=["Quiz"])
+settings = Settings()
 
 
 @router.post("/", response_model=QuizResponse)
@@ -21,14 +23,14 @@ async def create_quiz(quiz: Quiz):
         subset_with_all_details = client.quiz.questions.aggregate(
             [
                 {"$match": {"question_set_id": question_set["_id"]}},
-                {"$limit": 10},
+                {"$limit": settings.subset_size},
             ]
         )
 
         subset_without_details = client.quiz.questions.aggregate(
             [
                 {"$match": {"question_set_id": question_set["_id"]}},
-                {"$skip": 10},
+                {"$skip": settings.subset_size},
                 {
                     "$project": {
                         "graded": 1,

@@ -17,21 +17,40 @@ class BaseTestCase(unittest.TestCase):
         disconnect()
 
     def setUp(self):
-        self.quiz_data = json.load(open("app/tests/dummy_data/homework_quiz.json"))
+        self.short_quiz_data = json.load(
+            open("app/tests/dummy_data/short_homework_quiz.json")
+        )
+        self.long_quiz_data = json.load(
+            open("app/tests/dummy_data/long_assessment_quiz.json")
+        )
+
         # We are currently not providing an endpoint for creating questions and the only way to
         # create a question is through the quiz endpoint which is why we are using the quiz endpoint
         # to create questions and a quiz
-        response = self.client.post(quizzes.router.prefix + "/", json=self.quiz_data)
-        self.quiz = json.loads(response.content)
+        response = self.client.post(
+            quizzes.router.prefix + "/", json=self.short_quiz_data
+        )
+        self.short_quiz = json.loads(response.content)
+
+        response = self.client.post(
+            quizzes.router.prefix + "/", json=self.long_quiz_data
+        )
+        self.long_quiz = json.loads(response.content)
 
 
 class SessionsBaseTestCase(BaseTestCase):
     def setUp(self):
         super().setUp()
 
-        # create a session (and thus, session answers as well) for the dummy quiz that we have created
+        # create a session (and thus, session answers as well) for the dummy quizzes that we have created
         response = self.client.post(
             sessions.router.prefix + "/",
-            json={"quiz_id": self.quiz["_id"], "user_id": 1},
+            json={"quiz_id": self.short_quiz["_id"], "user_id": 1},
         )
-        self.session = json.loads(response.content)
+        self.session_short_quiz = json.loads(response.content)
+
+        response = self.client.post(
+            sessions.router.prefix + "/",
+            json={"quiz_id": self.long_quiz["_id"], "user_id": 1},
+        )
+        self.session_long_quiz = json.loads(response.content)

@@ -6,14 +6,14 @@ from ..routers import quizzes, sessions, session_answers
 class SessionsTestCase(SessionsBaseTestCase):
     def setUp(self):
         super().setUp()
-        self.session_id = self.session["_id"]
+        self.session_id = self.session_short_quiz["_id"]
 
     def test_gets_session_with_valid_id(self):
         response = self.client.get(f"{sessions.router.prefix}/{self.session_id}")
         assert response.status_code == 200
         session = response.json()
         for key in ["quiz_id", "user_id"]:
-            assert session[key] == self.session[key]
+            assert session[key] == self.session_short_quiz[key]
 
     def test_get_session_returns_error_if_id_invalid(self):
         response = self.client.get(f"{sessions.router.prefix}/00")
@@ -43,9 +43,9 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert response["detail"] == "quiz 00 not found"
 
     def test_create_session_with_valid_quiz_id_and_first_session(self):
-        data = open("app/tests/dummy_data/homework_quiz.json")
-        quiz_data = json.load(data)
-        response = self.client.post(quizzes.router.prefix + "/", json=quiz_data)
+        data = open("app/tests/dummy_data/short_homework_quiz.json")
+        short_quiz_data = json.load(data)
+        response = self.client.post(quizzes.router.prefix + "/", json=short_quiz_data)
         quiz = json.loads(response.content)
         response = self.client.post(
             sessions.router.prefix + "/", json={"quiz_id": quiz["_id"], "user_id": 1}
@@ -54,11 +54,11 @@ class SessionsTestCase(SessionsBaseTestCase):
         session = json.loads(response.content)
         assert session["is_first"] is True
         assert len(session["session_answers"]) == len(
-            quiz_data["question_sets"][0]["questions"]
+            short_quiz_data["question_sets"][0]["questions"]
         )
 
     def test_create_session_with_valid_quiz_id_and_previous_session(self):
-        self.session_answers = self.session["session_answers"]
+        self.session_answers = self.session_short_quiz["session_answers"]
         self.session_answer = self.session_answers[0]
         self.session_answer_id = self.session_answer["_id"]
         new_answer = [0, 1, 2]
@@ -69,8 +69,8 @@ class SessionsTestCase(SessionsBaseTestCase):
         response = self.client.post(
             sessions.router.prefix + "/",
             json={
-                "quiz_id": self.session["quiz_id"],
-                "user_id": self.session["user_id"],
+                "quiz_id": self.session_short_quiz["quiz_id"],
+                "user_id": self.session_short_quiz["user_id"],
             },
         )
         assert response.status_code == 201

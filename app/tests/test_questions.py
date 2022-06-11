@@ -1,10 +1,14 @@
 from .base import BaseTestCase
+from ..routers import questions
+from settings import Settings
+
+settings = Settings()
 
 
 class QuestionsTestCase(BaseTestCase):
     def setUp(self):
         super().setUp()
-        question = self.quiz["question_sets"][0]["questions"][0]
+        question = self.short_quiz["question_sets"][0]["questions"][0]
         self.question_id, self.text = question["_id"], question["text"]
 
     def test_get_question_returns_error_if_id_invalid(self):
@@ -17,3 +21,35 @@ class QuestionsTestCase(BaseTestCase):
         response = self.client.get(f"/questions/{self.question_id}")
         question = response.json()
         assert question["text"] == self.text
+
+    def test_get_questions_by_question_set_id(self):
+        # get the question set id
+        long_quiz_question_set_id = self.long_quiz["question_sets"][0]["questions"][0][
+            "question_set_id"
+        ]
+
+        # query a subset of questions belonging to the question set id
+        response = self.client.get(
+            f"{questions.router.prefix}"
+            + f"/get_by_question_set/{long_quiz_question_set_id}"
+            + f"?skip={settings.subset_size}&limit={settings.subset_size}"
+        )
+
+        assert response.status_code == 200
+        response = response.json()
+        assert type(response) == list
+        assert len(response) == settings.subset_size
+        for i in range(settings.subset_size):
+            question = response[i]
+            assert "text" in question
+            assert "type" in question
+            assert "instructions" in question
+            assert "image" in question
+            assert "options" in question
+            assert "max_char_limit" in question
+            assert "correct_answer" in question
+            assert "graded" in question
+            assert "marking_scheme" in question
+            assert "solution" in question
+            assert "metadata" in question
+            assert "question_set_id" in question
