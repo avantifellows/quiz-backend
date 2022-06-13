@@ -69,9 +69,14 @@ We are deploying our FastAPI instance on AWS Lambda which is triggered via an AP
 The actual deployment happens through Github Actions. Look at [`.github/workflows/deploy_to_staging.yml`](.github/workflows/deploy_to_staging.yml) for understanding the deployment to `Staging` and [`.github/workflows/deploy_to_prod.yml`](.github/workflows/deploy_to_prod.yml) for `Production`. Make sure to set all the environment variables mentioned in [`docs/ENV.md`](docs/ENV.md) in the `Production` and `Staging` environments in your Github repository.
 
 ## Tests
-
-- Run the command
-
+- For testing, we use [`mongomock`](https://docs.mongoengine.org/guide/mongomock.html) package to mock our mongo database. To host this mock database, mongoDB process must run locally. Please install mongoDB following the instructions [here](https://www.mongodb.com/docs/manual/administration/install-community/). Ubuntu users may install using the command `pip install mongodb`.
+- Create a folder `path/to/data/db` that mongoDB may use to store a local database. By default, `mongod` stores data in `/data/db`.
+- Run the mongo daemon in a seperate terminal to start the host process in background.
+```
+mongod --dbpath path/to/data/db
+```
+- In case the above command does not work (lacks permissions, `data/db` not found), please check this [stackoverflow](https://stackoverflow.com/questions/22862808/mongod-command-not-found-os-x) thread.
+- Finally, use the following command to run tests present in `app/tests`.
 ```
 pytest
 ```
