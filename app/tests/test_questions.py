@@ -24,9 +24,7 @@ class QuestionsTestCase(BaseTestCase):
 
     def test_get_questions_by_question_set_id(self):
         # get the question set id
-        long_quiz_question_set_id = self.long_quiz["question_sets"][0]["questions"][0][
-            "question_set_id"
-        ]
+        long_quiz_question_set_id = self.long_quiz["question_sets"][0]["_id"]
 
         # query a subset of questions belonging to the question set id
         response = self.client.get(
@@ -40,17 +38,3 @@ class QuestionsTestCase(BaseTestCase):
         response = response.json()
         assert type(response) == list
         assert len(response) == settings.subset_size
-        for i in range(settings.subset_size):
-            question = response[i]
-            assert "text" in question
-            assert "type" in question
-            assert "instructions" in question
-            assert "image" in question
-            assert "options" in question
-            assert "max_char_limit" in question
-            assert "correct_answer" in question
-            assert "graded" in question
-            assert "marking_scheme" in question
-            assert "solution" in question
-            assert "metadata" in question
-            assert "question_set_id" in question

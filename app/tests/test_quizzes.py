@@ -48,41 +48,36 @@ class QuizTestCase(BaseTestCase):
             self.long_quiz["question_sets"][0]["questions"]
         )
 
-        # checking the first subset_size bucket of questions in the quiz. This should contain all the keys/details of a question
+        # the keys that should be present in every question stored inside a quiz
+        required_keys = ["type", "correct_answer", "graded", "question_set_id"]
+        # the keys that can be skipped in questions stored inside a quiz
+        optional_keys = [
+            "text",
+            "instructions",
+            "image",
+            "options",
+            "max_char_limit",
+            "marking_scheme",
+            "solution",
+            "metadata",
+        ]
+
+        # checking the first subset_size bucket of questions in the quiz.
+        # This should contain all the keys/details of a question
         for i in range(0, settings.subset_size):
             question = self.long_quiz["question_sets"][0]["questions"][i]
-            # all the following keys should be present in these questions
-            assert "text" in question
-            assert "type" in question
-            assert "instructions" in question
-            assert "image" in question
-            assert "options" in question
-            assert "max_char_limit" in question
-            assert "correct_answer" in question
-            assert "graded" in question
-            assert "marking_scheme" in question
-            assert "solution" in question
-            assert "metadata" in question
-            assert "question_set_id" in question
+            for key in optional_keys + required_keys:
+                assert key in question
 
-        # checking the rest of the subset of questions in the quiz. They should only contain some required keys and not all the keys
+        # checking the rest of the subset of questions in the quiz.
+        # They should only contain some required keys and not all the keys
         for i in range(
             settings.subset_size, len(self.long_quiz["question_sets"][0]["questions"])
         ):
             question = self.long_quiz["question_sets"][0]["questions"][i]
 
-            # these following required keys should be present
-            assert "type" in question
-            assert "correct_answer" in question
-            assert "graded" in question
-            assert "question_set_id" in question
+            for key in required_keys:
+                assert key in question
 
-            # these following keys should not be present. They will be present in the individual question document, not the quiz document
-            assert "text" not in question
-            assert "instructions" not in question
-            assert "image" not in question
-            assert "options" not in question
-            assert "max_char_limit" not in question
-            assert "marking_scheme" not in question
-            assert "solution" not in question
-            assert "metadata" not in question
+            for key in optional_keys:
+                assert key not in question
