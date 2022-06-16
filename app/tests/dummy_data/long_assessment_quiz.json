@@ -1,0 +1,506 @@
+{
+   "question_sets":[
+      {
+         "questions":[
+            {
+               "text":"Q1",
+               "type":"single-choice",
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2"
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "correct_answer":[
+                  0
+               ],
+               "graded":true
+            },
+            {
+               "text":"Q2",
+               "type":"multi-choice",
+               "image":{
+                  "url":"https://plio-prod-assets.s3.ap-south-1.amazonaws.com/images/afbxudrmbl.png",
+                  "alt_text":"Image"
+               },
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2",
+                     "image":{
+                        "url":"https://plio-prod-assets.s3.ap-south-1.amazonaws.com/images/afbxudrmbl.png"
+                     }
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "correct_answer":[
+                  0,
+                  2
+               ],
+               "graded":true
+            },
+            {
+               "text":"Q3",
+               "type":"multi-choice",
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2"
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "correct_answer":[
+                  0,
+                  1
+               ],
+               "graded":true
+            },
+            {
+               "text":"Q4",
+               "type":"multi-choice",
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2"
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "correct_answer":[
+                  0
+               ],
+               "graded":true
+            },
+            {
+               "text":"Q5",
+               "type":"multi-choice",
+               "image":{
+                  "url":"https://plio-prod-assets.s3.ap-south-1.amazonaws.com/images/afbxudrmbl.png",
+                  "alt_text":"Image"
+               },
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2",
+                     "image":{
+                        "url":"https://plio-prod-assets.s3.ap-south-1.amazonaws.com/images/afbxudrmbl.png"
+                     }
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "correct_answer":[
+                  0,
+                  2
+               ],
+               "graded":true
+            },
+            {
+               "text":"Q6",
+               "type":"single-choice",
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2"
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "graded":true,
+               "correct_answer":[
+                  2
+               ]
+            },
+            {
+               "text":"Q7",
+               "type":"single-choice",
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2"
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "correct_answer":[
+                  0
+               ],
+               "graded":true
+            },
+            {
+               "text":"Q8",
+               "type":"multi-choice",
+               "image":{
+                  "url":"https://plio-prod-assets.s3.ap-south-1.amazonaws.com/images/afbxudrmbl.png",
+                  "alt_text":"Image"
+               },
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2",
+                     "image":{
+                        "url":"https://plio-prod-assets.s3.ap-south-1.amazonaws.com/images/afbxudrmbl.png"
+                     }
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "correct_answer":[
+                  0,
+                  2
+               ],
+               "graded":true
+            },
+            {
+               "text":"Q9",
+               "type":"multi-choice",
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2"
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "correct_answer":[
+                  0,
+                  2
+               ],
+               "graded":true
+            },
+            {
+               "text":"Q10",
+               "type":"multi-choice",
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2"
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "correct_answer":[
+                  0,
+                  2
+               ],
+               "graded":true
+            },
+            {
+               "text":"Q11",
+               "type":"multi-choice",
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2"
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "graded":false
+            },
+            {
+               "text":"Q12",
+               "type":"multi-choice",
+               "image":{
+                  "url":"https://plio-prod-assets.s3.ap-south-1.amazonaws.com/images/afbxudrmbl.png",
+                  "alt_text":"Image"
+               },
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2",
+                     "image":{
+                        "url":"https://plio-prod-assets.s3.ap-south-1.amazonaws.com/images/afbxudrmbl.png"
+                     }
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "correct_answer":[
+                  0,
+                  2
+               ],
+               "graded":true
+            },
+            {
+               "text":"Q13",
+               "type":"single-choice",
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2"
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "correct_answer":[
+                  1
+               ],
+               "graded":true
+            },
+            {
+               "text":"Q14",
+               "type":"single-choice",
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2"
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "graded":false
+            },
+            {
+               "text":"Q15",
+               "type":"multi-choice",
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2"
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "correct_answer":[
+                  0,
+                  2
+               ],
+               "graded":true
+            },
+            {
+               "text":"Q16",
+               "type":"multi-choice",
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2"
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "graded":false
+            },
+            {
+               "text":"Q17",
+               "type":"multi-choice",
+               "image":{
+                  "url":"https://plio-prod-assets.s3.ap-south-1.amazonaws.com/images/afbxudrmbl.png",
+                  "alt_text":"Image"
+               },
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2",
+                     "image":{
+                        "url":"https://plio-prod-assets.s3.ap-south-1.amazonaws.com/images/afbxudrmbl.png"
+                     }
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "correct_answer":[
+                  0,
+                  2
+               ],
+               "graded":true
+            },
+            {
+               "text":"Q18",
+               "type":"single-choice",
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2"
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "correct_answer":[
+                  1
+               ],
+               "graded":true
+            },
+            {
+               "text":"Q19",
+               "type":"single-choice",
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2"
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "graded":false
+            },
+            {
+               "text":"Q20",
+               "type":"multi-choice",
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2"
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "correct_answer":[
+                  0,
+                  2
+               ],
+               "graded":true
+            },
+            {
+               "text":"Q21",
+               "type":"multi-choice",
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2"
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "graded":false
+            },
+            {
+               "text":"Q22",
+               "type":"multi-choice",
+               "image":{
+                  "url":"https://plio-prod-assets.s3.ap-south-1.amazonaws.com/images/afbxudrmbl.png",
+                  "alt_text":"Image"
+               },
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2",
+                     "image":{
+                        "url":"https://plio-prod-assets.s3.ap-south-1.amazonaws.com/images/afbxudrmbl.png"
+                     }
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "correct_answer":[
+                  0,
+                  2
+               ],
+               "graded":true
+            },
+            {
+               "text":"Q23",
+               "type":"single-choice",
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2"
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "correct_answer":[
+                  1
+               ],
+               "graded":true
+            },
+            {
+               "text":"Q24",
+               "type":"single-choice",
+               "options":[
+                  {
+                     "text":"Option 1"
+                  },
+                  {
+                     "text":"Option 2"
+                  },
+                  {
+                     "text":"Option 3"
+                  }
+               ],
+               "graded":false
+            }
+         ]
+      }
+   ],
+   "max_marks":18,
+   "num_graded_questions":18,
+   "metadata":{
+      "quiz_type":"assessment",
+      "subject":"Maths",
+      "grade":"8"
+   }
+}
