@@ -31,5 +31,5 @@ async def get_questions(question_set_id: str, skip: int = None, limit: int = Non
 
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Questions is question set {question_set_id} not found",
+        detail="No questions found",
     )

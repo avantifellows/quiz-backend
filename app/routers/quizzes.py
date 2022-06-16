@@ -20,7 +20,7 @@ async def create_quiz(quiz: Quiz):
 
         client.quiz.questions.insert_many(questions)
 
-        subset_with_all_details = client.quiz.questions.aggregate(
+        subset_with_details = client.quiz.questions.aggregate(
             [
                 {"$match": {"question_set_id": question_set["_id"]}},
                 {"$limit": settings.subset_size},
@@ -42,9 +42,7 @@ async def create_quiz(quiz: Quiz):
             ]
         )
 
-        aggregated_questions = list(subset_with_all_details) + list(
-            subset_without_details
-        )
+        aggregated_questions = list(subset_with_details) + list(subset_without_details)
         quiz["question_sets"][question_set_index]["questions"] = aggregated_questions
 
     new_quiz = client.quiz.quizzes.insert_one(quiz)
