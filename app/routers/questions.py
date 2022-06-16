@@ -16,10 +16,8 @@ async def get_question(question_id: str):
     )
 
 
-@router.get("/get_by_question_set/{question_set_id}")
-async def get_questions_by_question_set(
-    question_set_id: str, skip: int = None, limit: int = None
-):
+@router.get("/")
+async def get_questions(question_set_id: str, skip: int = None, limit: int = None):
     pipeline = [{"$match": {"question_set_id": question_set_id}}]
 
     if skip:

@@ -30,9 +30,10 @@ class QuestionsTestCase(BaseTestCase):
 
         # query a subset of questions belonging to the question set id
         response = self.client.get(
-            f"{questions.router.prefix}"
-            + f"/get_by_question_set/{long_quiz_question_set_id}"
-            + f"?skip={settings.subset_size}&limit={settings.subset_size}"
+            f"{questions.router.prefix}/"
+            + f"?question_set_id={long_quiz_question_set_id}"
+            + f"&skip={settings.subset_size}"
+            + f"&limit={settings.subset_size}"
         )
 
         assert response.status_code == 200
