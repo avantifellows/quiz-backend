@@ -46,15 +46,16 @@ class SessionsTestCase(SessionsBaseTestCase):
         data = open("app/tests/dummy_data/homework_quiz.json")
         quiz_data = json.load(data)
         response = self.client.post(quizzes.router.prefix + "/", json=quiz_data)
-        quiz = json.loads(response.content)
+        quiz_id = json.loads(response.content)["quiz_id"]
+        quiz = self.client.get(quizzes.router.prefix + f"/{quiz_id}").json()
         response = self.client.post(
             sessions.router.prefix + "/", json={"quiz_id": quiz["_id"], "user_id": 1}
         )
         assert response.status_code == 201
         session = json.loads(response.content)
         assert session["is_first"] is True
-        assert len(session["session_answers"]) == len(
-            quiz_data["question_sets"][0]["questions"]
+        assert len(session["session_answers"]) == sum(
+            len(qset["questions"]) for qset in quiz_data["question_sets"]
         )
 
     def test_create_session_with_valid_quiz_id_and_previous_session(self):

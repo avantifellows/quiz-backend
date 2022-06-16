@@ -7,8 +7,9 @@ from models import Quiz, QuizResponse
 router = APIRouter(prefix="/quiz", tags=["Quiz"])
 
 
-@router.post("/", response_model=QuizResponse)
+@router.post("/")
 async def create_quiz(quiz: Quiz):
+    """Returns the ID of created quiz in a dictionary with key as 'quiz_id'"""
     quiz = jsonable_encoder(quiz)
     new_quiz = client.quiz.quizzes.insert_one(quiz)
     created_quiz = client.quiz.quizzes.find_one({"_id": new_quiz.inserted_id})
@@ -20,7 +21,9 @@ async def create_quiz(quiz: Quiz):
 
         client.quiz.questions.insert_many(questions)
 
-    return JSONResponse(status_code=status.HTTP_201_CREATED, content=created_quiz)
+    return JSONResponse(
+        status_code=status.HTTP_201_CREATED, content={"quiz_id": new_quiz.inserted_id}
+    )
 
 
 @router.get("/{quiz_id}", response_model=QuizResponse)

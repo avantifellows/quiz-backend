@@ -9,10 +9,13 @@ class QuizTestCase(BaseTestCase):
         self.id = self.quiz["_id"]
         self.length = len(self.quiz_data["question_sets"][0]["questions"])
 
+    def test_setup_quizId_and_quiz(self):
+        assert self.quiz_id == self.quiz["_id"]
+
     def test_create_quiz(self):
         response = self.client.post(quizzes.router.prefix + "/", json=self.quiz_data)
         response = json.loads(response.content)
-        id = response["_id"]
+        id = response["quiz_id"]
         response = self.client.get(f"{quizzes.router.prefix}/{id}")
         assert response.status_code == 200
 
