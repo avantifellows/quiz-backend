@@ -291,12 +291,12 @@ class GetQuizResponse(Quiz):
 class CreateQuizResponse(BaseModel):
     """Model for the response of a request that creates a quiz"""
 
-    quiz_id: str
+    id: str
 
     class Config:
         schema_extra = {
             "example": {
-                "quiz_id": "1234",
+                "id": "1234",
             }
         }
 

@@ -21,7 +21,7 @@ async def create_quiz(quiz: Quiz):
         client.quiz.questions.insert_many(questions)
 
     return JSONResponse(
-        status_code=status.HTTP_201_CREATED, content={"quiz_id": new_quiz.inserted_id}
+        status_code=status.HTTP_201_CREATED, content={"id": new_quiz.inserted_id}
     )
 
 

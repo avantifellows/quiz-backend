@@ -15,8 +15,8 @@ class QuizTestCase(BaseTestCase):
     def test_create_quiz(self):
         response = self.client.post(quizzes.router.prefix + "/", json=self.quiz_data)
         response = json.loads(response.content)
-        id = response["quiz_id"]
-        response = self.client.get(f"{quizzes.router.prefix}/{id}")
+        quiz_id = response["id"]
+        response = self.client.get(f"{quizzes.router.prefix}/{quiz_id}")
         assert response.status_code == 200
 
     def test_get_question_if_id_valid(self):

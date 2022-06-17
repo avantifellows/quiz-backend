@@ -22,7 +22,7 @@ class BaseTestCase(unittest.TestCase):
         # create a question is through the quiz endpoint which is why we are using the quiz endpoint
         # to create questions and a quiz
         response = self.client.post(quizzes.router.prefix + "/", json=self.quiz_data)
-        self.quiz_id = json.loads(response.content)["quiz_id"]
+        self.quiz_id = json.loads(response.content)["id"]
         self.quiz = self.client.get(quizzes.router.prefix + f"/{self.quiz_id}").json()
 
 

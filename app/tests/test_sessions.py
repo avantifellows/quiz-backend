@@ -46,7 +46,7 @@ class SessionsTestCase(SessionsBaseTestCase):
         data = open("app/tests/dummy_data/homework_quiz.json")
         quiz_data = json.load(data)
         response = self.client.post(quizzes.router.prefix + "/", json=quiz_data)
-        quiz_id = json.loads(response.content)["quiz_id"]
+        quiz_id = json.loads(response.content)["id"]
         quiz = self.client.get(quizzes.router.prefix + f"/{quiz_id}").json()
         response = self.client.post(
             sessions.router.prefix + "/", json={"quiz_id": quiz["_id"], "user_id": 1}
