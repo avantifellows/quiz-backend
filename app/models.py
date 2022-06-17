@@ -224,7 +224,7 @@ class Quiz(BaseModel):
         }
 
 
-class QuizResponse(Quiz):
+class GetQuizResponse(Quiz):
     """Model for the response of any request that returns a quiz"""
 
     class Config:
@@ -288,6 +288,19 @@ class QuizResponse(Quiz):
         }
 
 
+class CreateQuizResponse(BaseModel):
+    """Model for the response of a request that creates a quiz"""
+
+    id: str
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "id": "1234",
+            }
+        }
+
+
 class SessionAnswer(BaseModel):
     """Model for the body of the request that creates a session answer"""
 
@@ -341,7 +354,7 @@ class Session(BaseModel):
 class UpdateSession(BaseModel):
     """Model for the body of the request that updates a session"""
 
-    has_quiz_ended: bool = False
+    has_quiz_ended: bool
 
     class Config:
         schema_extra = {
