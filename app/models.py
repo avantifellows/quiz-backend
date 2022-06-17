@@ -224,7 +224,7 @@ class Quiz(BaseModel):
         }
 
 
-class QuizResponse(Quiz):
+class GetQuizResponse(Quiz):
     """Model for the response of any request that returns a quiz"""
 
     class Config:
@@ -288,7 +288,7 @@ class QuizResponse(Quiz):
         }
 
 
-class QuizCreationResponse(BaseModel):
+class CreateQuizResponse(BaseModel):
     """Model for the response of a request that creates a quiz"""
 
     quiz_id: str

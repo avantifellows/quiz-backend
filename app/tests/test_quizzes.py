@@ -9,7 +9,7 @@ class QuizTestCase(BaseTestCase):
         self.id = self.quiz["_id"]
         self.length = len(self.quiz_data["question_sets"][0]["questions"])
 
-    def test_setup_quizId_and_quiz(self):
+    def test_base_setup_quizId_and_quiz(self):
         assert self.quiz_id == self.quiz["_id"]
 
     def test_create_quiz(self):
