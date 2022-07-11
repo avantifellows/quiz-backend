@@ -4,6 +4,8 @@ from fastapi.middleware.gzip import GZipMiddleware
 from routers import questions, quizzes, session_answers, sessions, organizations
 from mangum import Mangum
 
+COMPRESS_MIN_THRESHOLD = 100  # if more than 100 bytes, compress
+
 app = FastAPI()
 
 origins = [
@@ -21,7 +23,7 @@ app.add_middleware(
 
 app.add_middleware(
     GZipMiddleware,
-    minimum_size=100, # if more than 100 bytes, compress
+    minimum_size=COMPRESS_MIN_THRESHOLD,
 )
 
 app.include_router(questions.router)
