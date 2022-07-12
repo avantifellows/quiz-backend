@@ -4,7 +4,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from routers import questions, quizzes, session_answers, sessions, organizations
 from mangum import Mangum
 
-COMPRESS_MIN_THRESHOLD = 100  # if more than 100 bytes, compress
+COMPRESS_MIN_THRESHOLD = 1000  # if more than 1000 bytes (~1KB), compress
 
 app = FastAPI()
 
