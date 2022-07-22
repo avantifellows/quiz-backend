@@ -28,14 +28,17 @@ async def create_session(session: Session):
     if previous_session is None:
         session["is_first"] = True
 
-        # since we know that there is going to be only one question set for now
         if "question_sets" in quiz and quiz["question_sets"]:
-            question_set_id = quiz["question_sets"][0]["_id"]
-            questions = client.quiz.questions.find(
-                {"question_set_id": question_set_id}, sort=[("_id", pymongo.ASCENDING)]
-            )
-            if questions:
+            question_set_ids = [qset["_id"] for qset in quiz["question_sets"]]
+            questions = []
+            for qset_id in question_set_ids:
+                questions.extend(
+                    client.quiz.questions.find(
+                        {"question_set_id": qset_id}, sort=[("_id", pymongo.ASCENDING)]
+                    )
+                )
 
+            if questions:
                 for question in questions:
                     session_answers.append(
                         jsonable_encoder(
@@ -50,19 +53,20 @@ async def create_session(session: Session):
         session["is_first"] = False
         session["has_quiz_ended"] = previous_session.get("has_quiz_ended", False)
 
-        # restore the answers from the previous sessions
-        session_answers = list(
+        # restore the answers from the previous session
+        previous_session_answers = list(
             client.quiz.session_answers.find(
                 {"session_id": previous_session["_id"]},
                 sort=[("_id", pymongo.ASCENDING)],
             )
         )
-        for index, session_answer in enumerate(session_answers):
+        session_answers = []
+        for index, session_answer in enumerate(previous_session_answers):
             for key in ["_id", "session_id"]:
                 session_answer.pop(key)
 
-            session_answers[index] = jsonable_encoder(
-                SessionAnswer.parse_obj(session_answer)
+            session_answers.append(
+                jsonable_encoder(SessionAnswer.parse_obj(session_answer))
             )
 
     session["session_answers"] = session_answers
@@ -81,12 +85,6 @@ async def create_session(session: Session):
 @router.patch("/{session_id}", response_model=SessionResponse)
 async def update_session(session_id: str, session: UpdateSession):
     session = jsonable_encoder(session)
-
-    if "has_quiz_ended" not in session:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No value provided for 'has_quiz_ended'",
-        )
 
     if (client.quiz.sessions.find_one({"_id": session_id})) is None:
         raise HTTPException(

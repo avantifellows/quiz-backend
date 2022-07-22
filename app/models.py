@@ -146,6 +146,8 @@ class QuestionResponse(Question):
 class QuestionSet(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     questions: List[Question]
+    title: Optional[str]
+    num_questions_allowed_to_attempt: Optional[int]
 
 
 class Quiz(BaseModel):
@@ -172,6 +174,8 @@ class Quiz(BaseModel):
             "example": {
                 "question_sets": [
                     {
+                        "title": "Physics set",
+                        "num_questions_allowed_to_attempt": 3,
                         "questions": [
                             {
                                 "text": "Which grade are you in?",
@@ -234,6 +238,8 @@ class GetQuizResponse(Quiz):
                 "question_sets": [
                     {
                         "_id": "12020",
+                        "title": "question set title",
+                        "num_questions_allowed_to_attempt": 2,
                         "questions": [
                             {
                                 "_id": "304030",
