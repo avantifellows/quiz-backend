@@ -2,6 +2,7 @@ from typing import Optional, List, Union
 from bson import ObjectId
 from pydantic import BaseModel, Field
 from schemas import QuestionType, PyObjectId, NavigationMode, QuizLanguage, QuizType
+from datetime import datetime
 
 answerType = Union[List[int], float, int, str, None]
 
@@ -308,6 +309,7 @@ class SessionAnswer(BaseModel):
     question_id: str
     answer: answerType = None
     visited: Union[bool, None] = False
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:
         allow_population_by_field_name = True
@@ -321,6 +323,7 @@ class UpdateSessionAnswer(BaseModel):
 
     answer: Optional[answerType]
     visited: Optional[Union[bool, None]]
+    last_updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:
         schema_extra = {"example": {"answer": [0, 1, 2], "visited": True}}
@@ -338,6 +341,7 @@ class Session(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     user_id: str
     quiz_id: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:
         allow_population_by_field_name = True
@@ -355,21 +359,32 @@ class UpdateSession(BaseModel):
     """Model for the body of the request that updates a session"""
 
     has_quiz_ended: bool
+    has_quiz_started_first_time: bool
 
     class Config:
         schema_extra = {
-            "example": {
-                "has_quiz_ended": True,
-            }
+            "example": {"has_quiz_ended": False, "has_quiz_started_first_time": True}
         }
+
+
+class UpdateSessionResponse(BaseModel):
+    """Model for the response of request that updates a session"""
+
+    time_remaining: Optional[int]
+
+    class Config:
+        schema_extra = {"example": {"time_remaining": 300}}
 
 
 class SessionResponse(Session):
     """Model for the response of any request that returns a session"""
 
     is_first: bool
+    has_quiz_started: Optional[bool] = False
     has_quiz_ended: Optional[bool] = False
     session_answers: List[SessionAnswer]
+    quiz_start_resume_time: Optional[datetime]
+    time_remaining: Optional[int] = None
 
     class Config:
         schema_extra = {
@@ -378,6 +393,8 @@ class SessionResponse(Session):
                 "user_id": "1234",
                 "quiz_id": "5678",
                 "is_first": True,
+                "time_remaining": 300,
+                "has_quiz_started": True,
                 "has_quiz_ended": False,
                 "session_answers": [
                     {

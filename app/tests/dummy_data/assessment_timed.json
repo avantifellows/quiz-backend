@@ -1,0 +1,47 @@
+{
+    "question_sets": [
+      {
+        "questions": [
+          {
+            "text": "Which grade are you in?",
+            "type": "single-choice",
+            "options": [
+              { "text": "Option 1" },
+              { "text": "Option 2" },
+              { "text": "Option 3" }
+            ],
+            "graded": false
+          },
+          {
+            "text": "Which grade are you in?",
+            "type": "multi-choice",
+            "image": {
+              "url": "https://plio-prod-assets.s3.ap-south-1.amazonaws.com/images/afbxudrmbl.png",
+              "alt_text": "Image"
+            },
+            "options": [
+              { "text": "Option 1" },
+              {
+                "text": "Option 2",
+                "image": {
+                  "url": "https://plio-prod-assets.s3.ap-south-1.amazonaws.com/images/afbxudrmbl.png"
+                }
+              },
+              { "text": "Option 3" }
+            ],
+            "correct_answer": [0, 2],
+            "graded": true
+          }
+        ]
+      }
+    ],
+    "max_marks": 10,
+    "num_graded_questions": 1,
+    "shuffle": false,
+    "num_attempts_allowed": 1,
+    "navigation_mode": "linear",
+    "language": "en",
+    "time_limit": {"min": 0, "max": 200},
+    "metadata": { "quiz_type": "assessment", "subject": "Maths", "grade": "8" }
+  }
+  

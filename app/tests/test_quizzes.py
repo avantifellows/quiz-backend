@@ -6,14 +6,16 @@ from ..routers import quizzes
 class QuizTestCase(BaseTestCase):
     def setUp(self):
         super().setUp()
-        self.id = self.quiz["_id"]
-        self.length = len(self.quiz_data["question_sets"][0]["questions"])
+        self.id = self.homework_quiz["_id"]
+        self.length = len(self.homework_quiz_data["question_sets"][0]["questions"])
 
     def test_base_setup_quizId_and_quiz(self):
-        assert self.quiz_id == self.quiz["_id"]
+        assert self.homework_quiz_id == self.homework_quiz["_id"]
 
     def test_create_quiz(self):
-        response = self.client.post(quizzes.router.prefix + "/", json=self.quiz_data)
+        response = self.client.post(
+            quizzes.router.prefix + "/", json=self.homework_quiz_data
+        )
         response = json.loads(response.content)
         quiz_id = response["id"]
         response = self.client.get(f"{quizzes.router.prefix}/{quiz_id}")
