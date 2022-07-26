@@ -123,7 +123,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     session["quiz_start_resume_time"] = current_time
 
     response_content = {}
-    if "time_remaining" in session:
+    if "time_remaining" in session and session["time_remaining"] is not None:
         # if not here => there is no time limit set, no need to update
         session["time_remaining"] = max(0, session["time_remaining"] - time_elapsed)
         response_content = {"time_remaining": session["time_remaining"]}
