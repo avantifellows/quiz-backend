@@ -358,12 +358,12 @@ class Session(BaseModel):
 class UpdateSession(BaseModel):
     """Model for the body of the request that updates a session"""
 
-    has_quiz_ended: bool
+    has_quiz_ended_first_time: bool
     has_quiz_started_first_time: bool
 
     class Config:
         schema_extra = {
-            "example": {"has_quiz_ended": False, "has_quiz_started_first_time": True}
+            "example": {"has_quiz_ended_first_time": False, "has_quiz_started_first_time": True}
         }
 
 
@@ -384,6 +384,7 @@ class SessionResponse(Session):
     has_quiz_ended: Optional[bool] = False
     session_answers: List[SessionAnswer]
     quiz_start_resume_time: Optional[datetime]
+    quiz_end_time: Optional[datetime]
     time_remaining: Optional[int] = None
 
     class Config:

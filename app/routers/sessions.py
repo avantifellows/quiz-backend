@@ -79,11 +79,8 @@ async def create_session(session: Session):
             session_answers.append(
                 jsonable_encoder(SessionAnswer.parse_obj(session_answer))
             )
-
-        session["quiz_start_resume_time"] = previous_session.get(
-            "quiz_start_resume_time", None
-        )
-        session["time_remaining"] = previous_session.get("time_remaining", None)
+        for key in ["quiz_start_resume_time", "quiz_end_time", "time_remaining"]:
+            session[key] = previous_session.get(key, None)
         # time_remaining will get updated when start/resume clicked
 
     session["session_answers"] = session_answers
@@ -101,6 +98,10 @@ async def create_session(session: Session):
 
 @router.patch("/{session_id}", response_model=UpdateSessionResponse)
 async def update_session(session_id: str, session_updates: UpdateSession):
+    """
+    session is updated whenever start/resume button is clicked
+    (or) end button is clicked for the first time
+    """
     session_updates = jsonable_encoder(session_updates)
     session = client.quiz.sessions.find_one({"_id": session_id})
     if session is None:
@@ -111,16 +112,24 @@ async def update_session(session_id: str, session_updates: UpdateSession):
 
     current_time = datetime.utcnow()
     time_elapsed = 0
-    if not session_updates["has_quiz_started_first_time"]:
-        # update time remaining based on current time (resume button clicked)
-        time_elapsed = (
-            current_time - datetime.fromisoformat(session["quiz_start_resume_time"])
-        ).seconds
-    else:
-        # start button clicked; for the first time
-        # time_remaining is the same as when session was created - no need to update
+
+    if session_updates["has_quiz_started_first_time"]:
+        # start/resume button clicked first time for a quiz
         session["has_quiz_started"] = True
-    session["quiz_start_resume_time"] = current_time
+        # time elapsed is zero
+    else:
+        # update time remaining based on current time (resume/end button clicked)
+        time_elapsed = (
+                current_time - datetime.fromisoformat(session["quiz_start_resume_time"])
+            ).seconds
+
+    if session_updates["has_quiz_ended_first_time"]:
+        # end test clicked first time
+        session["has_quiz_ended"] = True
+        session["quiz_end_time"] = current_time
+    else:
+        # quiz started or resumed
+        session["quiz_start_resume_time"] = current_time
 
     response_content = {}
     if "time_remaining" in session and session["time_remaining"] is not None:
@@ -129,7 +138,6 @@ async def update_session(session_id: str, session_updates: UpdateSession):
         response_content = {"time_remaining": session["time_remaining"]}
 
     # update the document in the sessions collection
-    session["has_quiz_ended"] = session_updates["has_quiz_ended"]
     client.quiz.sessions.update_one(
         {"_id": session_id}, {"$set": jsonable_encoder(session)}
     )
