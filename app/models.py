@@ -363,7 +363,10 @@ class UpdateSession(BaseModel):
 
     class Config:
         schema_extra = {
-            "example": {"has_quiz_ended_first_time": False, "has_quiz_started_first_time": True}
+            "example": {
+                "has_quiz_ended_first_time": False,
+                "has_quiz_started_first_time": True,
+            }
         }
 
 

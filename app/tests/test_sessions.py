@@ -99,7 +99,10 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert self.timed_quiz_session["time_remaining"] == quiz["time_limit"]["max"]
 
     def test_quiz_start_time_key_after_session_update(self):
-        session_updates = {"has_quiz_started_first_time": True, "has_quiz_ended_first_time": False}
+        session_updates = {
+            "has_quiz_started_first_time": True,
+            "has_quiz_ended_first_time": False,
+        }
         response = self.client.patch(
             f"{sessions.router.prefix}/{self.timed_quiz_session_id}",
             json=session_updates,
@@ -134,7 +137,10 @@ class SessionsTestCase(SessionsBaseTestCase):
         session_id = session["_id"]
 
         # first update, quiz started
-        session_updates = {"has_quiz_started_first_time": True, "has_quiz_ended_first_time": False}
+        session_updates = {
+            "has_quiz_started_first_time": True,
+            "has_quiz_ended_first_time": False,
+        }
         response = self.client.patch(
             f"{sessions.router.prefix}/{session_id}", json=session_updates
         )
@@ -160,7 +166,10 @@ class SessionsTestCase(SessionsBaseTestCase):
 
     def test_time_remaining_in_new_session_with_quiz_resume(self):
         # start quiz in first session
-        session_updates = {"has_quiz_started_first_time": True, "has_quiz_ended_first_time": False}
+        session_updates = {
+            "has_quiz_started_first_time": True,
+            "has_quiz_ended_first_time": False,
+        }
         response = self.client.patch(
             f"{sessions.router.prefix}/{self.timed_quiz_session_id}",
             json=session_updates,

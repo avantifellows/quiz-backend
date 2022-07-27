@@ -120,8 +120,8 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     else:
         # update time remaining based on current time (resume/end button clicked)
         time_elapsed = (
-                current_time - datetime.fromisoformat(session["quiz_start_resume_time"])
-            ).seconds
+            current_time - datetime.fromisoformat(session["quiz_start_resume_time"])
+        ).seconds
 
     if session_updates["has_quiz_ended_first_time"]:
         # end test clicked first time
