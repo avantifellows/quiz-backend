@@ -52,7 +52,9 @@ class QuestionMetadata(BaseModel):
     subject: Optional[str]
     chapter: Optional[str]
     topic: Optional[str]
-    competency: Optional[List[str]]
+    competencies: Optional[List[str]]
+    tags: Optional[List[str]]
+    concept: Optional[str]
     difficulty: Optional[str]
 
 
