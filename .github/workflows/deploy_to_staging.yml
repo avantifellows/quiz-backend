@@ -37,4 +37,4 @@ jobs:
       - name: Deploy
         env:
           MONGO_AUTH_CREDENTIALS: ${{ secrets.MONGO_AUTH_CREDENTIALS }}
-        run: sam deploy --stack-name QuizBackendStaging --s3-bucket quiz-staging-backend --no-confirm-changeset --no-fail-on-empty-changeset --region us-east-1 --capabilities CAPABILITY_IAM --parameter-overrides MongoAuthCredentials=$MONGO_AUTH_CREDENTIALS
+        run: sam deploy --stack-name QuizBackendStaging --s3-bucket quiz-staging-backend-mumbai --no-confirm-changeset --no-fail-on-empty-changeset --region ap-south-1 --capabilities CAPABILITY_IAM --parameter-overrides MongoAuthCredentials=$MONGO_AUTH_CREDENTIALS
