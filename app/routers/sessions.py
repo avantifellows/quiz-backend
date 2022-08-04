@@ -3,7 +3,9 @@ from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 import pymongo
 from database import client
+from schemas import EventType
 from models import (
+    Event,
     Session,
     SessionAnswer,
     SessionResponse,
@@ -11,6 +13,12 @@ from models import (
     UpdateSessionResponse,
 )
 from datetime import datetime
+
+
+def str_to_datetime(datetime_str: str) -> datetime:
+    """converts string to datetime format"""
+    return datetime.fromisoformat(datetime_str)
+
 
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
 
@@ -35,17 +43,16 @@ async def create_session(session: Session):
     if previous_session is None:
         session["is_first"] = True
         if quiz["time_limit"] is not None:
-            session["time_remaining"] = quiz["time_limit"]["max"]
+            session["time_remaining"] = quiz["time_limit"][
+                "max"
+            ]  # ignoring min for now
 
+        # since we know that there is going to be only one question set for now
         if "question_sets" in quiz and quiz["question_sets"]:
-            question_set_ids = [qset["_id"] for qset in quiz["question_sets"]]
-            questions = []
-            for qset_id in question_set_ids:
-                questions.extend(
-                    client.quiz.questions.find(
-                        {"question_set_id": qset_id}, sort=[("_id", pymongo.ASCENDING)]
-                    )
-                )
+            question_set_id = quiz["question_sets"][0]["_id"]
+            questions = client.quiz.questions.find(
+                {"question_set_id": question_set_id}, sort=[("_id", pymongo.ASCENDING)]
+            )
             if questions:
 
                 for question in questions:
@@ -59,9 +66,15 @@ async def create_session(session: Session):
                         )
                     )
     else:
-        session["is_first"] = False
+        if previous_session["events"] is None:
+            # later, we can avoid creating new session too
+            session["is_first"] = True
+        else:
+            session["is_first"] = False
+
+        session["events"] = previous_session.get("events", None)
         session["has_quiz_ended"] = previous_session.get("has_quiz_ended", False)
-        session["has_quiz_started"] = previous_session.get("has_quiz_started", False)
+        session["time_remaining"] = previous_session.get("time_remaining", None)
 
         # restore the answers from the previous sessions
         previous_session_answers = list(
@@ -79,9 +92,6 @@ async def create_session(session: Session):
             session_answers.append(
                 jsonable_encoder(SessionAnswer.parse_obj(session_answer))
             )
-        for key in ["quiz_start_resume_time", "quiz_end_time", "time_remaining"]:
-            session[key] = previous_session.get(key, None)
-        # time_remaining will get updated when start/resume clicked
 
     session["session_answers"] = session_answers
 
@@ -99,10 +109,12 @@ async def create_session(session: Session):
 @router.patch("/{session_id}", response_model=UpdateSessionResponse)
 async def update_session(session_id: str, session_updates: UpdateSession):
     """
-    session is updated whenever start/resume button is clicked
-    (or) end button is clicked for the first time
+    session is updated whenever
+    * start button is clicked (start-quiz event)
+    * resume button is clicked (resume-quiz event)
+    * end button is clicked (end-quiz event)
     """
-    session_updates = jsonable_encoder(session_updates)
+    new_event = jsonable_encoder(session_updates)["event"]
     session = client.quiz.sessions.find_one({"_id": session_id})
     if session is None:
         raise HTTPException(
@@ -110,34 +122,30 @@ async def update_session(session_id: str, session_updates: UpdateSession):
             detail=f"session {session_id} not found",
         )
 
-    current_time = datetime.utcnow()
+    event_obj = jsonable_encoder(Event.parse_obj({"event_type": new_event}))
+    if session["events"] is None:
+        session["events"] = [event_obj]
+    else:
+        session["events"].append(event_obj)
+
+    # diff between times of last two events
     time_elapsed = 0
-
-    if session_updates["has_quiz_started_first_time"]:
-        # start/resume button clicked first time for a quiz
-        session["has_quiz_started"] = True
-        # time elapsed is zero
-    else:
-        # update time remaining based on current time (resume/end button clicked)
+    if new_event != EventType.start_quiz:
+        # time_elapsed = 0 for start-quiz event
         time_elapsed = (
-            current_time - datetime.fromisoformat(session["quiz_start_resume_time"])
+            str_to_datetime(session["events"][-1]["created_at"])
+            - str_to_datetime(session["events"][-2]["created_at"])
         ).seconds
-
-    if session_updates["has_quiz_ended_first_time"]:
-        # end test clicked first time
-        session["has_quiz_ended"] = True
-        session["quiz_end_time"] = current_time
-    else:
-        # quiz started or resumed
-        session["quiz_start_resume_time"] = current_time
 
     response_content = {}
     if "time_remaining" in session and session["time_remaining"] is not None:
-        # if not here => there is no time limit set, no need to update
+        # if not there => no time limit is set, no need to respond with time_remaining
         session["time_remaining"] = max(0, session["time_remaining"] - time_elapsed)
         response_content = {"time_remaining": session["time_remaining"]}
 
     # update the document in the sessions collection
+    if new_event == EventType.end_quiz:
+        session["has_quiz_ended"] = True
     client.quiz.sessions.update_one(
         {"_id": session_id}, {"$set": jsonable_encoder(session)}
     )
