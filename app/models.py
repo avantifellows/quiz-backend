@@ -320,8 +320,9 @@ class SessionAnswer(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     question_id: str
     answer: answerType = None
-    visited: Union[bool, None] = False
+    visited: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:
         allow_population_by_field_name = True
@@ -334,7 +335,7 @@ class UpdateSessionAnswer(BaseModel):
     """Model for the body of the request that updates a session answer"""
 
     answer: Optional[answerType]
-    visited: Optional[Union[bool, None]]
+    visited: Optional[bool]
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:
@@ -354,7 +355,8 @@ class Session(BaseModel):
     user_id: str
     quiz_id: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    events: Optional[List[Event]]
+    events: List[Event] = []
+    has_quiz_ended: bool = False
 
     class Config:
         allow_population_by_field_name = True
@@ -381,9 +383,8 @@ class SessionResponse(Session):
     """Model for the response of any request that returns a session"""
 
     is_first: bool
-    has_quiz_ended: Optional[bool] = False
     session_answers: List[SessionAnswer]
-    time_remaining: Optional[int] = None  # seconds
+    time_remaining: Optional[int] = None  # time in seconds
 
     class Config:
         schema_extra = {
@@ -413,7 +414,7 @@ class SessionResponse(Session):
 class UpdateSessionResponse(BaseModel):
     """Model for the response of request that updates a session"""
 
-    time_remaining: Optional[int]
+    time_remaining: Optional[int]  # time in seconds
 
     class Config:
         schema_extra = {"example": {"time_remaining": 300}}

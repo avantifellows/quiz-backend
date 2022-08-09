@@ -77,7 +77,7 @@ class SessionsTestCase(SessionsBaseTestCase):
             json={"quiz_id": self.timed_quiz["_id"], "user_id": 1},
         ).json()
 
-        assert response["events"] is None
+        assert len(response["events"]) == 0
         assert response["is_first"] is True
 
     def test_create_session_with_previous_session_and_start_event(self):
@@ -92,7 +92,7 @@ class SessionsTestCase(SessionsBaseTestCase):
             json={"quiz_id": self.timed_quiz["_id"], "user_id": 1},
         ).json()
 
-        assert response["events"] is not None
+        assert len(response["events"]) > 0
         assert response["is_first"] is False
 
     def test_create_session_with_valid_quiz_id_and_previous_session(self):
