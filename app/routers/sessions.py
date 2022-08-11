@@ -46,11 +46,11 @@ async def create_session(session: Session):
         )
     )
     last_session, second_last_session = None, None
+    # only one session exists
     if len(previous_two_sessions) == 1:
-        # only one session exists
         last_session = previous_two_sessions[0]
+    # two previous sessions exist
     elif len(previous_two_sessions) == 2:
-        # two previous sessions exist
         last_session, second_last_session = previous_two_sessions  # unpack
 
     session_answers = []
