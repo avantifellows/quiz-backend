@@ -76,13 +76,18 @@ async def create_session(session: Session):
                     )
     else:
         condition_to_return_last_session = (
-            # no event has occurred in any session (quiz has not started)
-            len(last_session["events"]) == 0
-            or (
-                # ensure second_last_session is there and
-                # no event occurred in last session (as compared to second_last_session
-                second_last_session is not None
-                and len(last_session["events"]) == len(second_last_session["events"])
+            # checking "events" key for backward compatibility
+            "events" in last_session
+            and (
+                # no event has occurred in any session (quiz has not started)
+                len(last_session["events"]) == 0
+                or (
+                    # ensure second_last_session is there and
+                    # no event occurred in last session (as compared to second_last_session
+                    second_last_session is not None
+                    and len(last_session["events"])
+                    == len(second_last_session["events"])
+                )
             )
         )
 
