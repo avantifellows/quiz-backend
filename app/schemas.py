@@ -39,3 +39,9 @@ class QuizLanguage(Enum):
 class QuizType(Enum):
     assessment = "assessment"
     homework = "homework"
+
+
+class EventType(str, Enum):
+    start_quiz = "start-quiz"
+    resume_quiz = "resume-quiz"
+    end_quiz = "end-quiz"

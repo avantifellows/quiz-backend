@@ -4,7 +4,7 @@ from .base import BaseTestCase
 class QuestionsTestCase(BaseTestCase):
     def setUp(self):
         super().setUp()
-        question = self.quiz["question_sets"][0]["questions"][0]
+        question = self.homework_quiz["question_sets"][0]["questions"][0]
         self.question_id, self.text = question["_id"], question["text"]
 
     def test_get_question_returns_error_if_id_invalid(self):

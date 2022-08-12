@@ -6,7 +6,7 @@ from ..routers import session_answers
 class SessionAnswerTestCase(SessionsBaseTestCase):
     def setUp(self):
         super().setUp()
-        self.session_answers = self.session["session_answers"]
+        self.session_answers = self.homework_session["session_answers"]
         self.session_answer = self.session_answers[0]
         self.session_answer_id = self.session_answer["_id"]
 
