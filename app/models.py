@@ -75,6 +75,8 @@ class QuizMetadata(BaseModel):
     subject: Optional[str]
     chapter: Optional[str]
     topic: Optional[str]
+    source: Optional[str]
+    source_id: Optional[str]
 
 
 class Question(BaseModel):
@@ -232,7 +234,7 @@ class Quiz(BaseModel):
                 "title": "hello world",
                 "max_marks": 10,
                 "num_graded_questions": 3,
-                "metadata": {"quiz_type": "homework", "subject": "Maths", "grade": "8"},
+                "metadata": {"quiz_type": "homework", "subject": "Maths", "grade": "8", "source": "cms"},
             }
         }
 
