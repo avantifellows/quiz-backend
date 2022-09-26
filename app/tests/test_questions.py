@@ -8,7 +8,7 @@ settings = Settings()
 class QuestionsTestCase(BaseTestCase):
     def setUp(self):
         super().setUp()
-        question = self.short_quiz["question_sets"][0]["questions"][0]
+        question = self.homework_quiz["question_sets"][0]["questions"][0]
         self.question_id, self.text = question["_id"], question["text"]
 
     def test_get_question_returns_error_if_id_invalid(self):
@@ -24,7 +24,7 @@ class QuestionsTestCase(BaseTestCase):
 
     def test_get_questions_by_question_set_id(self):
         # get the question set id
-        long_quiz_question_set_id = self.long_quiz["question_sets"][0]["_id"]
+        long_quiz_question_set_id = self.long_assessment_quiz["question_sets"][0]["_id"]
 
         # query a subset of questions belonging to the question set id
         response = self.client.get(

@@ -1,7 +1,15 @@
 from typing import Optional, List, Union
 from bson import ObjectId
 from pydantic import BaseModel, Field
-from schemas import QuestionType, PyObjectId, NavigationMode, QuizLanguage, QuizType
+from schemas import (
+    QuestionType,
+    PyObjectId,
+    NavigationMode,
+    QuizLanguage,
+    QuizType,
+    EventType,
+)
+from datetime import datetime
 
 answerType = Union[List[int], float, int, str, None]
 
@@ -47,6 +55,11 @@ class QuizTimeLimit(BaseModel):
     max: int
 
 
+class Event(BaseModel):
+    event_type: EventType
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class QuestionMetadata(BaseModel):
     grade: Optional[str]
     subject: Optional[str]
@@ -62,6 +75,8 @@ class QuizMetadata(BaseModel):
     subject: Optional[str]
     chapter: Optional[str]
     topic: Optional[str]
+    source: Optional[str]
+    source_id: Optional[str]
 
 
 class Question(BaseModel):
@@ -163,7 +178,7 @@ class Quiz(BaseModel):
     num_graded_questions: int
     shuffle: bool = False
     num_attempts_allowed: int = 1
-    time_limit: QuizTimeLimit = None
+    time_limit: Optional[QuizTimeLimit] = None
     navigation_mode: NavigationMode = "linear"
     instructions: Optional[str] = None
     language: QuizLanguage = "en"
@@ -224,12 +239,17 @@ class Quiz(BaseModel):
                 "title": "hello world",
                 "max_marks": 10,
                 "num_graded_questions": 3,
-                "metadata": {"quiz_type": "homework", "subject": "Maths", "grade": "8"},
+                "metadata": {
+                    "quiz_type": "homework",
+                    "subject": "Maths",
+                    "grade": "8",
+                    "source": "cms",
+                },
             }
         }
 
 
-class QuizResponse(Quiz):
+class GetQuizResponse(Quiz):
     """Model for the response of any request that returns a quiz"""
 
     question_sets: List[QuestionSetResponse]
@@ -295,13 +315,28 @@ class QuizResponse(Quiz):
         }
 
 
+class CreateQuizResponse(BaseModel):
+    """Model for the response of a request that creates a quiz"""
+
+    id: str
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "id": "1234",
+            }
+        }
+
+
 class SessionAnswer(BaseModel):
     """Model for the body of the request that creates a session answer"""
 
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     question_id: str
     answer: answerType = None
-    visited: Union[bool, None] = False
+    visited: bool = False
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:
         allow_population_by_field_name = True
@@ -314,7 +349,8 @@ class UpdateSessionAnswer(BaseModel):
     """Model for the body of the request that updates a session answer"""
 
     answer: Optional[answerType]
-    visited: Optional[Union[bool, None]]
+    visited: Optional[bool]
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:
         schema_extra = {"example": {"answer": [0, 1, 2], "visited": True}}
@@ -332,6 +368,9 @@ class Session(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     user_id: str
     quiz_id: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    events: List[Event] = []
+    has_quiz_ended: bool = False
 
     class Config:
         allow_population_by_field_name = True
@@ -348,22 +387,18 @@ class Session(BaseModel):
 class UpdateSession(BaseModel):
     """Model for the body of the request that updates a session"""
 
-    has_quiz_ended: bool = False
+    event: EventType
 
     class Config:
-        schema_extra = {
-            "example": {
-                "has_quiz_ended": True,
-            }
-        }
+        schema_extra = {"example": {"event": "start-quiz"}}
 
 
 class SessionResponse(Session):
     """Model for the response of any request that returns a session"""
 
     is_first: bool
-    has_quiz_ended: Optional[bool] = False
     session_answers: List[SessionAnswer]
+    time_remaining: Optional[int] = None  # time in seconds
 
     class Config:
         schema_extra = {
@@ -372,6 +407,7 @@ class SessionResponse(Session):
                 "user_id": "1234",
                 "quiz_id": "5678",
                 "is_first": True,
+                "time_remaining": 300,
                 "has_quiz_ended": False,
                 "session_answers": [
                     {
@@ -387,3 +423,12 @@ class SessionResponse(Session):
                 ],
             }
         }
+
+
+class UpdateSessionResponse(BaseModel):
+    """Model for the response of request that updates a session"""
+
+    time_remaining: Optional[int]  # time in seconds
+
+    class Config:
+        schema_extra = {"example": {"time_remaining": 300}}
