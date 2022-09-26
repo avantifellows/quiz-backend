@@ -1,9 +1,14 @@
 from pymongo import MongoClient
+import os
 
 if __name__ == "__main__":
+
+    if "MONGO_AUTH_CREDENTIALS" not in os.environ:
+        from dotenv import load_dotenv
+
+        load_dotenv("../.env")
     # import ipdb; ipdb.set_trace()
-    creds = "mongodb+srv://quiz:p$#p4h7y_Z44R-n@quiz-staging.uocfg.mongodb.net/quiz?retryWrites=true&w=majority"
-    client = MongoClient(creds)
+    client = MongoClient(os.getenv("MONGO_AUTH_CREDENTIALS"))
     quiz_collection = client.quiz.quizzes
     done_ids = []
 
