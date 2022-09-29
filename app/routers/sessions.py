@@ -177,11 +177,15 @@ async def update_session(session_id: str, session_updates: UpdateSession):
             # subtract times of last dummy event and last non dummy event
             dummy_found = False
             last_dummy_event, last_non_dummy_event = None, None
-            for ev in session["events"][::-1]:
+            for ev in session["events"][::-1][1:]:
                 if not dummy_found and ev["event_type"] == EventType.dummy_event:
                     last_dummy_event = ev
                     dummy_found = True
                     continue
+                
+                if not dummy_found and ev["event_type"] != EventType.dummy_event:
+                    # two quick non-dummy events, ignore -- remove this after JNV enable!
+                    break
 
                 if dummy_found and ev["event_type"] != EventType.dummy_event:
                     last_non_dummy_event = ev
