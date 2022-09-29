@@ -182,7 +182,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
                     last_dummy_event = ev
                     dummy_found = True
                     continue
-                
+
                 if not dummy_found and ev["event_type"] != EventType.dummy_event:
                     # two quick non-dummy events, ignore -- remove this after JNV enable!
                     break
