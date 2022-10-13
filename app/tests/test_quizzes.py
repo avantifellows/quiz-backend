@@ -92,8 +92,8 @@ class QuizTestCase(BaseTestCase):
         ):
             question = self.long_assessment_quiz["question_sets"][0]["questions"][i]
 
-            # for key in required_keys:
-            #     assert key in question
+            for key in required_keys:
+                assert key in question
 
             for key in optional_keys:
                 # key exists in the returned question
