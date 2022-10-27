@@ -130,6 +130,7 @@ class QuestionResponse(Question):
     """Model for the response of any request that returns a question"""
 
     question_set_id: str
+    text: Optional[str] = None
 
     class Config:
         schema_extra = {
@@ -161,6 +162,10 @@ class QuestionResponse(Question):
 class QuestionSet(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     questions: List[Question]
+
+
+class QuestionSetResponse(QuestionSet):
+    questions: List[QuestionResponse]
 
 
 class Quiz(BaseModel):
@@ -246,6 +251,8 @@ class Quiz(BaseModel):
 
 class GetQuizResponse(Quiz):
     """Model for the response of any request that returns a quiz"""
+
+    question_sets: List[QuestionSetResponse]
 
     class Config:
         schema_extra = {

@@ -10,12 +10,9 @@ router = APIRouter(prefix="/organizations", tags=["Organizations"])
 settings = Settings()
 
 
-def generate_random_string():
+def generate_random_string(length: int = settings.api_key_length):
     return "".join(
-        [
-            secrets.choice(string.ascii_letters + string.digits)
-            for _ in range(settings.random_string_length)
-        ]
+        [secrets.choice(string.ascii_letters + string.digits) for _ in range(length)]
     )
 
 
