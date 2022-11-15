@@ -23,6 +23,7 @@ async def create_quiz(quiz: Quiz):
         subset_with_details = client.quiz.questions.aggregate(
             [
                 {"$match": {"question_set_id": question_set["_id"]}},
+                {"$sort": {"_id": 1}},
                 {"$limit": settings.subset_size},
             ]
         )
@@ -30,6 +31,7 @@ async def create_quiz(quiz: Quiz):
         subset_without_details = client.quiz.questions.aggregate(
             [
                 {"$match": {"question_set_id": question_set["_id"]}},
+                {"$sort": {"_id": 1}},
                 {"$skip": settings.subset_size},
                 {
                     "$project": {
