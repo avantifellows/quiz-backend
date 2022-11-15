@@ -18,7 +18,10 @@ async def get_question(question_id: str):
 
 @router.get("/")
 async def get_questions(question_set_id: str, skip: int = None, limit: int = None):
-    pipeline = [{"$match": {"question_set_id": question_set_id}}]
+    pipeline = [
+        {"$match": {"question_set_id": question_set_id}},
+        {"$sort": {"_id": 1}},
+    ]
 
     if skip:
         pipeline.append({"$skip": skip})
