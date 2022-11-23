@@ -39,6 +39,7 @@ async def create_quiz(quiz: Quiz):
                         "type": 1,
                         "correct_answer": 1,
                         "question_set_id": 1,
+                        "marking_scheme": 1,
                     }
                 },
             ]
