@@ -21,13 +21,13 @@ jobs:
       - name: Download and setup mongo db cmd tools
         run:
           wget https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-100.6.1.tgz &&
-          tar -zxvf mongodb-database-tools-*.tgz &&
-          cd mongodb-database-tools-*/bin
+          tar -zxvf mongodb-database-tools-*.tgz
 
       - name: Dump data from Prod DB to local storage
         env:
           MONGO_AUTH_PASSWORD: ${{ secrets.MONGO_AUTH_PASSWORD }}
         run:
+          cd mongodb-database-tools-*/bin &&
           mongodump --uri mongodb+srv://quiz:$MONGO_AUTH_PASSWORD@quiz-prod-m10.uocfg.mongodb.net/quiz
 
       - name: Restore data to Dev DB from local storage
