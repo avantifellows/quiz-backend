@@ -22,7 +22,7 @@ jobs:
           # tar -zxvf mongodb-database-tools-*.tgz &&
       - name: Download and setup mongo db cmd tools
         run:
-          sudo apt-install mongo-tools
+          sudo apt install mongo-tools
 
       # cd mongodb-database-tools-*/bin &&
       - name: Dump data from Prod DB to local storage
