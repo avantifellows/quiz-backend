@@ -34,4 +34,4 @@ jobs:
         env:
           MONGO_AUTH_PASSWORD: ${{ secrets.MONGO_AUTH_PASSWORD }}
         run:
-          mongorestore --uri mongodb+srv://quiz:$MONGO_AUTH_PASSWORD@cluster0.uocfg.mongodb.net --maintainInsertionOrder --drop --preserveUUID
+          ./mongorestore --uri mongodb+srv://quiz:$MONGO_AUTH_PASSWORD@cluster0.uocfg.mongodb.net --maintainInsertionOrder --drop --preserveUUID
