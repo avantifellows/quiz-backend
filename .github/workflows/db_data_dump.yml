@@ -1,0 +1,35 @@
+# This workflow will clean out the Dev and Staging DB and dump the latest data from Prod to the Staging and Dev dbs
+
+on:
+  # push:
+  #   branches: ["release"]
+  pull_request:
+
+name: Data dump from Prod to Staging/Dev DB
+
+jobs:
+  restor_and_dump:
+    name: Restore and dump
+    environment:
+      name: Production
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Download mongo db cmd tools
+        run:
+          wget https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-100.6.1.tgz
+
+      - name: Dump data from Prod DB to local storage
+        env:
+          MONGO_AUTH_PASSWORD: ${{ secrets.MONGO_AUTH_PASSWORD }}
+        run:
+          mongodump --uri mongodb+srv://quiz:$MONGO_AUTH_PASSWORD@quiz-prod-m10.uocfg.mongodb.net/quiz
+
+      - name: Restore data to Dev DB from local storage
+        env:
+          MONGO_AUTH_PASSWORD: ${{ secrets.MONGO_AUTH_PASSWORD }}
+        run:
+          mongorestore --uri mongodb+srv://quiz:$MONGO_AUTH_PASSWORD@cluster0.uocfg.mongodb.net --maintainInsertionOrder --drop --preserveUUID
