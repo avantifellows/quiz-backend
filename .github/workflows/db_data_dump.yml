@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Download and setup mongo db cmd tools
-        run:
+        run: >
           wget https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-100.6.1.tgz
           tar -zxvf mongodb-database-tools-*.tgz
           cd mongodb-database-tools-*/bin
