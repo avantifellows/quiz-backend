@@ -64,13 +64,15 @@ async def create_session(session: Session):
         if "question_sets" in quiz and quiz["question_sets"]:
             question_ids = []
             for question_set_index, question_set in enumerate(quiz["question_sets"]):
-                for question_index, question in enumerate(question_set):
+                for question_index, question in enumerate(question_set["questions"]):
                     question_ids.append(question["_id"])
 
             if question_ids:
                 for question_id in question_ids:
                     session_answers.append(
-                        SessionAnswer.parse_obj({"question_id": question_id})
+                        jsonable_encoder(
+                            SessionAnswer.parse_obj({"question_id": question_id})
+                        )
                     )
     else:
         condition_to_return_last_session = (
@@ -143,8 +145,15 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     * start button is clicked (start-quiz event)
     * resume button is clicked (resume-quiz event)
     * end button is clicked (end-quiz event)
+    * dummy event logic added for JNV -- will be removed!
     """
     new_event = jsonable_encoder(session_updates)["event"]
+
+    # if new_event == EventType.dummy_event:
+    #     return JSONResponse(
+    #         status_code=status.HTTP_200_OK, content={"time_remaining": None}
+    #     )
+
     session = client.quiz.sessions.find_one({"_id": session_id})
     if session is None:
         raise HTTPException(
@@ -160,17 +169,52 @@ async def update_session(session_id: str, session_updates: UpdateSession):
 
     # diff between times of last two events
     time_elapsed = 0
-    if new_event != EventType.start_quiz:
+    if new_event not in [EventType.start_quiz, EventType.dummy_event]:
         # time_elapsed = 0 for start-quiz event
         if len(session["events"]) >= 2:
             # [sanity check] ensure atleast two events have occured before computing elapsed time
-            time_elapsed = (
-                str_to_datetime(session["events"][-1]["created_at"])
-                - str_to_datetime(session["events"][-2]["created_at"])
-            ).seconds
+            # time_elapsed = (
+            #     str_to_datetime(session["events"][-1]["created_at"])
+            #     - str_to_datetime(session["events"][-2]["created_at"])
+            # ).seconds
+
+            # only for jnv enable -- remove later!
+            # subtract times of last dummy event and last non dummy event
+            dummy_found = False
+            last_dummy_event, last_non_dummy_event = None, None
+            for ev in session["events"][::-1][1:]:
+                if not dummy_found and ev["event_type"] == EventType.dummy_event:
+                    last_dummy_event = ev
+                    dummy_found = True
+                    continue
+
+                if not dummy_found and ev["event_type"] != EventType.dummy_event:
+                    # two quick non-dummy events, ignore -- remove this after JNV enable!
+                    break
+
+                if dummy_found and ev["event_type"] != EventType.dummy_event:
+                    last_non_dummy_event = ev
+                    break
+
+            if dummy_found:
+                time_elapsed = (
+                    str_to_datetime(last_dummy_event["created_at"])
+                    - str_to_datetime(last_non_dummy_event["created_at"])
+                ).seconds
+            else:
+                # if no dummy event at all!
+                time_elapsed = (
+                    str_to_datetime(session["events"][-1]["created_at"])
+                    - str_to_datetime(session["events"][-2]["created_at"])
+                ).seconds
 
     response_content = {}
-    if "time_remaining" in session and session["time_remaining"] is not None:
+    # added check for dummy event; dont update time_remaining for it
+    if (
+        new_event != EventType.dummy_event
+        and "time_remaining" in session
+        and session["time_remaining"] is not None
+    ):
         # if `time_remaining` key is not present =>
         # no time limit is set, no need to respond with time_remaining
         session["time_remaining"] = max(0, session["time_remaining"] - time_elapsed)

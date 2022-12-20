@@ -45,3 +45,4 @@ class EventType(str, Enum):
     start_quiz = "start-quiz"
     resume_quiz = "resume-quiz"
     end_quiz = "end-quiz"
+    dummy_event = "dummy-event"

@@ -164,7 +164,7 @@ class QuestionSet(BaseModel):
     questions: List[Question]
     title: Optional[str]
     has_optional_questions: bool = False
-    max_questions_allowed_to_attempt: Optional[int]
+    max_questions_allowed_to_attempt: int  # usually equal to len(questions)
 
 
 class QuestionSetResponse(QuestionSet):
@@ -238,7 +238,7 @@ class Quiz(BaseModel):
                                 ],
                                 "graded": False,
                             },
-                        ]
+                        ],
                     }
                 ],
                 "title": "hello world",
