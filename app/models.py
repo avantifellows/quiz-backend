@@ -163,8 +163,8 @@ class QuestionSet(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     questions: List[Question]
     title: Optional[str]
-    has_optional_questions: bool = False
-    max_questions_allowed_to_attempt: int  # usually equal to len(questions)
+    max_questions_allowed_to_attempt: int
+    # optional questions exist if max_questions_allowed_to_attempt not equal to len(questions)
 
 
 class QuestionSetResponse(QuestionSet):
@@ -196,7 +196,7 @@ class Quiz(BaseModel):
                 "question_sets": [
                     {
                         "title": "Physics set",
-                        "has_optional_questions": False,
+                        "max_questions_allowed_to_attempt": 2,
                         "questions": [
                             {
                                 "text": "Which grade are you in?",
@@ -267,7 +267,7 @@ class GetQuizResponse(Quiz):
                     {
                         "_id": "12020",
                         "title": "question set title",
-                        "has_optional_questions": False,
+                        "max_questions_allowed_to_attempt": 2,
                         "questions": [
                             {
                                 "_id": "304030",
