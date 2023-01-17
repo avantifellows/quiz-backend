@@ -1,6 +1,7 @@
 {
    "question_sets":[
       {
+         "max_questions_allowed_to_attempt": 24,
          "questions":[
             {
                "text":"Q1",
