@@ -164,7 +164,6 @@ class QuestionSet(BaseModel):
     questions: List[Question]
     title: Optional[str] = None
     max_questions_allowed_to_attempt: int
-    # optional questions exist if max_questions_allowed_to_attempt not equal to len(questions)
 
 
 class QuestionSetResponse(QuestionSet):
