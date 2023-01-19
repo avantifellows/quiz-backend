@@ -162,7 +162,7 @@ class QuestionResponse(Question):
 class QuestionSet(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     questions: List[Question]
-    title: Optional[str]
+    title: Optional[str] = None
     max_questions_allowed_to_attempt: int
     # optional questions exist if max_questions_allowed_to_attempt not equal to len(questions)
 
