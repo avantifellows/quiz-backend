@@ -62,16 +62,11 @@ async def create_session(session: Session):
             ]  # ignoring min for now
 
         if "question_sets" in quiz and quiz["question_sets"]:
-            question_ids = []
             for question_set_index, question_set in enumerate(quiz["question_sets"]):
                 for question_index, question in enumerate(question_set["questions"]):
-                    question_ids.append(question["_id"])
-
-            if question_ids:
-                for question_id in question_ids:
                     session_answers.append(
                         jsonable_encoder(
-                            SessionAnswer.parse_obj({"question_id": question_id})
+                            SessionAnswer.parse_obj({"question_id": question["_id"]})
                         )
                     )
     else:
