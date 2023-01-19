@@ -9,6 +9,22 @@ router = APIRouter(prefix="/quiz", tags=["Quiz"])
 settings = Settings()
 
 
+def update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz):
+    """
+    if given quiz contains question sets that do not have max_questions_allowed_to_attempt key,
+    update the question sets (in-place) with the key and value as len(questions) in that set.
+    Finally, add quiz to quiz_collection
+    (NOTE: this is a primitive form of versioning)
+    """
+    for question_set_index, question_set in enumerate(quiz["question_sets"]):
+        if "max_questions_allowed_to_attempt" not in question_set:
+            question_set["max_questions_allowed_to_attempt"] = len(
+                question_set["questions"]
+            )
+
+    quiz_collection.update_one({"_id": quiz_id}, {"$set": quiz})
+
+
 @router.post("/", response_model=CreateQuizResponse)
 async def create_quiz(quiz: Quiz):
     quiz = jsonable_encoder(quiz)
@@ -57,7 +73,9 @@ async def create_quiz(quiz: Quiz):
 
 @router.get("/{quiz_id}", response_model=GetQuizResponse)
 async def get_quiz(quiz_id: str):
-    if (quiz := client.quiz.quizzes.find_one({"_id": quiz_id})) is not None:
+    quiz_collection = client.quiz.quizzes
+    if (quiz := quiz_collection.find_one({"_id": quiz_id})) is not None:
+        update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz)
         return quiz
 
     raise HTTPException(
