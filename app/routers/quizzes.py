@@ -13,6 +13,7 @@ def update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz):
     """
     if given quiz contains question sets that do not have max_questions_allowed_to_attempt key,
     update the question sets (in-place) with the key and value as len(questions) in that set.
+    Additionally, add a default title for the set
     Finally, add quiz to quiz_collection
     (NOTE: this is a primitive form of versioning)
     """
@@ -21,6 +22,7 @@ def update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz):
             question_set["max_questions_allowed_to_attempt"] = len(
                 question_set["questions"]
             )
+            question_set["title"] = "Section A"
 
     quiz_collection.update_one({"_id": quiz_id}, {"$set": quiz})
 
