@@ -12,9 +12,10 @@ class QuizTestCase(BaseTestCase):
         self.short_homework_quiz_questions_length = len(
             self.short_homework_quiz_data["question_sets"][0]["questions"]
         )
-        self.long_assessment_quiz_questions_length = len(
-            self.long_assessment_quiz_data["question_sets"][0]["questions"]
-        )
+        self.multi_qset_quiz_lengths = [
+            len(self.multi_qset_quiz_data["question_sets"][i]["questions"])
+            for i in range(2)
+        ]  # two question sets in dummy data
 
         self.id = self.homework_quiz["_id"]
         self.length = len(self.homework_quiz_data["question_sets"][0]["questions"])
@@ -57,11 +58,11 @@ class QuizTestCase(BaseTestCase):
         response = response.json()
         assert response["detail"] == "quiz 00 not found"
 
-    def test_created_long_quiz_contains_subsets(self):
-        # the created long quiz should contain the same number of questions as the one in the provided input json
-        assert self.long_assessment_quiz_questions_length == len(
-            self.long_assessment_quiz_data["question_sets"][0]["questions"]
-        )
+    def test_created_multi_qset_quiz_contains_subsets(self):
+        # the created long multi qset quiz should contain the same number of questions as the one in the provided input json
+        assert self.multi_qset_quiz_lengths == [
+            len(self.multi_qset_quiz["question_sets"][i]["questions"]) for i in range(2)
+        ]
 
         # the keys that should be present in every question stored inside a quiz
         required_keys = ["type", "correct_answer", "graded", "question_set_id"]
@@ -79,31 +80,41 @@ class QuizTestCase(BaseTestCase):
 
         # checking the first subset_size bucket of questions in the quiz.
         # This should contain all the keys/details of a question
-        for i in range(0, settings.subset_size):
-            question = self.long_assessment_quiz["question_sets"][0]["questions"][i]
-            for key in optional_keys + required_keys:
-                assert key in question
+        for question_set_index in range(0, 2):
+            for question_index in range(0, settings.subset_size):
+                question = self.multi_qset_quiz["question_sets"][question_set_index][
+                    "questions"
+                ][question_index]
+                for key in optional_keys + required_keys:
+                    assert key in question
 
         # checking the rest of the subset of questions in the quiz.
         # They should only contain some required keys and not all the keys
-        for i in range(
-            settings.subset_size,
-            len(self.long_assessment_quiz["question_sets"][0]["questions"]),
-        ):
-            question = self.long_assessment_quiz["question_sets"][0]["questions"][i]
+        for question_set_index in range(0, 2):
+            for question_index in range(
+                settings.subset_size,
+                len(
+                    self.multi_qset_quiz["question_sets"][question_set_index][
+                        "questions"
+                    ]
+                ),
+            ):
+                question = self.multi_qset_quiz["question_sets"][question_set_index][
+                    "questions"
+                ][question_index]
 
-            for key in required_keys:
-                assert key in question
+                for key in required_keys:
+                    assert key in question
 
-            for key in optional_keys:
-                # key exists in the returned question
-                assert key in question
+                for key in optional_keys:
+                    # key exists in the returned question
+                    assert key in question
 
-                # if the key is solution or option, they should be empty arrays
-                # because that is what is set as the default value in models.py
-                if key in ["solution", "options"]:
-                    assert len(question[key]) == 0
-                # if the key is not solution or options, the value of those keys
-                # should be None as these are all optional keys
-                else:
-                    assert question[key] is None
+                    # if the key is solution or option, they should be empty arrays
+                    # because that is what is set as the default value in models.py
+                    if key in ["solution", "options"]:
+                        assert len(question[key]) == 0
+                    # if the key is not solution or options, the value of those keys
+                    # should be None as these are all optional keys
+                    else:
+                        assert question[key] is None

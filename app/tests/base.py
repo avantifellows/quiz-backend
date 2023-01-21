@@ -25,15 +25,6 @@ class BaseTestCase(unittest.TestCase):
             self.short_homework_quiz_data
         )
 
-        # long assessment quiz
-        self.long_assessment_quiz_data = json.load(
-            open("app/tests/dummy_data/long_assessment_quiz.json")
-        )
-        (
-            self.long_assessment_quiz_id,
-            self.long_assessment_quiz,
-        ) = self.post_and_get_quiz(self.long_assessment_quiz_data)
-
         # homework quiz
         self.homework_quiz_data = json.load(
             open("app/tests/dummy_data/homework_quiz.json")
@@ -48,6 +39,14 @@ class BaseTestCase(unittest.TestCase):
         )
         self.timed_quiz_id, self.timed_quiz = self.post_and_get_quiz(
             self.timed_quiz_data
+        )
+
+        # assessment quiz with multiple question sets
+        self.multi_qset_quiz_data = json.load(
+            open("app/tests/dummy_data/multiple_question_set_quiz.json")
+        )
+        self.multi_qset_quiz_id, self.multi_qset_quiz = self.post_and_get_quiz(
+            self.multi_qset_quiz_data
         )
 
     def post_and_get_quiz(self, quiz_data):
@@ -75,12 +74,12 @@ class SessionsBaseTestCase(BaseTestCase):
         )
         self.short_homework_quiz_session = json.loads(response.content)
 
-        # long assessment quiz
+        # assessment quiz with multiple question sets
         response = self.client.post(
             sessions.router.prefix + "/",
-            json={"quiz_id": self.long_assessment_quiz["_id"], "user_id": 1},
+            json={"quiz_id": self.multi_qset_quiz["_id"], "user_id": 1},
         )
-        self.long_assessment_quiz_session = json.loads(response.content)
+        self.multi_qset_quiz_session = json.loads(response.content)
 
         # homework quiz
         response = self.client.post(
