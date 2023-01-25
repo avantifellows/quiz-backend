@@ -164,6 +164,7 @@ class QuestionSet(BaseModel):
     questions: List[Question]
     title: Optional[str] = None
     max_questions_allowed_to_attempt: int
+    marking_scheme: MarkingScheme
 
 
 class QuestionSetResponse(QuestionSet):
