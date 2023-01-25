@@ -24,7 +24,10 @@ def update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz):
             )
             question_set["title"] = "Section A"
 
-        if "marking_scheme" not in question_set:
+        if (
+            "marking_scheme" not in question_set
+            or question_set["marking_scheme"] is None
+        ):
             question_marking_scheme = question_set["questions"][0]["marking_scheme"]
             if question_marking_scheme is not None:
                 question_set["marking_scheme"] = question_marking_scheme
