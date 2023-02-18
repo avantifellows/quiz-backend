@@ -13,7 +13,7 @@ def update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz):
     """
     if given quiz contains question sets that do not have max_questions_allowed_to_attempt key,
     update the question sets (in-place) with the key and value as len(questions) in that set.
-    Additionally, add a default title for the set
+    Additionally, add a default title and marking scheme for the set.
     Finally, add quiz to quiz_collection
     (NOTE: this is a primitive form of versioning)
     """
@@ -23,6 +23,20 @@ def update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz):
                 question_set["questions"]
             )
             question_set["title"] = "Section A"
+
+        if (
+            "marking_scheme" not in question_set
+            or question_set["marking_scheme"] is None
+        ):
+            question_marking_scheme = question_set["questions"][0]["marking_scheme"]
+            if question_marking_scheme is not None:
+                question_set["marking_scheme"] = question_marking_scheme
+            else:
+                question_set["marking_scheme"] = {
+                    "correct": 1,
+                    "wrong": 0,
+                    "skipped": 0,
+                }  # default
 
     quiz_collection.update_one({"_id": quiz_id}, {"$set": quiz})
 
