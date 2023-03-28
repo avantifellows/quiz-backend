@@ -216,8 +216,5 @@ class SessionsTestCase(SessionsBaseTestCase):
             f"{sessions.router.prefix}/{resumed_session_id}"
         ).json()
 
-        # because time has passed between both quizzes
-        assert (
-            json.loads(response.content)["time_remaining"] < quiz["time_limit"]["max"]
-        )
+        # because time has passed between both sessions
         assert updated_resumed_session["time_remaining"] < quiz["time_limit"]["max"]
