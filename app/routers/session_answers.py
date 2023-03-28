@@ -54,16 +54,30 @@ async def update_session_answer_in_a_session(
     return JSONResponse(status_code=status.HTTP_200_OK, content=session_answer)
 
 
-@router.get("/{session_answer_id}", response_model=SessionAnswerResponse)
-async def get_session_answer(session_answer_id: str):
-    if (
-        session_answer := client.quiz.session_answers.find_one(
-            {"_id": session_answer_id}
+@router.get("/{session_id}/{position_index}", response_model=SessionAnswerResponse)
+async def get_session_answer_from_a_session(session_id: str, position_index: int):
+    pipeline = [
+        {
+            "$match": {  # match the session with the provided session_id
+                "_id": session_id
+            }
+        },
+        {
+            "$project": {  # project the required element from session_answers array
+                "_id": 0,
+                "session_answer": {
+                    "$arrayElemAt": ["$session_answers", position_index]
+                },
+            }
+        },
+    ]
+    aggregation_result = list(client.quiz.sessions.aggregate(pipeline))
+    if len(aggregation_result) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Either session_id is wrong or position_index is out of bounds",
         )
-    ) is not None:
-        return session_answer
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"session_answer {session_answer_id} not found",
+    return JSONResponse(
+        status_code=status.HTTP_200_OK, content=aggregation_result[0]["session_answer"]
     )

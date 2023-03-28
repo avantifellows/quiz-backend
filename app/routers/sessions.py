@@ -105,7 +105,8 @@ async def create_session(session: Session):
         for _, session_answer in enumerate(session_answers_of_the_last_session):
             # note: we retain created_at key in session_answer
             for key in ["_id", "session_id"]:
-                session_answer.pop(key)
+                if key in session_answer:
+                    session_answer.pop(key)
 
             # append with new session_answer "_id" keys
             session_answers.append(
