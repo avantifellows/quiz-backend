@@ -2,13 +2,13 @@ from fastapi import APIRouter, status, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from database import client
-from models import SessionAnswerResponse, UpdateSessionAnswer
+from models import UpdateSessionAnswer
 from utils import remove_optional_unset_args
 
 router = APIRouter(prefix="/session_answers", tags=["Session Answers"])
 
 
-@router.patch("/{session_id}/{position_index}", response_model=SessionAnswerResponse)
+@router.patch("/{session_id}/{position_index}", response_model=None)
 async def update_session_answer_in_a_session(
     session_id: str, position_index: int, session_answer: UpdateSessionAnswer
 ):
@@ -51,10 +51,10 @@ async def update_session_answer_in_a_session(
     # update the document in the session_answers collection
     client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
 
-    return JSONResponse(status_code=status.HTTP_200_OK, content=session_answer)
+    return JSONResponse(status_code=status.HTTP_200_OK)
 
 
-@router.get("/{session_id}/{position_index}", response_model=SessionAnswerResponse)
+@router.get("/{session_id}/{position_index}", response_model=None)
 async def get_session_answer_from_a_session(session_id: str, position_index: int):
     pipeline = [
         {
