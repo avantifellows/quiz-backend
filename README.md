@@ -30,6 +30,7 @@ The backend for a generic mobile-friendly quiz engine created using FastAPI and 
     ```bash
     brew install mongodb-community@6.0
     ```
+  - Make sure mongosh (your mongo shell) is added to the PATH. To test it out, type `mongosh` in your terminal and press enter. It should NOT give any error.
 
 ### Virtual Environment Setup
 
@@ -89,11 +90,11 @@ Use `http://127.0.0.1:8000` as the base URL of the endpoints and navigate to `ht
 
 You can pass arguments to the `startServer` script.
 - `--freshSync` : Passing this argument means you're telling the script to take a fresh sync from the cloud DB to your local DB. By default, this is false.
-- `--source staging` or `--source prod` : When `--freshSync` is specified, a source is also needed. Whether you need to sync from prod db or staging db. Note: Currently it might take 10-15 minutes for the sync process to be done. We're working on improving this.
+- `--source` : When `--freshSync` is specified, a source is also needed. Whether you need to sync from prod db or staging db. Please specify the full [mongo URI](https://www.mongodb.com/docs/manual/reference/connection-string/) of the DB you want to take a sync from. Note: Currently it might take 10-15 minutes for the sync process to be done. We're working on improving this.
 
 Example:
 ```bash
-./startServer.sh --freshSync --source prod
+./startServer.sh --freshSync --source mongodb+srv://quiz:<YOUR-PASSWORD>@quiz-staging-m10.uocfg.mongodb.net/quiz
 ```
 
 You should see a message like:
