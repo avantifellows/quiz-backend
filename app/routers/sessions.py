@@ -149,10 +149,16 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     event_obj = jsonable_encoder(Event.parse_obj({"event_type": new_event}))
     if session["events"] is None:
         session["events"] = [event_obj]
-        session_update_query["$set"] = {"events": [event_obj]}
+        if "$set" not in session_update_query:
+            session_update_query["$set"] = {"events": [event_obj]}
+        else:
+            session_update_query["$set"].update({"events": [event_obj]})
     else:
         session["events"].append(event_obj)
-        session_update_query["$push"] = {"events": event_obj}
+        if "$push" not in session_update_query:
+            session_update_query["$push"] = {"events": event_obj}
+        else:
+            session_update_query["$push"].update({"events": event_obj})
 
     # diff between times of last two events
     time_elapsed = 0
@@ -205,12 +211,19 @@ async def update_session(session_id: str, session_updates: UpdateSession):
         # if `time_remaining` key is not present =>
         # no time limit is set, no need to respond with time_remaining
         time_remaining = max(0, session["time_remaining"] - time_elapsed)
-        session_update_query["$set"] = {"time_remaining": time_remaining}
-        response_content = {"time_remaining": session["time_remaining"]}
+        if "$set" not in session_update_query:
+            session_update_query["$set"] = {"time_remaining": time_remaining}
+        else:
+            session_update_query["$set"].update({"time_remaining": time_remaining})
+        response_content = {"time_remaining": time_remaining}
 
     # update the document in the sessions collection
     if new_event == EventType.end_quiz:
-        session_update_query["$set"] = {"has_quiz_ended": True}
+        if "$set" not in session_update_query:
+            session_update_query["$set"] = {"has_quiz_ended": True}
+        else:
+            session_update_query["$set"].update({"has_quiz_ended": True})
+
     client.quiz.sessions.update_one({"_id": session_id}, session_update_query)
 
     return JSONResponse(status_code=status.HTTP_200_OK, content=response_content)
