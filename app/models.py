@@ -64,7 +64,9 @@ class QuestionMetadata(BaseModel):
     grade: Optional[str]
     subject: Optional[str]
     chapter: Optional[str]
+    chapter_id: Optional[str]
     topic: Optional[str]
+    topic_id: Optional[str]
     competency: Optional[List[str]]
     difficulty: Optional[str]
 
