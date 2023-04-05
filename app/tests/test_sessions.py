@@ -96,12 +96,14 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert response["is_first"] is False
 
     def test_create_session_with_valid_quiz_id_and_previous_session(self):
+        self.session_id = self.homework_session["_id"]
         self.session_answers = self.homework_session["session_answers"]
+        self.session_answer_position_index = 0
         self.session_answer = self.session_answers[0]
         self.session_answer_id = self.session_answer["_id"]
         new_answer = [0, 1, 2]
         response = self.client.patch(
-            f"{session_answers.router.prefix}/{self.session_answer_id}",
+            f"{session_answers.router.prefix}/{self.session_id}/{self.session_answer_position_index}",
             json={"answer": new_answer},
         )
         response = self.client.post(
@@ -214,8 +216,5 @@ class SessionsTestCase(SessionsBaseTestCase):
             f"{sessions.router.prefix}/{resumed_session_id}"
         ).json()
 
-        # because time has passed between both quizzes
-        assert (
-            json.loads(response.content)["time_remaining"] < quiz["time_limit"]["max"]
-        )
+        # because time has passed between both sessions
         assert updated_resumed_session["time_remaining"] < quiz["time_limit"]["max"]
