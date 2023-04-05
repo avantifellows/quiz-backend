@@ -367,6 +367,11 @@ class UpdateSessionAnswer(BaseModel):
         schema_extra = {"example": {"answer": [0, 1, 2], "visited": True}}
 
 
+"""
+Note : The below model is not being used currently anywhere
+"""
+
+
 class SessionAnswerResponse(SessionAnswer):
     """Model for the response of any request that returns a session answer"""
 

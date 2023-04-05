@@ -100,17 +100,13 @@ async def create_session(session: Session):
         current_session["has_quiz_ended"] = last_session.get("has_quiz_ended", False)
 
         # restore the answers from the last (previous) sessions
-        last_session_answers = list(
-            client.quiz.session_answers.find(
-                {"session_id": last_session["_id"]},
-                sort=[("_id", pymongo.ASCENDING)],
-            )
-        )
+        session_answers_of_the_last_session = last_session["session_answers"]
 
-        for index, session_answer in enumerate(last_session_answers):
+        for _, session_answer in enumerate(session_answers_of_the_last_session):
             # note: we retain created_at key in session_answer
             for key in ["_id", "session_id"]:
-                session_answer.pop(key)
+                if key in session_answer:
+                    session_answer.pop(key)
 
             # append with new session_answer "_id" keys
             session_answers.append(
@@ -120,17 +116,10 @@ async def create_session(session: Session):
     current_session["session_answers"] = session_answers
 
     # insert current session into db
-    new_session = client.quiz.sessions.insert_one(current_session)
-    created_session = client.quiz.sessions.find_one({"_id": new_session.inserted_id})
-
-    # update with new session_id and insert to db
-    for index, _ in enumerate(session_answers):
-        session_answers[index]["session_id"] = new_session.inserted_id
-
-    client.quiz.session_answers.insert_many(session_answers)
+    client.quiz.sessions.insert_one(current_session)
 
     # return the created session
-    return JSONResponse(status_code=status.HTTP_201_CREATED, content=created_session)
+    return JSONResponse(status_code=status.HTTP_201_CREATED, content=current_session)
 
 
 @router.patch("/{session_id}", response_model=UpdateSessionResponse)
@@ -143,6 +132,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     * dummy event logic added for JNV -- will be removed!
     """
     new_event = jsonable_encoder(session_updates)["event"]
+    session_update_query = {}
 
     # if new_event == EventType.dummy_event:
     #     return JSONResponse(
@@ -159,8 +149,16 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     event_obj = jsonable_encoder(Event.parse_obj({"event_type": new_event}))
     if session["events"] is None:
         session["events"] = [event_obj]
+        if "$set" not in session_update_query:
+            session_update_query["$set"] = {"events": [event_obj]}
+        else:
+            session_update_query["$set"].update({"events": [event_obj]})
     else:
         session["events"].append(event_obj)
+        if "$push" not in session_update_query:
+            session_update_query["$push"] = {"events": event_obj}
+        else:
+            session_update_query["$push"].update({"events": event_obj})
 
     # diff between times of last two events
     time_elapsed = 0
@@ -212,15 +210,21 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     ):
         # if `time_remaining` key is not present =>
         # no time limit is set, no need to respond with time_remaining
-        session["time_remaining"] = max(0, session["time_remaining"] - time_elapsed)
-        response_content = {"time_remaining": session["time_remaining"]}
+        time_remaining = max(0, session["time_remaining"] - time_elapsed)
+        if "$set" not in session_update_query:
+            session_update_query["$set"] = {"time_remaining": time_remaining}
+        else:
+            session_update_query["$set"].update({"time_remaining": time_remaining})
+        response_content = {"time_remaining": time_remaining}
 
     # update the document in the sessions collection
     if new_event == EventType.end_quiz:
-        session["has_quiz_ended"] = True
-    client.quiz.sessions.update_one(
-        {"_id": session_id}, {"$set": jsonable_encoder(session)}
-    )
+        if "$set" not in session_update_query:
+            session_update_query["$set"] = {"has_quiz_ended": True}
+        else:
+            session_update_query["$set"].update({"has_quiz_ended": True})
+
+    client.quiz.sessions.update_one({"_id": session_id}, session_update_query)
 
     return JSONResponse(status_code=status.HTTP_200_OK, content=response_content)
 
