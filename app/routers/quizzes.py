@@ -4,6 +4,7 @@ from fastapi.encoders import jsonable_encoder
 from database import client
 from models import Quiz, GetQuizResponse, CreateQuizResponse
 from settings import Settings
+from schemas import QuizType
 
 router = APIRouter(prefix="/quiz", tags=["Quiz"])
 settings = Settings()
@@ -92,6 +93,34 @@ async def get_quiz(quiz_id: str):
     quiz_collection = client.quiz.quizzes
     if (quiz := quiz_collection.find_one({"_id": quiz_id})) is not None:
         update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz)
+
+        if quiz["metadata"]["quiz_type"] == QuizType.omr:
+            for question_set_index, question_set in enumerate(quiz["question_sets"]):
+                options_count_aggregate = client.quiz.questions.aggregate(
+                    [
+                        {"$match": {"question_set_id": question_set["_id"]}},
+                        {"$sort": {"_id": 1}},
+                        {"$skip": settings.subset_size},
+                        {"$project": {"number_of_options": {"$size": "$options"}}},
+                    ]
+                )
+                options_count = [
+                    doc["number_of_options"] for doc in list(options_count_aggregate)
+                ]
+
+                updated_subset_without_details = []
+                for question_index, question in enumerate(question_set["questions"]):
+                    if question_index < settings.subset_size:
+                        continue
+                    question["options"] = [{"text": "", "image": None}] * options_count[
+                        question_index - settings.subset_size
+                    ]
+                    updated_subset_without_details.append(question)
+
+                quiz["question_sets"][question_set_index]["questions"][
+                    settings.subset_size :
+                ] = updated_subset_without_details
+
         return quiz
 
     raise HTTPException(

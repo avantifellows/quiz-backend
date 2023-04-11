@@ -39,6 +39,7 @@ class QuizLanguage(Enum):
 class QuizType(Enum):
     assessment = "assessment"
     homework = "homework"
+    omr = "omr-assessment"
 
 
 class EventType(str, Enum):
