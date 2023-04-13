@@ -94,7 +94,8 @@ async def get_quiz(quiz_id: str):
     if (quiz := quiz_collection.find_one({"_id": quiz_id})) is not None:
         update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz)
 
-        if quiz["metadata"]["quiz_type"] == QuizType.omr:
+        if quiz["metadata"]["quiz_type"] == QuizType.omr.value:
+            print("true", QuizType.omr)
             for question_set_index, question_set in enumerate(quiz["question_sets"]):
                 options_count_aggregate = client.quiz.questions.aggregate(
                     [
