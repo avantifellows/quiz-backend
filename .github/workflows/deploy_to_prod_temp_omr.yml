@@ -1,6 +1,7 @@
-# This workflow will update the code for the production environment
+# This workflow will update the code for the production environment temporarily
 
 on:
+  pull_request:
   push:
     branches: ["main"]
 
