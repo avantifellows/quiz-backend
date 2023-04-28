@@ -49,6 +49,14 @@ class BaseTestCase(unittest.TestCase):
             self.multi_qset_quiz_data
         )
 
+        # omr quiz with multiple question sets (same content as above)
+        self.multi_qset_omr_data = json.load(
+            open("app/tests/dummy_data/multiple_question_set_omr_quiz.json")
+        )
+        self.multi_qset_omr_id, self.multi_qset_omr = self.post_and_get_quiz(
+            self.multi_qset_omr_data
+        )
+
     def post_and_get_quiz(self, quiz_data):
         """helper function to add quiz to db and retrieve it"""
         """We are currently not providing an endpoint for creating questions and the only way to
@@ -80,6 +88,13 @@ class SessionsBaseTestCase(BaseTestCase):
             json={"quiz_id": self.multi_qset_quiz["_id"], "user_id": 1},
         )
         self.multi_qset_quiz_session = json.loads(response.content)
+
+        # omr assessment with multiple question sets
+        response = self.client.post(
+            sessions.router.prefix + "/",
+            json={"quiz_id": self.multi_qset_omr["_id"], "user_id": 1},
+        )
+        self.multi_qset_omr_session = json.loads(response.content)
 
         # homework quiz
         response = self.client.post(
