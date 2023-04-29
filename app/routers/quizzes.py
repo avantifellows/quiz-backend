@@ -4,6 +4,7 @@ from fastapi.encoders import jsonable_encoder
 from database import client
 from models import Quiz, GetQuizResponse, CreateQuizResponse
 from settings import Settings
+from schemas import QuizType
 
 router = APIRouter(prefix="/quiz", tags=["Quiz"])
 settings = Settings()
@@ -92,6 +93,75 @@ async def get_quiz(quiz_id: str):
     quiz_collection = client.quiz.quizzes
     if (quiz := quiz_collection.find_one({"_id": quiz_id})) is not None:
         update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz)
+
+        if "metadata" in quiz and quiz["metadata"] is not None:
+            if "quiz_type" in quiz["metadata"]:
+                if quiz["metadata"]["quiz_type"] == QuizType.omr.value:
+                    question_set_ids = [
+                        question_set["_id"] for question_set in quiz["question_sets"]
+                    ]
+
+                    # find questions with given question set ids
+                    # count number of options for each question in a qset id
+                    # group them together into an optionsArray
+                    options_count_across_sets = list(
+                        client.quiz.questions.aggregate(
+                            [
+                                {
+                                    "$match": {
+                                        "question_set_id": {"$in": question_set_ids}
+                                    }
+                                },
+                                {
+                                    "$sort": {"_id": 1}
+                                },  # sort questions based on question_id
+                                {
+                                    "$project": {
+                                        "_id": 0,
+                                        "question_set_id": "$question_set_id",
+                                        "number_of_options": {"$size": "$options"},
+                                    }
+                                },
+                                {
+                                    "$group": {
+                                        "_id": "$question_set_id",
+                                        "options_count_per_set": {
+                                            "$push": "$number_of_options"
+                                        },
+                                    }
+                                },
+                                {
+                                    "$sort": {"_id": 1}
+                                },  # sort sets based on question_set_id
+                                {"$project": {"_id": 0, "options_count_per_set": 1}},
+                            ]
+                        )
+                    )
+
+                    for question_set_index, question_set in enumerate(
+                        quiz["question_sets"]
+                    ):
+
+                        updated_subset_without_details = []
+                        options_count_per_set = options_count_across_sets[
+                            question_set_index
+                        ]["options_count_per_set"]
+                        for question_index, question in enumerate(
+                            question_set["questions"]
+                        ):
+                            if question_index < settings.subset_size:
+                                continue
+
+                            # options_count will be zero for subbjective/numerical questions
+                            question["options"] = [
+                                {"text": "", "image": None}
+                            ] * options_count_per_set[question_index]
+                            updated_subset_without_details.append(question)
+
+                        quiz["question_sets"][question_set_index]["questions"][
+                            settings.subset_size :
+                        ] = updated_subset_without_details
+
         return quiz
 
     raise HTTPException(
