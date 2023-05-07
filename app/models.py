@@ -1,4 +1,4 @@
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Dict
 from bson import ObjectId
 from pydantic import BaseModel, Field
 from schemas import (
@@ -12,6 +12,9 @@ from schemas import (
 from datetime import datetime
 
 answerType = Union[List[int], float, int, str, None]
+
+numCorrectSelected = str
+marks = float
 
 
 class Organization(BaseModel):
@@ -48,6 +51,9 @@ class MarkingScheme(BaseModel):
     correct: float
     wrong: float
     skipped: float
+    partial: Dict[
+        numCorrectSelected, marks
+    ] = None  # key is `str` because mongodb does not accept `int` keys
 
 
 class QuizTimeLimit(BaseModel):

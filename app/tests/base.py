@@ -57,6 +57,14 @@ class BaseTestCase(unittest.TestCase):
             self.multi_qset_omr_data
         )
 
+        # assessment with partial marking scheme
+        self.partial_mark_quiz_data = json.load(
+            open("app/tests/dummy_data/partial_marking_assessment.json")
+        )
+        self.partial_mark_quiz_id, self.partial_mark_quiz = self.post_and_get_quiz(
+            self.partial_mark_quiz_data
+        )
+
     def post_and_get_quiz(self, quiz_data):
         """helper function to add quiz to db and retrieve it"""
         """We are currently not providing an endpoint for creating questions and the only way to
@@ -109,3 +117,10 @@ class SessionsBaseTestCase(BaseTestCase):
             json={"quiz_id": self.timed_quiz["_id"], "user_id": 1},
         )
         self.timed_quiz_session = json.loads(response.content)
+
+        # partial mark quiz
+        response = self.client.post(
+            sessions.router.prefix + "/",
+            json={"quiz_id": self.partial_mark_quiz["_id"], "user_id": 1},
+        )
+        self.partial_mark_quiz_session = json.loads(response.content)
