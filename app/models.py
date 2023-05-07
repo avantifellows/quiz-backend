@@ -53,7 +53,7 @@ class MarkingScheme(BaseModel):
     skipped: float
     partial: Dict[
         numCorrectSelected, marks
-    ] = None  # key is `str` because mongodb does not accept `int` keys
+    ] = None  # key is `str` because mongodb/bson does not accept `int` keys
 
 
 class QuizTimeLimit(BaseModel):
