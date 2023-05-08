@@ -3,15 +3,24 @@
       {
         "max_questions_allowed_to_attempt": 1,
         "marking_scheme": {
-            "correct": 4,
-            "wrong": -2,
-            "skipped": 0,
-            "partial": {
-                "3": 3,
-                "2": 2,
-                "1": 1
-            }
-        },
+          "correct": 4,
+          "wrong": -2,
+          "skipped": 0,
+          "partial": [
+              {
+                  "conditions": {"num_correct_selected": 1},
+                  "marks": 1
+              },
+              {
+                  "conditions": {"num_correct_selected": 2},
+                  "marks": 2
+              },
+              {
+                  "conditions": {"num_correct_selected": 3},
+                  "marks": 3
+              }
+          ]
+       },
         "questions": [
           {
             "text": "Which grade are you in?",

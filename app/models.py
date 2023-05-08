@@ -1,4 +1,4 @@
-from typing import Optional, List, Union, Dict
+from typing import Optional, List, Union
 from bson import ObjectId
 from pydantic import BaseModel, Field
 from schemas import (
@@ -12,9 +12,6 @@ from schemas import (
 from datetime import datetime
 
 answerType = Union[List[int], float, int, str, None]
-
-numCorrectSelected = str
-marks = float
 
 
 class Organization(BaseModel):
@@ -47,13 +44,21 @@ class Option(BaseModel):
     image: Optional[Image] = None
 
 
+class PartialMarkCondition(BaseModel):
+    num_correct_selected: int
+    # for now, we only consider condition on count of correctly selected options
+
+
+class PartialMarkRule(BaseModel):
+    conditions: PartialMarkCondition
+    marks: int
+
+
 class MarkingScheme(BaseModel):
     correct: float
     wrong: float
     skipped: float
-    partial: Dict[
-        numCorrectSelected, marks
-    ] = None  # key is `str` because mongodb/bson does not accept `int` keys
+    partial: List[PartialMarkRule] = None
 
 
 class QuizTimeLimit(BaseModel):
@@ -171,6 +176,7 @@ class QuestionSet(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     questions: List[Question]
     title: Optional[str] = None
+    description: Optional[str] = None
     max_questions_allowed_to_attempt: int
     marking_scheme: MarkingScheme = (
         None  # takes precedence over question-level marking scheme

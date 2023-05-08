@@ -205,5 +205,11 @@ class QuizTestCase(BaseTestCase):
             "marking_scheme"
         ]["partial"]
 
-        for num_correct_selected in ["3", "2", "1"]:
-            assert num_correct_selected in partial_mark_rules
+        assert len(partial_mark_rules) > 0
+
+        for partial_mark_rule in partial_mark_rules:
+            assert "conditions" in partial_mark_rule
+            assert "marks" in partial_mark_rule
+
+            for condition in partial_mark_rule["conditions"]:
+                assert "num_correct_selected" in condition
