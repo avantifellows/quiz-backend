@@ -218,3 +218,46 @@ class SessionsTestCase(SessionsBaseTestCase):
 
         # because time has passed between both sessions
         assert updated_resumed_session["time_remaining"] < quiz["time_limit"]["max"]
+
+    def test_two_or_more_successive_dummy_events_squashed_to_one(self):
+        # start quiz
+        session_updates = {"event": EventType.start_quiz.value}
+        response = self.client.patch(
+            f"{sessions.router.prefix}/{self.timed_quiz_session_id}",
+            json=session_updates,
+        )
+        # wait for 2 seconds
+        time.sleep(2)
+        # send a dummy event
+        session_updates = {"event": EventType.dummy_event.value}
+        response = self.client.patch(
+            f"{sessions.router.prefix}/{self.timed_quiz_session_id}",
+            json=session_updates,
+        )
+        # wait for 2 seconds
+        time.sleep(2)
+        # send another dummy event
+        session_updates = {"event": EventType.dummy_event.value}
+        response = self.client.patch(
+            f"{sessions.router.prefix}/{self.timed_quiz_session_id}",
+            json=session_updates,
+        )
+        # wait for 2 seconds
+        time.sleep(2)
+        # send third dummy event
+        session_updates = {"event": EventType.dummy_event.value}
+        response = self.client.patch(
+            f"{sessions.router.prefix}/{self.timed_quiz_session_id}",
+            json=session_updates,
+        )
+
+        # resume session now with same user+quiz id
+        response = self.client.post(
+            sessions.router.prefix + "/",
+            json={"quiz_id": self.timed_quiz["_id"], "user_id": 1},
+        )
+        resumed_session = json.loads(response.content)
+
+        # the event array should now be [start-quiz, dummy-event]
+        # instead of [start-quiz, dummy-event, dummy-event, dummy-event]
+        assert len(resumed_session["events"]) == 2

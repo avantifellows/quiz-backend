@@ -58,6 +58,7 @@ class QuizTimeLimit(BaseModel):
 class Event(BaseModel):
     event_type: EventType
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class QuestionMetadata(BaseModel):
