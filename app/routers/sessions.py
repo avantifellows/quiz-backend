@@ -162,10 +162,10 @@ async def update_session(session_id: str, session_updates: UpdateSession):
             # if previous event is dummy, just change the updated_at time of previous event
             last_event_index = len(session["events"]) - 1
             last_event_update_query = {
-                    "events."
-                    + str(last_event_index)
-                    + ".updated_at": new_event_obj["created_at"]
-                }
+                "events."
+                + str(last_event_index)
+                + ".updated_at": new_event_obj["created_at"]
+            }
             if "$set" not in session_update_query:
                 session_update_query["$set"] = last_event_update_query
             else:
