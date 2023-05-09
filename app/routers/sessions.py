@@ -146,13 +146,13 @@ async def update_session(session_id: str, session_updates: UpdateSession):
             detail=f"session {session_id} not found",
         )
 
-    event_obj = jsonable_encoder(Event.parse_obj({"event_type": new_event}))
+    new_event_obj = jsonable_encoder(Event.parse_obj({"event_type": new_event}))
     if session["events"] is None:
-        session["events"] = [event_obj]
+        session["events"] = [new_event_obj]
         if "$set" not in session_update_query:
-            session_update_query["$set"] = {"events": [event_obj]}
+            session_update_query["$set"] = {"events": [new_event_obj]}
         else:
-            session_update_query["$set"].update({"events": [event_obj]})
+            session_update_query["$set"].update({"events": [new_event_obj]})
     else:
 
         if (
@@ -161,27 +161,22 @@ async def update_session(session_id: str, session_updates: UpdateSession):
         ):
             # if previous event is dummy, just change the updated_at time of previous event
             last_event_index = len(session["events"]) - 1
-            if "$set" not in session_update_query:
-                session_update_query["$set"] = {
+            last_event_update_query = {
                     "events."
                     + str(last_event_index)
-                    + ".updated_at": event_obj["created_at"]
+                    + ".updated_at": new_event_obj["created_at"]
                 }
+            if "$set" not in session_update_query:
+                session_update_query["$set"] = last_event_update_query
             else:
-                session_update_query["$set"].update(
-                    {
-                        "events."
-                        + str(last_event_index)
-                        + ".updated_at": event_obj["created_at"]
-                    }
-                )
+                session_update_query["$set"].update(last_event_update_query)
 
         else:
-            session["events"].append(event_obj)
+            session["events"].append(new_event_obj)
             if "$push" not in session_update_query:
-                session_update_query["$push"] = {"events": event_obj}
+                session_update_query["$push"] = {"events": new_event_obj}
             else:
-                session_update_query["$push"].update({"events": event_obj})
+                session_update_query["$push"].update({"events": new_event_obj})
 
     # diff between times of last two events
     time_elapsed = 0
