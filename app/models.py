@@ -53,7 +53,7 @@ class PartialMarkCondition(BaseModel):
 
 
 class PartialMarkRule(BaseModel):
-    conditions: PartialMarkCondition
+    conditions: List[PartialMarkCondition]
     marks: int
 
 

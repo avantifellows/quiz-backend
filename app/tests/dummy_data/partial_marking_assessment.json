@@ -8,15 +8,15 @@
           "skipped": 0,
           "partial": [
               {
-                  "conditions": {"num_correct_selected": 1},
+                  "conditions": [{"num_correct_selected": 1}],
                   "marks": 1
               },
               {
-                  "conditions": {"num_correct_selected": 2},
+                  "conditions": [{"num_correct_selected": 2}],
                   "marks": 2
               },
               {
-                  "conditions": {"num_correct_selected": 3},
+                  "conditions": [{"num_correct_selected": 3}],
                   "marks": 3
               }
           ]
