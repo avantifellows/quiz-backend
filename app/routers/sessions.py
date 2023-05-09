@@ -146,19 +146,37 @@ async def update_session(session_id: str, session_updates: UpdateSession):
             detail=f"session {session_id} not found",
         )
 
-    event_obj = jsonable_encoder(Event.parse_obj({"event_type": new_event}))
+    new_event_obj = jsonable_encoder(Event.parse_obj({"event_type": new_event}))
     if session["events"] is None:
-        session["events"] = [event_obj]
+        session["events"] = [new_event_obj]
         if "$set" not in session_update_query:
-            session_update_query["$set"] = {"events": [event_obj]}
+            session_update_query["$set"] = {"events": [new_event_obj]}
         else:
-            session_update_query["$set"].update({"events": [event_obj]})
+            session_update_query["$set"].update({"events": [new_event_obj]})
     else:
-        session["events"].append(event_obj)
-        if "$push" not in session_update_query:
-            session_update_query["$push"] = {"events": event_obj}
+
+        if (
+            new_event == EventType.dummy_event
+            and session["events"][-1]["event_type"] == EventType.dummy_event
+        ):
+            # if previous event is dummy, just change the updated_at time of previous event
+            last_event_index = len(session["events"]) - 1
+            last_event_update_query = {
+                "events."
+                + str(last_event_index)
+                + ".updated_at": new_event_obj["created_at"]
+            }
+            if "$set" not in session_update_query:
+                session_update_query["$set"] = last_event_update_query
+            else:
+                session_update_query["$set"].update(last_event_update_query)
+
         else:
-            session_update_query["$push"].update({"events": event_obj})
+            session["events"].append(new_event_obj)
+            if "$push" not in session_update_query:
+                session_update_query["$push"] = {"events": new_event_obj}
+            else:
+                session_update_query["$push"].update({"events": new_event_obj})
 
     # diff between times of last two events
     time_elapsed = 0
@@ -171,7 +189,6 @@ async def update_session(session_id: str, session_updates: UpdateSession):
             #     - str_to_datetime(session["events"][-2]["created_at"])
             # ).seconds
 
-            # only for jnv enable -- remove later!
             # subtract times of last dummy event and last non dummy event
             dummy_found = False
             last_dummy_event, last_non_dummy_event = None, None
@@ -182,7 +199,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
                     continue
 
                 if not dummy_found and ev["event_type"] != EventType.dummy_event:
-                    # two quick non-dummy events, ignore -- remove this after JNV enable!
+                    # two quick non-dummy events, ignore
                     break
 
                 if dummy_found and ev["event_type"] != EventType.dummy_event:
@@ -191,7 +208,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
 
             if dummy_found:
                 time_elapsed = (
-                    str_to_datetime(last_dummy_event["created_at"])
+                    str_to_datetime(last_dummy_event["updated_at"])
                     - str_to_datetime(last_non_dummy_event["created_at"])
                 ).seconds
             else:
