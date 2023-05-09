@@ -13,6 +13,9 @@ from datetime import datetime
 
 answerType = Union[List[int], float, int, str, None]
 
+numCorrectSelected = str
+marks = float
+
 
 class Organization(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
