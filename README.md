@@ -63,12 +63,16 @@ The backend for a generic mobile-friendly quiz engine created using FastAPI and 
 - Copy `.env.example` to `.env` and set all the environment variables as mentioned in `docs/ENV.md`. No need to change anything if you're planning to connect to a local DB. If you're planning to connect your local server to a staging and prod DB, only then you need to change. PLEASE DO NOT CONNECT YOUR LOCAL INSTANCE TO STAGING/PROD DB.
 
 ## Running locally
+for Linux Simply run the below in the terminal:
+```
+./startServerLinux.sh
+```
 
-Simply run:
+For Mac Simply run:
 
 ```bash
-chmod +x startServer.sh
-./startServer.sh
+chmod +x startServerMac.sh
+./startServerMac.sh
 ```
 
 You should see a message like:
@@ -89,13 +93,13 @@ Use `http://127.0.0.1:8000` as the base URL of the endpoints and navigate to `ht
 ### How to pull the latest data from Prod / Staging DB to your local DB before you start working on a feature?
 
 
-You can pass arguments to the `startServer` script.
+You can pass arguments to the `startServerMac` script.
 - `--freshSync` : Passing this argument means you're telling the script to take a fresh sync from the cloud DB to your local DB. By default, this is false.
 - `--source` : When `--freshSync` is specified, a source is also needed. Whether you need to sync from prod db or staging db. Please specify the full [mongo URI](https://www.mongodb.com/docs/manual/reference/connection-string/) of the DB you want to take a sync from. Note: Currently it might take 10-15 minutes for the sync process to be done. We're working on improving this.
 
 Example:
 ```bash
-./startServer.sh --freshSync --source mongodb+srv://quiz:<YOUR-PASSWORD>@quiz-staging-m10.uocfg.mongodb.net/quiz
+./startServerMac.sh --freshSync --source mongodb+srv://quiz:<YOUR-PASSWORD>@quiz-staging-m10.uocfg.mongodb.net/quiz
 ```
 
 You should see a message like:
@@ -168,6 +172,7 @@ INFO:     Started server process [37466]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 ```
+
 
 #### What's happening above?
 - mongo service is started using homebrew if not already started

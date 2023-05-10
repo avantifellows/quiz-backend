@@ -47,7 +47,7 @@ fi
 
 # start the mongod process
 echo "Starting the mongod process"
-brew services start mongodb-community@6.0
+sudo systemctl start mongod
 
 # Check the value of freshSync and start the sync process if true
 if [ "$freshSync" = true ]; then
