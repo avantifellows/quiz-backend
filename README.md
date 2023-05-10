@@ -12,7 +12,7 @@ The backend for a generic mobile-friendly quiz engine created using FastAPI and 
 ### Local DB Setup
 
 #### Linux Systems
-The following steps are for a Linux systems.
+The following steps are for a Linux system.
 - To run the backend locally, you would need to setup a local instance of mongodb. The offical instructions [here](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/) are good and simple enough to follow. Those steps are also listed down below.
 
   - Import the public key used by the package management system.
@@ -64,7 +64,7 @@ The following steps are for a Linux systems.
 
 
 #### Mac Systems
-The following steps are for a Mac systems.
+The following steps are for a Mac system.
 - To run the backend locally, you would need to setup a local instance of mongodb. The offical instructions [here](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-os-x/#run-mongodb-community-edition) are good and simple enough to follow. Those steps are also listed down below.
 
   - Install the Xcode command-line tools
