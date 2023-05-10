@@ -11,16 +11,24 @@ The backend for a generic mobile-friendly quiz engine created using FastAPI and 
 
 ### Local DB Setup
 
-
-- The following steps are for a Linux.
+#### Linux Systems
+The following steps are for a Linux systems.
 - To run the backend locally, you would need to setup a local instance of mongodb. The offical instructions [here](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/) are good and simple enough to follow. Those steps are also listed down below.
 
-  - Import the public key used by the package management system. From a terminal, install gnupg if it is not already available:
+  - Import the public key used by the package management system.
+  Issue the following command to import the MongoDB public GPG Key from [here](https://pgp.mongodb.com/server-6.0.asc):
+    ```
+    curl -fsSL https://pgp.mongodb.com/server-6.0.asc | \
+    sudo gpg -o /usr/share/keyrings/mongodb-server-6.0.gpg \
+    --dearmor
+    ```
+
+  - From a terminal, install gnupg if it is not already available:
     ```
     sudo apt-get install gnupg
     ```
   - Create a list file for MongoDB.
-    Create the list file /etc/apt/sources.list.d/mongodb-org-6.0.list for your version of Ubuntu.To check the Ubuntu version the host is running, open a terminal or shell on the host and execute
+    Create the list file `/etc/apt/sources.list.d/mongodb-org-6.0.list` for your version of Ubuntu. To check the Ubuntu version the host is running, open a terminal or shell on the host and execute
     ```
     lsb_release -dc
     ```
@@ -55,8 +63,8 @@ The backend for a generic mobile-friendly quiz engine created using FastAPI and 
     ```
 
 
-
-- The following steps are for a Mac.
+#### Mac Systems
+The following steps are for a Mac systems.
 - To run the backend locally, you would need to setup a local instance of mongodb. The offical instructions [here](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-os-x/#run-mongodb-community-edition) are good and simple enough to follow. Those steps are also listed down below.
 
   - Install the Xcode command-line tools
@@ -108,11 +116,11 @@ The backend for a generic mobile-friendly quiz engine created using FastAPI and 
 - Copy `.env.example` to `.env` and set all the environment variables as mentioned in `docs/ENV.md`. No need to change anything if you're planning to connect to a local DB. If you're planning to connect your local server to a staging and prod DB, only then you need to change. PLEASE DO NOT CONNECT YOUR LOCAL INSTANCE TO STAGING/PROD DB.
 
 ## Running locally
-for Linux Simply run the below in the terminal:
-```
+For Linux machines, simply run the below in the terminal:
+```bash
+chmod +x startServerLinux.sh
 ./startServerLinux.sh
 ```
-
 For Mac Simply run:
 
 ```bash

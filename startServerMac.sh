@@ -74,7 +74,6 @@ if [ "$freshSync" = true ]; then
 fi
 
 echo "Starting the server now"
-virtualenv venv
 source venv/bin/activate
 cd app/
 uvicorn main:app --reload
