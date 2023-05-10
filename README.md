@@ -11,6 +11,50 @@ The backend for a generic mobile-friendly quiz engine created using FastAPI and 
 
 ### Local DB Setup
 
+- The following steps are for a Linux.
+- To run the backend locally, you would need to setup a local instance of mongodb. The offical instructions [here](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/) are good and simple enough to follow. Those steps are also listed down below.
+
+  - Import the public key used by the package management system. From a terminal, install gnupg if it is not already available:
+    ```
+    sudo apt-get install gnupg
+    ```
+  - Create a list file for MongoDB.
+    Create the list file /etc/apt/sources.list.d/mongodb-org-6.0.list for your version of Ubuntu.To check the Ubuntu version the host is running, open a terminal or shell on the host and execute
+    ```
+    lsb_release -dc
+    ```
+
+    According to the version, run the respective code on the terminal.
+
+      - Ubuntu 22.04 (Jammy)
+        ```
+        echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+        ```
+      - Ubuntu 20.04 (Focal)
+        ```
+        echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+        ```
+      - Ubuntu 18.04 (Bionic)
+        ```
+        echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+        ```
+      - Ubuntu 16.04 (Xenial)
+        ```
+        echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+        ```
+  - Reload local package database.
+    Issue the following command to reload the local package database:
+    ```
+    sudo apt-get update
+    ```
+  - Install the MongoDB packages
+    Install the latest stable version of MongoDB
+    ```
+    sudo apt-get install -y mongodb-org
+    ```
+
+
+
 - The following steps are for a Mac.
 - To run the backend locally, you would need to setup a local instance of mongodb. The offical instructions [here](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-os-x/#run-mongodb-community-edition) are good and simple enough to follow. Those steps are also listed down below.
 
