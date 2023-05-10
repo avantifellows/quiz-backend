@@ -11,6 +11,7 @@ The backend for a generic mobile-friendly quiz engine created using FastAPI and 
 
 ### Local DB Setup
 
+
 - The following steps are for a Linux.
 - To run the backend locally, you would need to setup a local instance of mongodb. The offical instructions [here](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/) are good and simple enough to follow. Those steps are also listed down below.
 
