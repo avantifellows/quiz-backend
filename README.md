@@ -7,6 +7,18 @@
 
 The backend for a generic mobile-friendly quiz engine created using FastAPI and MongoDB! The frontend can be found [here](https://github.com/avantifellows/quiz-frontend).
 
+##Table of Contents:
+  * [Installation](#installation)
+    + [Local DB Setup](#local-db-setup)
+      - [Linux Systems](#linux-systems)
+      - [Mac Systems](#mac-systems)
+    + [Virtual Environment Setup](#virtual-environment-setup)
+  * [Running locally](#running-locally)
+    + [How to pull the latest data from Prod / Staging DB to your local DB before you start working on a feature?](#how-to-pull-the-latest-data-from-prod---staging-db-to-your-local-db-before-you-start-working-on-a-feature-)
+      - [What's happening above?](#what-s-happening-above-)
+  * [Deployment](#deployment)
+  * [Tests](#tests)
+
 ## Installation
 
 ### Local DB Setup
@@ -33,24 +45,13 @@ The following steps are for a Linux system.
     lsb_release -dc
     ```
 
-    According to the version, run the respective code on the terminal.
+    According to the version, run the respective code on the terminal. The below code is for the Ubuntu version 22.04(Jammy), if you have a different version running then replace the the below command according to your version from [here](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/#create-a-list-file-for-mongodb).
 
       - Ubuntu 22.04 (Jammy)
         ```
         echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
         ```
-      - Ubuntu 20.04 (Focal)
-        ```
-        echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
-        ```
-      - Ubuntu 18.04 (Bionic)
-        ```
-        echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
-        ```
-      - Ubuntu 16.04 (Xenial)
-        ```
-        echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
-        ```
+
   - Reload local package database.
     Issue the following command to reload the local package database:
     ```
