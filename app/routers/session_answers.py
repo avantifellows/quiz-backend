@@ -51,7 +51,7 @@ async def update_session_answer_in_a_session(
     # update the document in the session_answers collection
     client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
 
-    return JSONResponse(status_code=status.HTTP_200_OK)
+    return JSONResponse(status_code=status.HTTP_200_OK, content=None)
 
 
 @router.get("/{session_id}/{position_index}", response_model=None)

@@ -7,11 +7,66 @@
 
 The backend for a generic mobile-friendly quiz engine created using FastAPI and MongoDB! The frontend can be found [here](https://github.com/avantifellows/quiz-frontend).
 
+## Table of Contents:
+
+  * [Installation](#installation)
+    + [Local DB Setup](#local-db-setup)
+      - [Linux Systems](#linux-systems)
+      - [Mac Systems](#mac-systems)
+    + [Virtual Environment Setup](#virtual-environment-setup)
+  * [Running locally](#running-locally)
+    + [How to pull the latest data from Prod / Staging DB to your local DB before you start working on a feature?](#how-to-pull-the-latest-data-from-prod---staging-db-to-your-local-db-before-you-start-working-on-a-feature-)
+      - [What's happening above?](#what-s-happening-above-)
+  * [Deployment](#deployment)
+  * [Tests](#tests)
+
 ## Installation
 
 ### Local DB Setup
 
-- The following steps are for a Mac.
+#### Linux Systems
+The following steps are for a Linux system.
+- To run the backend locally, you would need to setup a local instance of mongodb. The offical instructions [here](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/) are good and simple enough to follow. Those steps are also listed down below.
+
+  - Import the public key used by the package management system.
+  Issue the following command to import the MongoDB public GPG Key from [here](https://pgp.mongodb.com/server-6.0.asc):
+    ```
+    curl -fsSL https://pgp.mongodb.com/server-6.0.asc | \
+    sudo gpg -o /usr/share/keyrings/mongodb-server-6.0.gpg \
+    --dearmor
+    ```
+
+  - From a terminal, install gnupg if it is not already available:
+    ```
+    sudo apt-get install gnupg
+    ```
+  - Create a list file for MongoDB.
+    Create the list file `/etc/apt/sources.list.d/mongodb-org-6.0.list` for your version of Ubuntu. To check the Ubuntu version the host is running, open a terminal or shell on the host and execute
+    ```
+    lsb_release -dc
+    ```
+
+    According to the version, run the respective code on the terminal. The below code is for the Ubuntu version 22.04(Jammy), if you have a different version running then replace the the below command according to your version from [here](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/#create-a-list-file-for-mongodb).
+
+      - Ubuntu 22.04 (Jammy)
+        ```
+        echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+        ```
+
+  - Reload local package database.
+    Issue the following command to reload the local package database:
+    ```
+    sudo apt-get update
+    ```
+  - Install the MongoDB packages
+    Install the latest stable version of MongoDB
+    ```
+    sudo apt-get install -y mongodb-org
+    ```
+
+
+#### Mac Systems
+The following steps are for a Mac system.
 - To run the backend locally, you would need to setup a local instance of mongodb. The offical instructions [here](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-os-x/#run-mongodb-community-edition) are good and simple enough to follow. Those steps are also listed down below.
 
   - Install the Xcode command-line tools
@@ -63,12 +118,16 @@ The backend for a generic mobile-friendly quiz engine created using FastAPI and 
 - Copy `.env.example` to `.env` and set all the environment variables as mentioned in `docs/ENV.md`. No need to change anything if you're planning to connect to a local DB. If you're planning to connect your local server to a staging and prod DB, only then you need to change. PLEASE DO NOT CONNECT YOUR LOCAL INSTANCE TO STAGING/PROD DB.
 
 ## Running locally
-
-Simply run:
+For Linux machines, simply run the below in the terminal:
+```bash
+chmod +x startServerLinux.sh
+./startServerLinux.sh
+```
+For Mac Simply run:
 
 ```bash
-chmod +x startServer.sh
-./startServer.sh
+chmod +x startServerMac.sh
+./startServerMac.sh
 ```
 
 You should see a message like:
@@ -89,13 +148,13 @@ Use `http://127.0.0.1:8000` as the base URL of the endpoints and navigate to `ht
 ### How to pull the latest data from Prod / Staging DB to your local DB before you start working on a feature?
 
 
-You can pass arguments to the `startServer` script.
+You can pass arguments to the `startServerMac` script.
 - `--freshSync` : Passing this argument means you're telling the script to take a fresh sync from the cloud DB to your local DB. By default, this is false.
 - `--source` : When `--freshSync` is specified, a source is also needed. Whether you need to sync from prod db or staging db. Please specify the full [mongo URI](https://www.mongodb.com/docs/manual/reference/connection-string/) of the DB you want to take a sync from. Note: Currently it might take 10-15 minutes for the sync process to be done. We're working on improving this.
 
 Example:
 ```bash
-./startServer.sh --freshSync --source mongodb+srv://quiz:<YOUR-PASSWORD>@quiz-staging-m10.uocfg.mongodb.net/quiz
+./startServerMac.sh --freshSync --source mongodb+srv://quiz:<YOUR-PASSWORD>@quiz-staging-m10.uocfg.mongodb.net/quiz
 ```
 
 You should see a message like:
@@ -168,6 +227,7 @@ INFO:     Started server process [37466]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 ```
+
 
 #### What's happening above?
 - mongo service is started using homebrew if not already started
