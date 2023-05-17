@@ -7,7 +7,8 @@
 
 The backend for a generic mobile-friendly quiz engine created using FastAPI and MongoDB! The frontend can be found [here](https://github.com/avantifellows/quiz-frontend).
 
-##Table of Contents:
+## Table of Contents:
+
   * [Installation](#installation)
     + [Local DB Setup](#local-db-setup)
       - [Linux Systems](#linux-systems)
