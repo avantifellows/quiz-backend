@@ -196,3 +196,20 @@ class QuizTestCase(BaseTestCase):
                     # should be None as these are all optional keys
                     else:
                         assert question[key] is None
+
+    def test_created_partial_mark_quiz_contains_partial_key(self):
+        # check that key exists
+        assert "partial" in self.partial_mark_quiz["question_sets"][0]["marking_scheme"]
+
+        partial_mark_rules = self.partial_mark_quiz["question_sets"][0][
+            "marking_scheme"
+        ]["partial"]
+
+        assert len(partial_mark_rules) > 0
+
+        for partial_mark_rule in partial_mark_rules:
+            assert "conditions" in partial_mark_rule
+            assert "marks" in partial_mark_rule
+
+            for condition in partial_mark_rule["conditions"]:
+                assert "num_correct_selected" in condition

@@ -57,6 +57,14 @@ class BaseTestCase(unittest.TestCase):
             self.multi_qset_omr_data
         )
 
+        # quiz with partial marking
+        self.partial_mark_data = json.load(
+            open("app/tests/dummy_data/partial_marking_assessment.json")
+        )
+        self.partial_mark_quiz_id, self.partial_mark_quiz = self.post_and_get_quiz(
+            self.partial_mark_data
+        )
+
     def post_and_get_quiz(self, quiz_data):
         """helper function to add quiz to db and retrieve it"""
         """We are currently not providing an endpoint for creating questions and the only way to
