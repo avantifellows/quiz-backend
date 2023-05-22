@@ -44,10 +44,21 @@ class Option(BaseModel):
     image: Optional[Image] = None
 
 
+class PartialMarkCondition(BaseModel):
+    num_correct_selected: int
+    # for now, we only consider condition on count of correctly selected options
+
+
+class PartialMarkRule(BaseModel):
+    conditions: List[PartialMarkCondition]
+    marks: int
+
+
 class MarkingScheme(BaseModel):
     correct: float
     wrong: float
     skipped: float
+    partial: List[PartialMarkRule] = None
 
 
 class QuizTimeLimit(BaseModel):
@@ -166,6 +177,7 @@ class QuestionSet(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     questions: List[Question]
     title: Optional[str] = None
+    description: Optional[str] = None
     max_questions_allowed_to_attempt: int
     marking_scheme: MarkingScheme = (
         None  # takes precedence over question-level marking scheme
