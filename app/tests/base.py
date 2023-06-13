@@ -3,7 +3,7 @@ import json
 from fastapi.testclient import TestClient
 from mongoengine import connect, disconnect
 from main import app
-from routers import quizzes, sessions
+from routers import quizzes, sessions, organizations
 
 
 class BaseTestCase(unittest.TestCase):
@@ -17,6 +17,14 @@ class BaseTestCase(unittest.TestCase):
         disconnect()
 
     def setUp(self):
+        # Set up for organizations
+        self.organization_data = json.load(
+            open("app/tests/dummy_data/organization.json")
+        )
+        self.organization_id, self.organization = self.post_and_get_organization(
+            self.organization_data
+        )
+
         # short homework quiz
         self.short_homework_quiz_data = json.load(
             open("app/tests/dummy_data/short_homework_quiz.json")
@@ -75,6 +83,18 @@ class BaseTestCase(unittest.TestCase):
         quiz = self.client.get(quizzes.router.prefix + f"/{quiz_id}").json()
 
         return quiz_id, quiz
+
+    def post_and_get_organization(self, organization_data):
+        """helper function to add organization to db and retrieve it"""
+        response = self.client.post(
+            organizations.router.prefix + "/", json=organization_data
+        )
+        organization_id = json.loads(response.content)["_id"]
+        organization = self.client.get(
+            organizations.router.prefix + f"/authenticate/{organization_id}"
+        ).json()
+
+        return organization_id, organization
 
 
 class SessionsBaseTestCase(BaseTestCase):
