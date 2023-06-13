@@ -21,7 +21,7 @@ class BaseTestCase(unittest.TestCase):
         self.organization_data = json.load(
             open("app/tests/dummy_data/organization.json")
         )
-        self.organization_id, self.organization = self.post_and_get_organization(
+        self.organization_api_key, self.organization = self.post_and_get_organization(
             self.organization_data
         )
 
@@ -89,12 +89,10 @@ class BaseTestCase(unittest.TestCase):
         response = self.client.post(
             organizations.router.prefix + "/", json=organization_data
         )
-        organization_id = json.loads(response.content)["_id"]
-        organization = self.client.get(
-            organizations.router.prefix + f"/authenticate/{organization_id}"
-        ).json()
+        organization = json.loads(response.content)
+        organization_api_key = organization["key"]
 
-        return organization_id, organization
+        return organization_api_key, organization
 
 
 class SessionsBaseTestCase(BaseTestCase):

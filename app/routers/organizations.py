@@ -1,4 +1,5 @@
 from fastapi import APIRouter, status, HTTPException
+from fastapi.responses import JSONResponse
 from settings import Settings
 from database import client
 from models import Organization, OrganizationResponse
@@ -42,7 +43,11 @@ async def create_organization(organization: Organization):
         created_organization = client.quiz.organization.find_one(
             {"_id": new_organization.inserted_id}
         )
-        return created_organization
+
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content=created_organization,
+        )
 
     logger.error(f"API key collision occurred for key: {key}")
     raise HTTPException(
