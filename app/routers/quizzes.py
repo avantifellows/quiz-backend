@@ -5,9 +5,11 @@ from database import client
 from models import Quiz, GetQuizResponse, CreateQuizResponse
 from settings import Settings
 from schemas import QuizType
+from logger_config import get_logger
 
 router = APIRouter(prefix="/quiz", tags=["Quiz"])
 settings = Settings()
+logger = get_logger()
 
 
 def update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz):
@@ -18,8 +20,10 @@ def update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz):
     Finally, add quiz to quiz_collection
     (NOTE: this is a primitive form of versioning)
     """
+    is_backwards_compatibile = True
     for question_set_index, question_set in enumerate(quiz["question_sets"]):
         if "max_questions_allowed_to_attempt" not in question_set:
+            is_backwards_compatibile = False
             question_set["max_questions_allowed_to_attempt"] = len(
                 question_set["questions"]
             )
@@ -29,6 +33,7 @@ def update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz):
             "marking_scheme" not in question_set
             or question_set["marking_scheme"] is None
         ):
+            is_backwards_compatibile = False
             question_marking_scheme = question_set["questions"][0]["marking_scheme"]
             if question_marking_scheme is not None:
                 question_set["marking_scheme"] = question_marking_scheme
@@ -39,11 +44,26 @@ def update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz):
                     "skipped": 0,
                 }  # default
 
-    quiz_collection.update_one({"_id": quiz_id}, {"$set": quiz})
+    if is_backwards_compatibile:
+        logger.info("Quiz is already backwards compatible")
+        return
+
+    logger.info("Starting update for backwards compatibility")
+    update_result = quiz_collection.update_one({"_id": quiz_id}, {"$set": quiz})
+
+    if not update_result.acknowledged:
+        logger.error("Failed to update quiz for backwards compatibility")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update quiz for backwards compatibility",
+        )
+
+    logger.info("Quiz updated for backwards compatibility")
 
 
 @router.post("/", response_model=CreateQuizResponse)
 async def create_quiz(quiz: Quiz):
+    logger.info("Starting quiz creation")
     quiz = jsonable_encoder(quiz)
 
     for question_set_index, question_set in enumerate(quiz["question_sets"]):
@@ -51,7 +71,15 @@ async def create_quiz(quiz: Quiz):
         for question_index, _ in enumerate(questions):
             questions[question_index]["question_set_id"] = question_set["_id"]
 
-        client.quiz.questions.insert_many(questions)
+        result = client.quiz.questions.insert_many(questions)
+        if result.acknowledged:
+            logger.info("Inserted questions for quiz")
+        else:
+            logger.error("Failed to insert questions for quiz")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to insert questions for quiz",
+            )
 
         subset_with_details = client.quiz.questions.aggregate(
             [
@@ -81,89 +109,97 @@ async def create_quiz(quiz: Quiz):
         aggregated_questions = list(subset_with_details) + list(subset_without_details)
         quiz["question_sets"][question_set_index]["questions"] = aggregated_questions
 
-    new_quiz = client.quiz.quizzes.insert_one(quiz)
+    new_quiz_result = client.quiz.quizzes.insert_one(quiz)
+    if not new_quiz_result.acknowledged:
+        logger.error("Failed to insert quiz")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to insert quiz",
+        )
+    logger.info("Finished creating quiz with id: " + str(new_quiz_result.inserted_id))
 
     return JSONResponse(
-        status_code=status.HTTP_201_CREATED, content={"id": new_quiz.inserted_id}
+        status_code=status.HTTP_201_CREATED, content={"id": new_quiz_result.inserted_id}
     )
 
 
 @router.get("/{quiz_id}", response_model=GetQuizResponse)
 async def get_quiz(quiz_id: str):
+    logger.info(f"Starting to get quiz: {quiz_id}")
     quiz_collection = client.quiz.quizzes
-    if (quiz := quiz_collection.find_one({"_id": quiz_id})) is not None:
-        update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz)
 
-        if "metadata" in quiz and quiz["metadata"] is not None:
-            if "quiz_type" in quiz["metadata"]:
-                if quiz["metadata"]["quiz_type"] == QuizType.omr.value:
-                    question_set_ids = [
-                        question_set["_id"] for question_set in quiz["question_sets"]
-                    ]
+    if (quiz := quiz_collection.find_one({"_id": quiz_id})) is None:
+        logger.warning(f"Requested quiz {quiz_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"quiz {quiz_id} not found"
+        )
 
-                    # find questions with given question set ids
-                    # count number of options for each question in a qset id
-                    # group them together into an optionsArray
-                    options_count_across_sets = list(
-                        client.quiz.questions.aggregate(
-                            [
-                                {
-                                    "$match": {
-                                        "question_set_id": {"$in": question_set_ids}
-                                    }
-                                },
-                                {
-                                    "$sort": {"_id": 1}
-                                },  # sort questions based on question_id
-                                {
-                                    "$project": {
-                                        "_id": 0,
-                                        "question_set_id": "$question_set_id",
-                                        "number_of_options": {"$size": "$options"},
-                                    }
-                                },
-                                {
-                                    "$group": {
-                                        "_id": "$question_set_id",
-                                        "options_count_per_set": {
-                                            "$push": "$number_of_options"
-                                        },
-                                    }
-                                },
-                                {
-                                    "$sort": {"_id": 1}
-                                },  # sort sets based on question_set_id
-                                {"$project": {"_id": 0, "options_count_per_set": 1}},
-                            ]
-                        )
-                    )
+    update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz)
 
-                    for question_set_index, question_set in enumerate(
-                        quiz["question_sets"]
-                    ):
+    if (
+        "metadata" not in quiz
+        or quiz["metadata"] is None
+        or "quiz_type" not in quiz["metadata"]
+        or quiz["metadata"]["quiz_type"] != QuizType.omr.value
+    ):
+        logger.warning(
+            f"Quiz {quiz_id} does not have metadata or is not an OMR quiz, skipping option count calculation"
+        )
 
-                        updated_subset_without_details = []
-                        options_count_per_set = options_count_across_sets[
-                            question_set_index
-                        ]["options_count_per_set"]
-                        for question_index, question in enumerate(
-                            question_set["questions"]
-                        ):
-                            if question_index < settings.subset_size:
-                                continue
+    else:
+        logger.info(
+            f"Quiz is an OMR type, calculating options count for quiz: {quiz_id}"
+        )
+        question_set_ids = [
+            question_set["_id"] for question_set in quiz["question_sets"]
+        ]
 
-                            # options_count will be zero for subbjective/numerical questions
-                            question["options"] = [
-                                {"text": "", "image": None}
-                            ] * options_count_per_set[question_index]
-                            updated_subset_without_details.append(question)
+        # find questions with given question set ids
+        # count number of options for each question in a qset id
+        # group them together into an optionsArray
+        options_count_across_sets = list(
+            client.quiz.questions.aggregate(
+                [
+                    {"$match": {"question_set_id": {"$in": question_set_ids}}},
+                    {"$sort": {"_id": 1}},  # sort questions based on question_id
+                    {
+                        "$project": {
+                            "_id": 0,
+                            "question_set_id": "$question_set_id",
+                            "number_of_options": {"$size": "$options"},
+                        }
+                    },
+                    {
+                        "$group": {
+                            "_id": "$question_set_id",
+                            "options_count_per_set": {"$push": "$number_of_options"},
+                        }
+                    },
+                    {"$sort": {"_id": 1}},  # sort sets based on question_set_id
+                    {"$project": {"_id": 0, "options_count_per_set": 1}},
+                ]
+            )
+        )
 
-                        quiz["question_sets"][question_set_index]["questions"][
-                            settings.subset_size :
-                        ] = updated_subset_without_details
+        for question_set_index, question_set in enumerate(quiz["question_sets"]):
 
-        return quiz
+            updated_subset_without_details = []
+            options_count_per_set = options_count_across_sets[question_set_index][
+                "options_count_per_set"
+            ]
+            for question_index, question in enumerate(question_set["questions"]):
+                if question_index < settings.subset_size:
+                    continue
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail=f"quiz {quiz_id} not found"
-    )
+                # options_count will be zero for subbjective/numerical questions
+                question["options"] = [
+                    {"text": "", "image": None}
+                ] * options_count_per_set[question_index]
+                updated_subset_without_details.append(question)
+
+            quiz["question_sets"][question_set_index]["questions"][
+                settings.subset_size :
+            ] = updated_subset_without_details
+
+    logger.info(f"Finished getting quiz: {quiz_id}")
+    return quiz
