@@ -255,3 +255,29 @@ mongod --dbpath path/to/data/db
 ```
 pytest
 ```
+
+## Logs on Staging/Production
+
+- The quizzing engine is setup for generating detailed application logs. You can see the logging config in `app/logger_config.py` and it logs to the stdout and stderr. As the quizzing engine is setup to run on AWS Lambda, a separate log shipper is configured which ships logs from this lambda function to the Loki instance (which is what we're using as our log aggregator).
+- One can deploy the log shipper on AWS using the following steps:
+  - Clone the official repo of loki onto your local. [Link Here](https://github.com/grafana/loki)
+  - Navigate to `/tools/lambda-promtail`
+  - Go through the `README.md` file in this folder. First step is to build the GO binary for the package and upload it to AWS ECR.
+  - Running `docker build . -f tools/lambda-promtail/Dockerfile` from the root of the Loki repository will generate the image for you. Now upload it to ECR and note down the ECR URI of the image.
+  - Now you can provision all the necessary resources by running a terraform script or a cloudformation script provided in the repo. We prefer cloudformation in this case.
+  - Before running the cloudformation command, make sure to edit any required variables in your `template.yml` file. The only required thing in our case is updating the `MainLambdaPromtailSubscriptionFilter` resource. Update the `LogGroupName` for this resource. Point it to the log group name for your lambda function where your quiz engine backend is running.
+  - Run this command on your local with the correct aws profile set:
+    ```bash
+    aws cloudformation create-stack \
+    --stack-name NAME_OF_YOUR_STACK \
+    --template-body file://template.yaml \
+    --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+    --region YOUR_REGION \
+    --parameters \
+        ParameterKey=WriteAddress,ParameterValue=YOUR_LOKI_HOST/loki/api/v1/push \
+        ParameterKey=LambdaPromtailImage,ParameterValue=YOUR_ECR_REPO:TAG \
+        ParameterKey=ExtraLabels,ParameterValue="env\,staging\,service\,quizBackend" \
+        ParameterKey=SkipTlsVerify,ParameterValue="true"
+
+    ```
+  - This will deploy your lambda promtail and your quizzing engine backend will be shipping logs to this promtail which in turn will be shipping logs to your loki instance. Now have fun exploring the logs on your Grafana dashboard!
