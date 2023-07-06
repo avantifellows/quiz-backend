@@ -66,6 +66,18 @@ async def create_quiz(quiz: Quiz):
     logger.info("Starting quiz creation")
     quiz = jsonable_encoder(quiz)
 
+    log_message = "Starting quiz creation"
+    log_with_source = ""
+    log_with_source_id = ""
+    if "metadata" in quiz and "source" in quiz["metadata"]:
+        log_with_source = f" with source {quiz['metadata']['source']}"
+        log_message += log_with_source
+        if "source_id" in quiz["metadata"]:
+            log_with_source_id = f" and source id {quiz['metadata']['source_id']}"
+            log_message += log_with_source_id
+
+    logger.info(log_message)
+
     for question_set_index, question_set in enumerate(quiz["question_sets"]):
         questions = question_set["questions"]
         for question_index, _ in enumerate(questions):
@@ -73,12 +85,15 @@ async def create_quiz(quiz: Quiz):
 
         result = client.quiz.questions.insert_many(questions)
         if result.acknowledged:
-            logger.info("Inserted questions for quiz")
+            logger.info(
+                f"Inserted {len(questions)} questions for quiz{log_with_source}{log_with_source_id}"
+            )
         else:
-            logger.error("Failed to insert questions for quiz")
+            error_message = f"Failed to insert questions for quiz{log_with_source}{log_with_source_id}"
+            logger.error(error_message)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to insert questions for quiz",
+                detail=error_message,
             )
 
         subset_with_details = client.quiz.questions.aggregate(
@@ -111,10 +126,11 @@ async def create_quiz(quiz: Quiz):
 
     new_quiz_result = client.quiz.quizzes.insert_one(quiz)
     if not new_quiz_result.acknowledged:
-        logger.error("Failed to insert quiz")
+        error_message = f"Failed to insert quiz{log_with_source}{log_with_source_id}"
+        logger.error(error_message)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to insert quiz",
+            detail=error_message,
         )
     logger.info("Finished creating quiz with id: " + str(new_quiz_result.inserted_id))
 

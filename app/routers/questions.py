@@ -43,8 +43,11 @@ async def get_questions(question_set_id: str, skip: int = None, limit: int = Non
         )
         return questions
 
-    logger.error("No questions found")
+    error_message = (
+        f"No questions found belonging to question_set_id: {question_set_id}"
+    )
+    logger.error(error_message)
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
-        detail="No questions found",
+        detail=error_message,
     )

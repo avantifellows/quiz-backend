@@ -35,9 +35,13 @@ async def create_session(session: Session):
     quiz = client.quiz.quizzes.find_one({"_id": current_session["quiz_id"]})
 
     if quiz is None:
-        logger.error(f"Quiz {current_session['quiz_id']} not found")
+        error_message = (
+            f"Quiz {current_session['quiz_id']} not found while creating the session"
+        )
+        logger.error(error_message)
         raise HTTPException(
-            status_code=404, detail=f"quiz {current_session['quiz_id']} not found"
+            status_code=404,
+            detail=error_message,
         )
 
     # try to get the previous two sessions of a user+quiz pair if they exist
@@ -97,7 +101,7 @@ async def create_session(session: Session):
 
         if condition_to_return_last_session is True:
             logger.info(
-                "No meaningful event has occurred in last_session, returning that only"
+                f"No meaningful event has occurred in last_session. Returning this session which has id {last_session['_id']}"
             )
             return JSONResponse(
                 status_code=status.HTTP_201_CREATED, content=last_session
@@ -154,8 +158,8 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     * end button is clicked (end-quiz event)
     * dummy event logic added for JNV -- will be removed!
     """
-    logger.info(f"Updating session with id {session_id}")
     new_event = jsonable_encoder(session_updates)["event"]
+    logger.info(f"Updating session with id {session_id} and event {new_event}")
     session_update_query = {}
 
     # if new_event == EventType.dummy_event:
