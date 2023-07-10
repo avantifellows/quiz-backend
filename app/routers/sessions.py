@@ -111,7 +111,7 @@ async def create_session(session: Session):
         # so, we HAVE to distinguish between current_session and last_session by creating
         # a new session for current_session
         logger.info(
-            "Some meaningful event has occurred in last_session, creating new session"
+            f"Some meaningful event has occurred in last_session, creating new session for user: {session.user_id} and quiz: {session.quiz_id}"
         )
         current_session["is_first"] = False
         current_session["events"] = last_session.get("events", [])
@@ -137,9 +137,13 @@ async def create_session(session: Session):
     # insert current session into db
     result = client.quiz.sessions.insert_one(current_session)
     if result.acknowledged:
-        logger.info(f"Created new session with id {result.inserted_id}")
+        logger.info(
+            f"Created new session with id {result.inserted_id} for user: {session.user_id} and quiz: {session.quiz_id}"
+        )
     else:
-        logger.error("Failed to insert new session")
+        logger.error(
+            f"Failed to insert new session for user: {session.user_id} and quiz: {session.quiz_id}"
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to insert new session",
@@ -159,7 +163,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     * dummy event logic added for JNV -- will be removed!
     """
     new_event = jsonable_encoder(session_updates)["event"]
-    logger.info(f"Updating session with id {session_id} and event {new_event}")
+    log_message = f"Updating session with id {session_id} and event {new_event}"
     session_update_query = {}
 
     # if new_event == EventType.dummy_event:
@@ -169,11 +173,16 @@ async def update_session(session_id: str, session_updates: UpdateSession):
 
     session = client.quiz.sessions.find_one({"_id": session_id})
     if session is None:
-        logger.error(f"Session {session_id} not found")
+        logger.error(
+            f"Received session update request, but session_id {session_id} not found"
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"session {session_id} not found",
         )
+    user_id, quiz_id = session["user_id"], session["quiz_id"]
+    log_message += f", for user: {user_id} and quiz: {quiz_id}"
+    logger.info(log_message)
 
     new_event_obj = jsonable_encoder(Event.parse_obj({"event_type": new_event}))
     if session["events"] is None:
@@ -280,7 +289,9 @@ async def update_session(session_id: str, session_updates: UpdateSession):
             detail=f"Failed to update session with id {session_id}",
         )
 
-    logger.info(f"Updated session with id {session_id}")
+    logger.info(
+        f"Updated session with id {session_id} for user: {user_id} and quiz: {quiz_id}"
+    )
     return JSONResponse(status_code=status.HTTP_200_OK, content=response_content)
 
 
