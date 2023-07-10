@@ -63,7 +63,6 @@ def update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz):
 
 @router.post("/", response_model=CreateQuizResponse)
 async def create_quiz(quiz: Quiz):
-    logger.info("Starting quiz creation")
     quiz = jsonable_encoder(quiz)
 
     log_message = "Starting quiz creation"
