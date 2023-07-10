@@ -42,6 +42,15 @@ class QuizType(Enum):
     omr = "omr-assessment"
 
 
+class TestPurpose(Enum):
+    full_syllabus_test = "Full Syllabus Test"
+    major_test = "Major Test"
+    part_test = "Part Test"
+    chapter_test = "Chapter Test"
+    hiring_test = "Hiring Test"
+    evaluation_test = "Evaluation Test"
+
+
 class EventType(str, Enum):
     start_quiz = "start-quiz"
     resume_quiz = "resume-quiz"
