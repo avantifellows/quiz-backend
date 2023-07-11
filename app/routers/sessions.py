@@ -13,6 +13,7 @@ from models import (
     UpdateSessionResponse,
 )
 from datetime import datetime
+from logger_config import get_logger
 
 
 def str_to_datetime(datetime_str: str) -> datetime:
@@ -21,17 +22,26 @@ def str_to_datetime(datetime_str: str) -> datetime:
 
 
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
+logger = get_logger()
 
 
 @router.post("/", response_model=SessionResponse)
 async def create_session(session: Session):
+    logger.info(
+        f"Creating new session for user: {session.user_id} and quiz: {session.quiz_id}"
+    )
     current_session = jsonable_encoder(session)
 
     quiz = client.quiz.quizzes.find_one({"_id": current_session["quiz_id"]})
 
     if quiz is None:
+        error_message = (
+            f"Quiz {current_session['quiz_id']} not found while creating the session"
+        )
+        logger.error(error_message)
         raise HTTPException(
-            status_code=404, detail=f"quiz {current_session['quiz_id']} not found"
+            status_code=404,
+            detail=error_message,
         )
 
     # try to get the previous two sessions of a user+quiz pair if they exist
@@ -48,13 +58,16 @@ async def create_session(session: Session):
     last_session, second_last_session = None, None
     # only one session exists
     if len(previous_two_sessions) == 1:
+        logger.info("Only one previous session exists for this user-quiz combo")
         last_session = previous_two_sessions[0]
     # two previous sessions exist
     elif len(previous_two_sessions) == 2:
+        logger.info("Two previous sessions exists for this user-quiz combo")
         last_session, second_last_session = previous_two_sessions  # unpack
 
     session_answers = []
     if last_session is None:
+        logger.info("No previous session exists for this user-quiz combo")
         current_session["is_first"] = True
         if quiz["time_limit"] is not None:
             current_session["time_remaining"] = quiz["time_limit"][
@@ -87,6 +100,9 @@ async def create_session(session: Session):
         )
 
         if condition_to_return_last_session is True:
+            logger.info(
+                f"No meaningful event has occurred in last_session. Returning this session which has id {last_session['_id']}"
+            )
             return JSONResponse(
                 status_code=status.HTTP_201_CREATED, content=last_session
             )
@@ -94,6 +110,9 @@ async def create_session(session: Session):
         # we reach here because some meaningful event (start/resume/end) has occurred in last_session
         # so, we HAVE to distinguish between current_session and last_session by creating
         # a new session for current_session
+        logger.info(
+            f"Some meaningful event has occurred in last_session, creating new session for user: {session.user_id} and quiz: {session.quiz_id}"
+        )
         current_session["is_first"] = False
         current_session["events"] = last_session.get("events", [])
         current_session["time_remaining"] = last_session.get("time_remaining", None)
@@ -116,7 +135,19 @@ async def create_session(session: Session):
     current_session["session_answers"] = session_answers
 
     # insert current session into db
-    client.quiz.sessions.insert_one(current_session)
+    result = client.quiz.sessions.insert_one(current_session)
+    if result.acknowledged:
+        logger.info(
+            f"Created new session with id {result.inserted_id} for user: {session.user_id} and quiz: {session.quiz_id}"
+        )
+    else:
+        logger.error(
+            f"Failed to insert new session for user: {session.user_id} and quiz: {session.quiz_id}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to insert new session",
+        )
 
     # return the created session
     return JSONResponse(status_code=status.HTTP_201_CREATED, content=current_session)
@@ -132,6 +163,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     * dummy event logic added for JNV -- will be removed!
     """
     new_event = jsonable_encoder(session_updates)["event"]
+    log_message = f"Updating session with id {session_id} and event {new_event}"
     session_update_query = {}
 
     # if new_event == EventType.dummy_event:
@@ -141,10 +173,16 @@ async def update_session(session_id: str, session_updates: UpdateSession):
 
     session = client.quiz.sessions.find_one({"_id": session_id})
     if session is None:
+        logger.error(
+            f"Received session update request, but session_id {session_id} not found"
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"session {session_id} not found",
         )
+    user_id, quiz_id = session["user_id"], session["quiz_id"]
+    log_message += f", for user: {user_id} and quiz: {quiz_id}"
+    logger.info(log_message)
 
     new_event_obj = jsonable_encoder(Event.parse_obj({"event_type": new_event}))
     if session["events"] is None:
@@ -241,16 +279,30 @@ async def update_session(session_id: str, session_updates: UpdateSession):
         else:
             session_update_query["$set"].update({"has_quiz_ended": True})
 
-    client.quiz.sessions.update_one({"_id": session_id}, session_update_query)
+    update_result = client.quiz.sessions.update_one(
+        {"_id": session_id}, session_update_query
+    )
+    if update_result.modified_count == 0:
+        logger.error(f"Failed to update session with id {session_id}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update session with id {session_id}",
+        )
 
+    logger.info(
+        f"Updated session with id {session_id} for user: {user_id} and quiz: {quiz_id}"
+    )
     return JSONResponse(status_code=status.HTTP_200_OK, content=response_content)
 
 
 @router.get("/{session_id}", response_model=SessionResponse)
 async def get_session(session_id: str):
+    logger.info(f"Fetching session with id {session_id}")
     if (session := client.quiz.sessions.find_one({"_id": session_id})) is not None:
+        logger.info(f"Found session with id {session_id}")
         return session
 
+    logger.error(f"Session {session_id} not found")
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND, detail=f"session {session_id} not found"
     )

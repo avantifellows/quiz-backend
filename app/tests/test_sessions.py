@@ -52,7 +52,7 @@ class SessionsTestCase(SessionsBaseTestCase):
         )
         assert response.status_code == 404
         response = response.json()
-        assert response["detail"] == "quiz 00 not found"
+        assert response["detail"] == "Quiz 00 not found while creating the session"
 
     def test_create_session_with_valid_quiz_id_and_first_session(self):
         data = open("app/tests/dummy_data/homework_quiz.json")
