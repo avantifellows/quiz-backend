@@ -55,3 +55,27 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
 
         # ensure that `answer` is not affected
         assert session_answer["answer"] == self.session_answer["answer"]
+
+    def test_update_all_session_answers(self):
+        new_answers = [{"answer": [0, 2]}] * len(self.session_answers)
+
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}",
+            json=new_answers,
+        )
+        assert response.status_code == 200
+
+        for session_answer_position_index, answer_obj in enumerate(new_answers):
+            response = self.client.get(
+                f"{session_answers.router.prefix}/{self.session_id}/{session_answer_position_index}"
+            )
+            session_answer = json.loads(response.content)
+
+            # ensure that `answer` has been updated
+            assert session_answer["answer"] == answer_obj["answer"]
+
+            # ensure that `visited` is not affected
+            assert (
+                session_answer["visited"]
+                == self.session_answers[session_answer_position_index]["visited"]
+            )
