@@ -132,11 +132,11 @@ async def update_all_session_answers_in_a_session(
     # check if session_answers array in session that we're trying to update is equal to input_session_answers array length
     if len(input_session_answers) != len(session["session_answers"]):
         logger.error(
-            f"Provided input_session_answers array length not equal to length of array in session in db"
+            "Provided input_session_answers array length not equal to length of array in session in db"
         )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Provided input_session_answers array length not equal to length of array in session in db",
+            detail="Provided input_session_answers array length not equal to length of array in session in db",
         )
 
     # constructing the $set query for mongodb
