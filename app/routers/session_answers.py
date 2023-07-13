@@ -149,11 +149,11 @@ async def update_all_session_answers_in_a_session(
     result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
     if result.modified_count == 0:
         logger.error(
-            f"Failed to update session answers for session: {session_id} (user: {user_id} and quiz: {quiz_id})"
+            f"Failed to update all session answers for session: {session_id} (user: {user_id} and quiz: {quiz_id})"
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update session answers for session: {session_id}",
+            detail=f"Failed to update all session answers for session: {session_id}",
         )
 
     logger.info(
