@@ -89,7 +89,7 @@ async def update_all_session_answers_in_a_session(
     session_id: str, session_answers: List[UpdateSessionAnswer]
 ):
     """
-    Update all session answers in a session in the session answers array
+    Update all answers at once in the `session_answers` array
     Path Params:
     session_id - the id of the session
 
@@ -97,20 +97,14 @@ async def update_all_session_answers_in_a_session(
     session_answers - list of session answers for the session
     """
     log_message = f"Updating all session answers for session: {session_id}"
-    input_session_answers = [
-        jsonable_encoder(remove_optional_unset_args(session_answer))
-        for session_answer in session_answers
-    ]
-
     # check if the session exists
     session = client.quiz.sessions.find_one({"_id": session_id})
     if session is None:
-        logger.error(
-            f"Received all session_answer update request, but provided session with id {session_id} not found"
-        )
+        session_id_error_message = f"Received all session_answer update request, but provided session with id {session_id} not found"
+        logger.error(session_id_error_message)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Received all session_answer update request, but provided session with id {session_id} not found",
+            detail=session_id_error_message,
         )
 
     # get user_id and quiz_id for logging
@@ -121,39 +115,42 @@ async def update_all_session_answers_in_a_session(
 
     # check if the session has session answers key
     if "session_answers" not in session or session["session_answers"] is None:
-        logger.error(
-            f"No session answers found in the session with id {session_id}, for user: {user_id} and quiz: {quiz_id}"
-        )
+        no_session_answer_error_message = f"No session answers found in the session with id {session_id}, for user: {user_id} and quiz: {quiz_id}"
+        logger.error(no_session_answer_error_message)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No session answers found in the session with id {session_id}",
+            detail=no_session_answer_error_message,
         )
+
+    input_session_answers = [
+        jsonable_encoder(remove_optional_unset_args(session_answer))
+        for session_answer in session_answers
+    ]
 
     # check if session_answers array in session that we're trying to update is equal to input_session_answers array length
     if len(input_session_answers) != len(session["session_answers"]):
-        logger.error(
-            "Provided input_session_answers array length not equal to length of array in session in db"
-        )
+        error_message = "Provided input_session_answers array length not equal to length of array in session in db"
+        logger.error(error_message)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Provided input_session_answers array length not equal to length of array in session in db",
+            detail=error_message,
         )
 
     # constructing the $set query for mongodb
-    setQuery = {}
-    for position_index, session_answer in enumerate(input_session_answers):
-        for key, value in session_answer.items():
-            setQuery[f"session_answers.{position_index}.{key}"] = value
+    setQuery = {
+        f"session_answers.{position_index}.{key}": value
+        for position_index, session_answer in enumerate(input_session_answers)
+        for key, value in session_answer.items()
+    }
 
     # update the document in the session_answers collection
     result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
     if result.modified_count == 0:
-        logger.error(
-            f"Failed to update all session answers for session: {session_id} (user: {user_id} and quiz: {quiz_id})"
-        )
+        error_message = f"Failed to update all session answers for session: {session_id} (user: {user_id} and quiz: {quiz_id})"
+        logger.error(error_message)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update all session answers for session: {session_id}",
+            detail=error_message,
         )
 
     logger.info(
