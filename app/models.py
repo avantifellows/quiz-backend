@@ -86,7 +86,7 @@ class QuestionMetadata(BaseModel):
 
 class QuizMetadata(BaseModel):
     quiz_type: QuizType
-    test_purpose: TestPurpose
+    test_purpose: Optional[TestPurpose]
     grade: Optional[str]
     subject: Optional[str]
     chapter: Optional[str]
