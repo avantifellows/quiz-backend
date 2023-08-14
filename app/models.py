@@ -268,7 +268,7 @@ class Quiz(BaseModel):
                     "subject": "Maths",
                     "grade": "8",
                     "source": "cms",
-                    "test_purpose": "Full Syllabus Test",
+                    "test_purpose": "Part Test",
                 },
             }
         }
