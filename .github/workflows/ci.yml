@@ -39,7 +39,7 @@ jobs:
       - name: Run Test Cases
         # command to run tests and generate coverage metrics
         run: |
-          coverage run -m pytest
+          coverage run --rcfile=.coveragerc -m pytest
           coverage xml
 
       - name: Upload coverage to Codecov
