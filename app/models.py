@@ -91,7 +91,7 @@ class QuizMetadata(BaseModel):
     topic: Optional[str]
     source: Optional[str]
     source_id: Optional[str]
-    session_end_time: Optional[str]
+    session_end_time: Optional[str]  # format: %Y-%m-%d %I:%M:%S %p
 
 
 class Question(BaseModel):
