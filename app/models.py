@@ -91,6 +91,7 @@ class QuizMetadata(BaseModel):
     topic: Optional[str]
     source: Optional[str]
     source_id: Optional[str]
+    session_end_time: Optional[str]
 
 
 class Question(BaseModel):
@@ -199,6 +200,7 @@ class Quiz(BaseModel):
     shuffle: bool = False
     num_attempts_allowed: int = 1
     time_limit: Optional[QuizTimeLimit] = None
+    always_review_answers: Optional[bool] = True
     navigation_mode: NavigationMode = "linear"
     instructions: Optional[str] = None
     language: QuizLanguage = "en"
