@@ -200,7 +200,9 @@ class Quiz(BaseModel):
     shuffle: bool = False
     num_attempts_allowed: int = 1
     time_limit: Optional[QuizTimeLimit] = None
-    review_immediate: Optional[bool] = True
+    review_immediate: Optional[
+        bool
+    ] = True  # review answers immediately after quiz ends
     navigation_mode: NavigationMode = "linear"
     instructions: Optional[str] = None
     language: QuizLanguage = "en"
