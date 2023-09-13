@@ -43,13 +43,13 @@ class QuizType(Enum):
 
 
 class TestFormat(Enum):
-    full_syllabus_test = "Full Syllabus Test"
-    major_test = "Major Test"
-    part_test = "Part Test"
-    chapter_test = "Chapter Test"
-    hiring_test = "Hiring Test"
-    evaluation_test = "Evaluation Test"
-    homework = "Homework"
+    full_syllabus_test = "full_syllabus_test"
+    major_test = "major_test"
+    part_test = "part_test"
+    chapter_test = "chapter_test"
+    hiring_test = "hiring_test"
+    evaluation_test = "evaluation_test"
+    homework = "homework"
 
 
 class EventType(str, Enum):
