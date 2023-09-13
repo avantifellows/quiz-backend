@@ -8,7 +8,7 @@ from schemas import (
     QuizLanguage,
     QuizType,
     EventType,
-    TestPurpose,
+    TestFormat,
 )
 from datetime import datetime
 
@@ -86,7 +86,7 @@ class QuestionMetadata(BaseModel):
 
 class QuizMetadata(BaseModel):
     quiz_type: QuizType
-    test_purpose: Optional[TestPurpose]
+    test_format: Optional[TestFormat]
     grade: Optional[str]
     subject: Optional[str]
     chapter: Optional[str]
