@@ -271,7 +271,7 @@ class Quiz(BaseModel):
                     "subject": "Maths",
                     "grade": "8",
                     "source": "cms",
-                    "test_purpose": "Part Test",
+                    "test_format": "Part Test",
                 },
             }
         }
@@ -344,7 +344,7 @@ class GetQuizResponse(Quiz):
                     "quiz_type": "JEE",
                     "subject": "Maths",
                     "grade": "8",
-                    "test_purpose": "Full Syllabus Test",
+                    "test_format": "Full Syllabus Test",
                 },
             }
         }
