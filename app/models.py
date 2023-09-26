@@ -8,6 +8,7 @@ from schemas import (
     QuizLanguage,
     QuizType,
     EventType,
+    TestFormat,
 )
 from datetime import datetime
 
@@ -85,6 +86,7 @@ class QuestionMetadata(BaseModel):
 
 class QuizMetadata(BaseModel):
     quiz_type: QuizType
+    test_format: Optional[TestFormat]
     grade: Optional[str]
     subject: Optional[str]
     chapter: Optional[str]
@@ -269,6 +271,7 @@ class Quiz(BaseModel):
                     "subject": "Maths",
                     "grade": "8",
                     "source": "cms",
+                    "test_format": "part_test",
                 },
             }
         }
@@ -337,7 +340,12 @@ class GetQuizResponse(Quiz):
                 ],
                 "max_marks": 10,
                 "num_graded_questions": 3,
-                "metadata": {"quiz_type": "JEE", "subject": "Maths", "grade": "8"},
+                "metadata": {
+                    "quiz_type": "JEE",
+                    "subject": "Maths",
+                    "grade": "8",
+                    "test_format": "full_syllabus_test",
+                },
             }
         }
 
