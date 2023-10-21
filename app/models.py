@@ -82,6 +82,10 @@ class QuestionMetadata(BaseModel):
     topic_id: Optional[str]
     competency: Optional[List[str]]
     difficulty: Optional[str]
+    skill: Optional[str]
+    skill_id: Optional[str]
+    concept: Optional[str]
+    concept_id: Optional[str]
 
 
 class QuizMetadata(BaseModel):
