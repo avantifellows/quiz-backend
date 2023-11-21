@@ -374,6 +374,7 @@ class SessionAnswer(BaseModel):
     question_id: str
     answer: answerType = None
     visited: bool = False
+    time_spent: int = None  # in seconds
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -381,7 +382,9 @@ class SessionAnswer(BaseModel):
         allow_population_by_field_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
-        schema_extra = {"example": {"question_id": "4567", "answer": [0, 1, 2]}}
+        schema_extra = {
+            "example": {"question_id": "4567", "answer": [0, 1, 2], "time_spent": 30}
+        }
 
 
 class UpdateSessionAnswer(BaseModel):
@@ -389,10 +392,13 @@ class UpdateSessionAnswer(BaseModel):
 
     answer: Optional[answerType]
     visited: Optional[bool]
+    time_spent: Optional[int]
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:
-        schema_extra = {"example": {"answer": [0, 1, 2], "visited": True}}
+        schema_extra = {
+            "example": {"answer": [0, 1, 2], "visited": True, "time_spent": 20}
+        }
 
 
 """
@@ -458,11 +464,13 @@ class SessionResponse(Session):
                         "_id": "1030c00d03",
                         "question_id": "4ne0c0s0",
                         "answer": [0, 1, 2],
+                        "time_spent": 20,
                     },
                     {
                         "_id": "30c000dww0d34h573",
                         "question_id": "20200c0c0cw0",
                         "answer": [0],
+                        "time_spent": 30,
                     },
                 ],
             }
