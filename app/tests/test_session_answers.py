@@ -69,15 +69,11 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
         )
         assert response.status_code == 200
 
-        print(self.session_answers)
-
         for session_answer_position_index, session_answer_obj in positions_and_answers:
             response = self.client.get(
                 f"{session_answers.router.prefix}/{self.session_id}/{session_answer_position_index}"
             )
             session_answer = json.loads(response.content)
-
-            print(session_answer)
 
             # ensure that `answer` has been updated at the specified positions
             assert session_answer["answer"] == session_answer_obj["answer"]
