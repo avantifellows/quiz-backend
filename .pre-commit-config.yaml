@@ -27,3 +27,8 @@ repos:
           # check out their meaning here
           # https://flake8.pycqa.org/en/latest/user/error-codes.html
           - "--ignore=E501,E203,W503"
+  - repo: https://github.com/terraform-linters/tflint
+    rev: v0.30.0
+    hooks:
+      - id: tflint
+        files: \.tf$
