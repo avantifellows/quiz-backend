@@ -3,7 +3,7 @@
 # Define variables
 instanceName="qb-Bastion-Host"
 bastionHostPrivateKeyPath="/tmp/bastion_host_key.pem"
-updateScript="update_target_group_ec2_codebase.sh"
+updateScript="deployment/update_target_group_ec2_codebase.sh"
 envFile=".env"
 
 # Save the private key to a file
