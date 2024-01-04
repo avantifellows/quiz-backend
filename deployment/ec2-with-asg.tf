@@ -48,4 +48,27 @@ resource "aws_instance" "qb_bastion_host" {
   tags = {
     Name = "qb-Bastion-Host"
   }
+
+  provisioner "file" {
+    source      = "~/.ssh/AvantiFellows.pem"
+    destination = "/home/ec2-user/AvantiFellows.pem"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "chmod 400 /home/ec2-user/AvantiFellows.pem"
+    ]
+  }
+
+  connection {
+    type        = "ssh"
+    user        = "ec2-user"
+    private_key = file("~/.ssh/AvantiFellows.pem")
+    host        = self.public_ip
+  }
+
+  provisioner "local-exec" {
+    command = "aws ec2 stop-instances --instance-ids ${self.id} --region ap-south-1"
+    when    = create
+  }
 }

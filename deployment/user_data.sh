@@ -22,7 +22,7 @@ dnf install git -y
 echo "Cloning the repository..."
 git clone https://github.com/avantifellows/quiz-backend.git /home/ec2-user/quiz-backend
 
-# Navigate to the cloned directory
+# Navigate to the cloned directory 
 cd /home/ec2-user/quiz-backend
 
 # Checkout the release branch
@@ -31,8 +31,6 @@ git checkout release
 
 echo "Setting env file..."
 touch .env
-# TODO -- add env variables to .env file
-
 
 # Set up Python environment
 echo "Setting up Python environment..."

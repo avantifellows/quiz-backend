@@ -1,0 +1,2 @@
+mkdir HELLO
+echo "HELLO FROM EC2"

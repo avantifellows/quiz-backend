@@ -75,10 +75,10 @@ resource "aws_security_group" "qb_sg_bastion" {
 }
 
 resource "aws_security_group_rule" "allow_ssh_from_bastion" {
-  type        = "ingress"
-  from_port   = 22
-  to_port     = 22
-  protocol    = "tcp"
-  cidr_blocks = ["${aws_instance.qb_bastion_host.private_ip}/32"] # Use the private IP of the bastion host
+  type              = "ingress"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  cidr_blocks       = ["${aws_instance.qb_bastion_host.private_ip}/32"] # Use the private IP of the bastion host
   security_group_id = aws_security_group.qb_sg_for_ec2.id
 }
