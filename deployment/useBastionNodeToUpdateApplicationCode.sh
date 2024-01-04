@@ -3,7 +3,7 @@
 # Define variables
 instanceName="qb-Bastion-Host"
 bastionHostPrivateKeyPath="/tmp/bastion_host_key.pem"
-updateScript="deployment/update_target_group_ec2_codebase.sh"
+updateScript="update_target_group_ec2_codebase.sh"
 envFile=".env"
 
 # Save the private key to a file
@@ -36,7 +36,7 @@ bastionHostIP=$(aws ec2 describe-instances --instance-ids $instanceId --query "R
 echo "MONGO_AUTH_CREDENTIALS=$MONGO_AUTH_CREDENTIALS" > $envFile
 
 # Transfer the update script and .env file to the Bastion Host
-scp -o StrictHostKeyChecking=no -i $bastionHostPrivateKeyPath $updateScript $envFile ec2-user@$bastionHostIP:/home/ec2-user/
+scp -o StrictHostKeyChecking=no -i $bastionHostPrivateKeyPath deployment/$updateScript $envFile ec2-user@$bastionHostIP:/home/ec2-user/
 
 # SSH into the Bastion Host and execute the update script
 ssh -o StrictHostKeyChecking=no -i $bastionHostPrivateKeyPath ec2-user@$bastionHostIP "bash /home/ec2-user/$updateScript"
