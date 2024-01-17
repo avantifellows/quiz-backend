@@ -1,6 +1,6 @@
 # IAM Role and Policy for EC2 Instances
 resource "aws_iam_role" "ec2_role" {
-  name = "ec2_role"
+  name_prefix = "${local.environment_prefix}ec2_role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -27,27 +27,27 @@ resource "aws_iam_role_policy_attachment" "ec2_describe_ec2" {
 }
 
 resource "aws_iam_instance_profile" "ec2_profile" {
-  name = "ec2_profile"
-  role = aws_iam_role.ec2_role.name
+  name_prefix = "${local.environment_prefix}ec2_profile"
+  role        = aws_iam_role.ec2_role.name
 }
 
 # ASG with launch template
-resource "aws_launch_template" "qb_ec2_launch_templ" {
-  name_prefix   = "qb-ec2-launch-template"
+resource "aws_launch_template" "ec2_launch_templ" {
+  name_prefix   = "${local.environment_prefix}ec2_launch_templ"
   image_id      = "ami-0a0f1259dd1c90938"
   instance_type = "t2.micro"
   user_data     = filebase64("user_data.sh")
 
   network_interfaces {
     associate_public_ip_address = false
-    subnet_id                   = aws_subnet.qb_subnet_2.id
-    security_groups             = [aws_security_group.qb_sg_for_ec2.id]
+    subnet_id                   = aws_subnet.subnet_2.id
+    security_groups             = [aws_security_group.sg_for_ec2.id]
   }
 
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name = "qb-ec2"
+      Name = "${local.environment_prefix}ec2"
     }
   }
 
@@ -58,32 +58,33 @@ resource "aws_launch_template" "qb_ec2_launch_templ" {
   }
 }
 
-resource "aws_autoscaling_group" "qb_asg" {
+resource "aws_autoscaling_group" "asg" {
+  name_prefix      = "${local.environment_prefix}asg"
   desired_capacity = 2
   max_size         = 4
   min_size         = 2
 
   # connect to the target group
-  target_group_arns = [aws_lb_target_group.qb_alb_tg.arn]
+  target_group_arns = [aws_lb_target_group.alb_tg.arn]
 
-  vpc_zone_identifier = [aws_subnet.qb_subnet_2.id]
+  vpc_zone_identifier = [aws_subnet.subnet_2.id]
 
   launch_template {
-    id      = aws_launch_template.qb_ec2_launch_templ.id
+    id      = aws_launch_template.ec2_launch_templ.id
     version = "$Latest"
   }
 }
 
 # Bastion Host Instance
-resource "aws_instance" "qb_bastion_host" {
+resource "aws_instance" "bastion_host" {
   ami             = "ami-0a0f1259dd1c90938" # Use an appropriate AMI
   instance_type   = "t2.micro"
   key_name        = "AvantiFellows"
-  subnet_id       = aws_subnet.qb_subnet_1.id # Place in a public subnet
-  security_groups = [aws_security_group.qb_sg_bastion.id]
+  subnet_id       = aws_subnet.subnet_1.id # Place in a public subnet
+  security_groups = [aws_security_group.sg_bastion.id]
 
   tags = {
-    Name = "qb-Bastion-Host"
+    Name = "${local.environment_prefix}Bastion-Host"
   }
 
   iam_instance_profile = aws_iam_instance_profile.ec2_profile.name

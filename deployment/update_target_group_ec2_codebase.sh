@@ -1,8 +1,11 @@
 #!/bin/bash
 
+# extract TARGET_GROUP_NAME from .env file and store it in an environment variable
+TARGET_GROUP_NAME=$(grep TARGET_GROUP_NAME .env | cut -d '=' -f2)
+
 # Define variables
 echo "[EC2 Action] Defining variables..."
-targetGroupName="qb-tf-lb-alb-tg"
+targetGroupName=$TARGET_GROUP_NAME
 region="ap-south-1" # replace with your actual region
 account_id="111766607077" # replace with your actual account ID
 

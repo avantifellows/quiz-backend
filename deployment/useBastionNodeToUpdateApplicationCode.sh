@@ -2,7 +2,7 @@
 
 # Define variables
 echo "Defining variables..."
-instanceName="qb-Bastion-Host"
+instanceName=$BASTION_HOST_INSTANCE_NAME
 bastionHostPrivateKeyPath="/tmp/bastion_host_key.pem"
 updateScript="update_target_group_ec2_codebase.sh"
 envFile=".env"
@@ -45,6 +45,7 @@ bastionHostIP=$(aws ec2 describe-instances --instance-ids $instanceId --query "R
 echo "Building .env file..."
 echo "MONGO_AUTH_CREDENTIALS=$MONGO_AUTH_CREDENTIALS" > $envFile
 echo "BRANCH_NAME_TO_DEPLOY=$BRANCH_NAME_TO_DEPLOY" >> $envFile
+echo "TARGET_GROUP_NAME=$TARGET_GROUP_NAME" >> $envFile
 
 # Transfer the update script and .env file to the Bastion Host
 echo "Transferring scripts to the Bastion Host at $bastionHostIP..."

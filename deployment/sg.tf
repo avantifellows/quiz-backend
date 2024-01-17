@@ -1,7 +1,7 @@
-resource "aws_security_group" "qb_sg_for_elb" {
-  name        = "qb-sg-for-elb"
+resource "aws_security_group" "sg_for_elb" {
+  name        = "${local.environment_prefix}sg-for-elb"
   description = "security group for ELB"
-  vpc_id      = aws_vpc.qb_main.id
+  vpc_id      = aws_vpc.main.id
 
   ingress {
     description      = "Allow HTTP from anywhere"
@@ -30,17 +30,17 @@ resource "aws_security_group" "qb_sg_for_elb" {
   }
 }
 
-resource "aws_security_group" "qb_sg_for_ec2" {
-  name        = "qb-sg-for-ec2"
+resource "aws_security_group" "sg_for_ec2" {
+  name        = "${local.environment_prefix}sg-for-ec2"
   description = "security group for EC2"
-  vpc_id      = aws_vpc.qb_main.id
+  vpc_id      = aws_vpc.main.id
 
   ingress {
     description     = "Allow http from load balancer"
     from_port       = 80
     to_port         = 80
     protocol        = "tcp"
-    security_groups = [aws_security_group.qb_sg_for_elb.id]
+    security_groups = [aws_security_group.sg_for_elb.id]
   }
 
   egress {
@@ -53,10 +53,10 @@ resource "aws_security_group" "qb_sg_for_ec2" {
 }
 
 # Security Group for Bastion Host
-resource "aws_security_group" "qb_sg_bastion" {
-  name        = "qb-sg-bastion"
+resource "aws_security_group" "sg_bastion" {
+  name        = "${local.environment_prefix}sg-bastion"
   description = "Bastion host security group"
-  vpc_id      = aws_vpc.qb_main.id
+  vpc_id      = aws_vpc.main.id
 
   ingress {
     description = "SSH from anywhere"
@@ -79,6 +79,6 @@ resource "aws_security_group_rule" "allow_ssh_from_bastion" {
   from_port         = 22
   to_port           = 22
   protocol          = "tcp"
-  cidr_blocks       = ["${aws_instance.qb_bastion_host.private_ip}/32"] # Use the private IP of the bastion host
-  security_group_id = aws_security_group.qb_sg_for_ec2.id
+  cidr_blocks       = ["${aws_instance.bastion_host.private_ip}/32"] # Use the private IP of the bastion host
+  security_group_id = aws_security_group.sg_for_ec2.id
 }

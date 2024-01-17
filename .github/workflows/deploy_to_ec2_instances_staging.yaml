@@ -38,3 +38,5 @@ jobs:
         BASTION_HOST_PRIVATE_KEY: ${{ secrets.STAGING_BASTION_HOST_PRIVATE_KEY }}
         MONGO_AUTH_CREDENTIALS: ${{ secrets.MONGO_AUTH_CREDENTIALS }}
         BRANCH_NAME_TO_DEPLOY: ${{ steps.extract_branch.outputs.branch }}
+        BASTION_HOST_INSTANCE_NAME: "staging-QB-Bastion-Host"
+        TARGET_GROUP_NAME: "staging-QB-lb-alb-tg"
