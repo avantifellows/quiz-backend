@@ -25,6 +25,9 @@ envFile="/home/ec2-user/.env"
 echo "[EC2 Action] Fetching instance IDs of the target group..."
 instanceIds=$(aws elbv2 describe-target-health --target-group-arn $targetGroupArn --query "TargetHealthDescriptions[*].Target.Id" --output text --region $region)
 
+# extract BRANCH_NAME_TO_DEPLOY from .env file and store it in an environment variable
+BRANCH_NAME_TO_DEPLOY=$(grep BRANCH_NAME_TO_DEPLOY $envFile | cut -d '=' -f2)
+
 for id in $instanceIds; do
     echo "[EC2 Action] Processing instance ID: $id"
 
@@ -50,7 +53,8 @@ for id in $instanceIds; do
         sudo su
         echo "[EC2 Action] Updating codebase and restarting the application..."
         cd /home/ec2-user/quiz-backend
-        git pull origin release
+        git checkout $BRANCH_NAME_TO_DEPLOY
+        git pull origin $BRANCH_NAME_TO_DEPLOY
         source venv/bin/activate
         pip install -r app/requirements.txt
         cd app

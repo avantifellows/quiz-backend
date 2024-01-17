@@ -32,3 +32,4 @@ jobs:
       env:
         BASTION_HOST_PRIVATE_KEY: ${{ secrets.STAGING_BASTION_HOST_PRIVATE_KEY }}
         MONGO_AUTH_CREDENTIALS: ${{ secrets.MONGO_AUTH_CREDENTIALS }}
+        BRANCH_NAME_TO_DEPLOY: ${{ github.ref_name }}

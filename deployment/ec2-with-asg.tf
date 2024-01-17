@@ -59,9 +59,9 @@ resource "aws_launch_template" "qb_ec2_launch_templ" {
 }
 
 resource "aws_autoscaling_group" "qb_asg" {
-  desired_capacity = 1
-  max_size         = 2
-  min_size         = 1
+  desired_capacity = 2
+  max_size         = 4
+  min_size         = 2
 
   # connect to the target group
   target_group_arns = [aws_lb_target_group.qb_alb_tg.arn]

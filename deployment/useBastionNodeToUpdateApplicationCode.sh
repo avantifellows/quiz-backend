@@ -44,6 +44,7 @@ bastionHostIP=$(aws ec2 describe-instances --instance-ids $instanceId --query "R
 # Build the .env file from GitHub Secrets
 echo "Building .env file..."
 echo "MONGO_AUTH_CREDENTIALS=$MONGO_AUTH_CREDENTIALS" > $envFile
+echo "BRANCH_NAME_TO_DEPLOY=$BRANCH_NAME_TO_DEPLOY" >> $envFile
 
 # Transfer the update script and .env file to the Bastion Host
 echo "Transferring scripts to the Bastion Host at $bastionHostIP..."
