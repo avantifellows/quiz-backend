@@ -165,3 +165,5 @@ deployment/.terraform/*
 deployment/.terraform
 deployment/.terraform.lock.hcl
 deployment/terraform.tfstate.backup
+deployment/terraform.tfstate
+terraform.tfstate

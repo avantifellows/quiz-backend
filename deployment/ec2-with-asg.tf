@@ -1,3 +1,36 @@
+# IAM Role and Policy for EC2 Instances
+resource "aws_iam_role" "ec2_role" {
+  name = "ec2_role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = "sts:AssumeRole",
+        Effect = "Allow",
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        },
+      },
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_elb_access" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/ElasticLoadBalancingReadOnly"
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_describe_ec2" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
+}
+
+resource "aws_iam_instance_profile" "ec2_profile" {
+  name = "ec2_profile"
+  role = aws_iam_role.ec2_role.name
+}
+
 # ASG with launch template
 resource "aws_launch_template" "qb_ec2_launch_templ" {
   name_prefix   = "qb-ec2-launch-template"
@@ -19,6 +52,10 @@ resource "aws_launch_template" "qb_ec2_launch_templ" {
   }
 
   key_name = "AvantiFellows" # Add this line to assign a key pair
+
+  iam_instance_profile {
+    name = aws_iam_instance_profile.ec2_profile.name
+  }
 }
 
 resource "aws_autoscaling_group" "qb_asg" {
@@ -48,6 +85,8 @@ resource "aws_instance" "qb_bastion_host" {
   tags = {
     Name = "qb-Bastion-Host"
   }
+
+  iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
 
   provisioner "file" {
     source      = "~/.ssh/AvantiFellows.pem"
