@@ -4,7 +4,7 @@
 echo "Defining variables..."
 instanceName=$BASTION_HOST_INSTANCE_NAME
 bastionHostPrivateKeyPath="/tmp/bastion_host_key.pem"
-updateScript="update_target_group_ec2_codebase.sh"
+updateScript="runOnBastion.sh"
 envFile=".env"
 
 # Save the private key to a file

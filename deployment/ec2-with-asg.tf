@@ -51,7 +51,7 @@ resource "aws_launch_template" "ec2_launch_templ" {
     }
   }
 
-  key_name = "AvantiFellows" # Add this line to assign a key pair
+  key_name = "AvantiFellows"
 
   iam_instance_profile {
     name = aws_iam_instance_profile.ec2_profile.name
@@ -60,9 +60,9 @@ resource "aws_launch_template" "ec2_launch_templ" {
 
 resource "aws_autoscaling_group" "asg" {
   name_prefix      = "${local.environment_prefix}asg"
-  desired_capacity = 2
-  max_size         = 4
-  min_size         = 2
+  desired_capacity = 1
+  max_size         = 3
+  min_size         = 1
 
   # connect to the target group
   target_group_arns = [aws_lb_target_group.alb_tg.arn]
@@ -77,7 +77,7 @@ resource "aws_autoscaling_group" "asg" {
 
 # Bastion Host Instance
 resource "aws_instance" "bastion_host" {
-  ami             = "ami-0a0f1259dd1c90938" # Use an appropriate AMI
+  ami             = "ami-0a0f1259dd1c90938"
   instance_type   = "t2.micro"
   key_name        = "AvantiFellows"
   subnet_id       = aws_subnet.subnet_1.id # Place in a public subnet

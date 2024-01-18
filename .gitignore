@@ -166,4 +166,5 @@ deployment/.terraform
 deployment/.terraform.lock.hcl
 deployment/terraform.tfstate.backup
 deployment/terraform.tfstate
+deployment/terraform.tfstate.d
 terraform.tfstate

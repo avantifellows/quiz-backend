@@ -10,7 +10,7 @@ jobs:
   deploy:
     environment:
       name: Staging
-    
+
     runs-on: ubuntu-latest
     env:
       BASTION_HOST_PRIVATE_KEY: ${{ secrets.BASTION_HOST_PRIVATE_KEY }}
@@ -33,7 +33,7 @@ jobs:
 
     - name: Run Deployment Script
       run: |
-        bash deployment/useBastionNodeToUpdateApplicationCode.sh
+        bash deployment/runOnGithubAction.sh
       env:
         BASTION_HOST_PRIVATE_KEY: ${{ secrets.STAGING_BASTION_HOST_PRIVATE_KEY }}
         MONGO_AUTH_CREDENTIALS: ${{ secrets.MONGO_AUTH_CREDENTIALS }}
