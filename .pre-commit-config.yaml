@@ -1,34 +1,36 @@
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.2.0
-    hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-json
-      - id: check-yaml
-        exclude: "templates/*"
-      - id: check-merge-conflict
-      - id: check-added-large-files
-  - repo: https://github.com/aws-cloudformation/cfn-python-lint
-    rev: v0.58.4
-    hooks:
-      - id: cfn-python-lint
-        files: templates/.*\.(json|yml|yaml)$
-  - repo: https://github.com/psf/black
-    rev: 22.3.0
-    hooks:
-      - id: black
-  - repo: https://github.com/pycqa/flake8
-    rev: "3.9.0"
-    hooks:
-      - id: flake8
-        args:
-          # these are errors that will be ignored by flake8
-          # check out their meaning here
-          # https://flake8.pycqa.org/en/latest/user/error-codes.html
-          - "--ignore=E501,E203,W503"
-  - repo: https://github.com/terraform-linters/tflint
-    rev: v0.30.0
-    hooks:
-      - id: tflint
-        files: \.tf$
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.5.0
+  hooks:
+  -   id: trailing-whitespace
+  -   id: end-of-file-fixer
+  -   id: check-json
+  -   id: check-yaml
+  -   id: check-merge-conflict
+  -   id: check-added-large-files
+- repo: https://github.com/psf/black
+  rev: 23.10.1
+  hooks:
+  -   id: black
+      exclude: ^psycopg2/
+- repo: https://github.com/pycqa/flake8
+  rev: '6.1.0'
+  hooks:
+  -   id: flake8
+      exclude: ^psycopg2/
+      args:
+      # these are errors that will be ignored by flake8
+      # check out their meaning here
+      # https://flake8.pycqa.org/en/latest/user/error-codes.html
+      - "--ignore=E501,E203,W503"
+
+- repo: https://github.com/terraform-linters/tflint
+  rev: v0.30.0
+  hooks:
+    - id: tflint
+      files: \.tf$
+- repo: https://github.com/aws-cloudformation/cfn-python-lint
+  rev: v0.58.4
+  hooks:
+    - id: cfn-python-lint
+      files: templates/.*\.(json|yml|yaml)$
