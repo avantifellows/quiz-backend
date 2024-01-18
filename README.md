@@ -243,6 +243,9 @@ We are deploying our FastAPI instance on AWS Lambda which is triggered via an AP
 
 The actual deployment happens through Github Actions. Look at [`.github/workflows/deploy_to_staging.yml`](.github/workflows/deploy_to_staging.yml) for understanding the deployment to `Staging` and [`.github/workflows/deploy_to_prod.yml`](.github/workflows/deploy_to_prod.yml) for `Production`. Make sure to set all the environment variables mentioned in [`docs/ENV.md`](docs/ENV.md) in the `Production` and `Staging` environments in your Github repository.
 
+### New backend infra
+- Read [this](deployment/README.md) to see how the new backend infra is setup and deployed. Related ADR [here](https://www.notion.so/avantifellows/ADR-New-Quiz-Backend-EC2-2cc6c6c8e3f24723965ba08c430afd3f).
+
 ## Tests
 - For testing, we use [`mongomock`](https://docs.mongoengine.org/guide/mongomock.html) package to mock our mongo database. To host this mock database, mongoDB process must run locally. Please install mongoDB following the instructions [here](https://www.mongodb.com/docs/manual/administration/install-community/). Ubuntu users may install using the command `pip install mongodb`.
 - Create a folder `path/to/data/db` that mongoDB may use to store a local database. By default, `mongod` stores data in `/data/db`.
