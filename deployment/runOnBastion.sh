@@ -23,6 +23,7 @@ echo "[EC2 Action] Found ARN for target group: $targetGroupArn"
 
 keyPath="/home/ec2-user/AvantiFellows.pem"
 envFile="/home/ec2-user/.env"
+pathToCloudwatchConfig="/home/ec2-user/quiz-backend/deployment/cloudwatch-agent-config.json"
 
 # Fetch the instance IDs of the target group using the ARN
 echo "[EC2 Action] Fetching instance IDs of the target group..."
@@ -63,9 +64,12 @@ for id in $instanceIds; do
         # setup and restart cloudwatch agent
         if [ "$BRANCH_NAME_TO_DEPLOY" != "release" ]; then
             echo "Branch is not 'release'. Prepending staging to cloudwatch config file log group name"
-            sed -i 's/QuizBackendLogs/StagingQuizBackendLogs/g' /home/ec2-user/quiz-backend/deployment/cloudwatch-agent-config.json
+            if ! grep -q "StagingQuizBackendLogs" $pathToCloudwatchConfig; then
+                echo "Replacing 'QuizBackendLogs' with 'StagingQuizBackendLogs' in JSON file."
+                sed -i 's/QuizBackendLogs/StagingQuizBackendLogs/g' $pathToCloudwatchConfig
+            fi
         fi
-        sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/home/ec2-user/quiz-backend/deployment/cloudwatch-agent-config.json -s
+        sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:$pathToCloudwatchConfig -s
 
         
         source venv/bin/activate
