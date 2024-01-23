@@ -54,14 +54,19 @@ for id in $instanceIds; do
         echo "[EC2 Action] Stopping any process running on port 80..."
         sudo fuser -k 80/tcp
         sudo su
-        echo "[EC2 Action] Updating codebase and restarting the application..."
-        cd /home/ec2-user/quiz-backend
-        git checkout $BRANCH_NAME_TO_DEPLOY
-        git pull origin $BRANCH_NAME_TO_DEPLOY
+        
+
+        # setup and restart cloudwatch agent
         if [ "$BRANCH_NAME_TO_DEPLOY" != "release" ]; then
             echo "Branch is not 'release'. Prepending staging to cloudwatch config file log group name"
             sed -i 's/QuizBackendLogs/StagingQuizBackendLogs/g' deployment/cloudwatch-agent-config.json
         fi
+        sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/home/ec2-user/quiz-backend/deployment/cloudwatch-agent-config.json -s
+
+        echo "[EC2 Action] Updating codebase and restarting the application..."
+        cd /home/ec2-user/quiz-backend
+        git checkout $BRANCH_NAME_TO_DEPLOY
+        git pull origin $BRANCH_NAME_TO_DEPLOY
         source venv/bin/activate
         pip install -r app/requirements.txt
         cd app
