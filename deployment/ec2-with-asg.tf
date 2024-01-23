@@ -26,6 +26,11 @@ resource "aws_iam_role_policy_attachment" "ec2_describe_ec2" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
 }
 
+resource "aws_iam_role_policy_attachment" "ec2_cloudwatch_logs" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+}
+
 resource "aws_iam_instance_profile" "ec2_profile" {
   name_prefix = "${local.environment_prefix}ec2_profile"
   role        = aws_iam_role.ec2_role.name

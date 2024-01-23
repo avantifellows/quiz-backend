@@ -22,6 +22,14 @@ dnf install git -y
 echo "Cloning the repository..."
 git clone https://github.com/avantifellows/quiz-backend.git /home/ec2-user/quiz-backend
 
+# Install Amazon CloudWatch Agent
+echo "Installing amazon-cloudwatch-agent..."
+sudo yum install amazon-cloudwatch-agent -y
+
+# start the agent
+echo "Starting amazon-cloudwatch-agent..."
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/home/ec2-user/quiz-backend/deployment/cloudwatch-agent-config.json -s
+
 # Navigate to the cloned directory
 cd /home/ec2-user/quiz-backend
 

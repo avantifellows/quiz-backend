@@ -58,6 +58,10 @@ for id in $instanceIds; do
         cd /home/ec2-user/quiz-backend
         git checkout $BRANCH_NAME_TO_DEPLOY
         git pull origin $BRANCH_NAME_TO_DEPLOY
+        if [ "$BRANCH_NAME_TO_DEPLOY" != "release" ]; then
+            echo "Branch is not 'release'. Prepending staging to cloudwatch config file log group name"
+            sed -i 's/QuizBackendLogs/StagingQuizBackendLogs/g' deployment/cloudwatch-agent-config.json
+        fi
         source venv/bin/activate
         pip install -r app/requirements.txt
         cd app
