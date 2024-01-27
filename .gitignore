@@ -169,3 +169,5 @@ deployment/terraform.tfstate.backup
 deployment/terraform.tfstate
 deployment/terraform.tfstate.d
 terraform.tfstate
+
+app/scripts/dump

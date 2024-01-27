@@ -16,7 +16,7 @@ resource "aws_lb_target_group" "alb_tg" {
   protocol = "HTTP"
   vpc_id   = aws_vpc.main.id
   health_check {
-    path = "/docs"
+    path = "/health"
   }
 }
 

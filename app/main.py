@@ -64,4 +64,12 @@ app.include_router(sessions.router)
 app.include_router(session_answers.router)
 app.include_router(organizations.router)
 
+@app.get("/")
+async def root():
+    return {"message": "Welcome to the Quiz Backend!"}
+
+@app.get("/health")
+async def health():
+    return {"ping": "pong"}
+
 handler = Mangum(app)
