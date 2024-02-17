@@ -213,3 +213,12 @@ class QuizTestCase(BaseTestCase):
 
             for condition in partial_mark_rule["conditions"]:
                 assert "num_correct_selected" in condition
+
+    def test_created_matrix_match_quiz_contains_list_of_string_answer(self):
+        # go through quiz and find advanced matrix match question
+        for question_set in self.matrix_match_quiz["question_sets"]:
+            for question in question_set["questions"]:
+                if question["type"] == "matrix-match":
+                    assert isinstance(question["correct_answer"], list)
+                    for ans in question["correct_answer"]:
+                        assert isinstance(ans, str)
