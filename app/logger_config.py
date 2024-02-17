@@ -14,7 +14,7 @@ class ISTFormatter(logging.Formatter):
 
 
 def setup_logger():
-    logger_name = 'QuizBackend'
+    logger_name = "QuizBackend"
     logger = logging.getLogger(logger_name)
 
     # https://stackoverflow.com/questions/50909824/getting-logs-twice-in-aws-lambda-function
@@ -31,12 +31,9 @@ def setup_logger():
     # consoleHandler.setFormatter(formatter)
     # logger.addHandler(consoleHandler)
 
-     # File handler with log rotation
+    # File handler with log rotation
     fileHandler = TimedRotatingFileHandler(
-        f'../app.log',
-        when='midnight',
-        interval=1, 
-        backupCount=30
+        "../app.log", when="midnight", interval=1, backupCount=30
     )
     fileHandler.setFormatter(formatter)
     fileHandler.setLevel(logging.DEBUG)

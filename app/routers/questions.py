@@ -2,6 +2,7 @@ from fastapi import APIRouter, status, HTTPException
 from database import client
 from models import QuestionResponse
 from logger_config import get_logger
+from cache import cache_data, get_cached_data
 
 router = APIRouter(prefix="/questions", tags=["Questions"])
 logger = get_logger()
@@ -10,8 +11,15 @@ logger = get_logger()
 @router.get("/{question_id}", response_model=QuestionResponse)
 async def get_question(question_id: str):
     logger.info(f"Fetching question with ID: {question_id}")
+    cache_key = f"question_{question_id}"
+    cached_data = get_cached_data(cache_key)
+    if cached_data:
+        logger.info(f"Found question with ID: {question_id} in cache")
+        return cached_data
+
     if (question := client.quiz.questions.find_one({"_id": question_id})) is not None:
         logger.info(f"Found question with ID: {question_id}")
+        cache_data(cache_key, question)
         return question
 
     logger.error(f"Question {question_id} not found")
@@ -26,6 +34,13 @@ async def get_questions(question_set_id: str, skip: int = None, limit: int = Non
     logger.info(
         f"Fetching questions with question_set_id: {question_set_id} with skip: {skip} and limit: {limit}"
     )
+
+    cache_key = f"questions_{question_set_id}_{skip}_{limit}"
+    cached_data = get_cached_data(cache_key)
+    if cached_data:
+        logger.info(f"Found questions with question_set_id: {question_set_id} in cache")
+        return cached_data
+
     pipeline = [
         {"$match": {"question_set_id": question_set_id}},
         {"$sort": {"_id": 1}},
@@ -41,6 +56,7 @@ async def get_questions(question_set_id: str, skip: int = None, limit: int = Non
         logger.info(
             f"Found {len(questions)} questions with question_set_id: {question_set_id}"
         )
+        cache_data(cache_key, questions)
         return questions
 
     error_message = (

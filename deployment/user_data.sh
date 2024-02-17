@@ -23,12 +23,20 @@ echo "Cloning the repository..."
 git clone https://github.com/avantifellows/quiz-backend.git /home/ec2-user/quiz-backend
 
 # Install Amazon CloudWatch Agent
-echo "Installing amazon-cloudwatch-agent..."
-sudo yum install amazon-cloudwatch-agent -y
+# echo "Installing amazon-cloudwatch-agent..."
+# sudo yum install amazon-cloudwatch-agent -y
 
-# start the agent
-echo "Starting amazon-cloudwatch-agent..."
-sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/home/ec2-user/quiz-backend/deployment/cloudwatch-agent-config.json -s
+# # start the agent
+# echo "Starting amazon-cloudwatch-agent..."
+# sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/home/ec2-user/quiz-backend/deployment/cloudwatch-agent-config.json -s
+
+# Install redis server
+sudo dnf install -y redis6
+sudo systemctl start redis6
+sudo systemctl enable redis6
+sudo systemctl is-enabled redis6
+redis6-server --version
+redis6-cli ping
 
 # Navigate to the cloned directory
 cd /home/ec2-user/quiz-backend
@@ -54,4 +62,4 @@ cd app
 
 # Start Uvicorn server
 echo "Starting Uvicorn server..."
-uvicorn main:app --host 0.0.0.0 --port 80
+uvicorn main:app --host 0.0.0.0 --port 80 --workers 2

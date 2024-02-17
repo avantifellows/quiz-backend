@@ -7,6 +7,7 @@ import secrets
 import string
 from fastapi.encoders import jsonable_encoder
 from logger_config import get_logger
+from cache import cache_data, get_cached_data
 
 router = APIRouter(prefix="/organizations", tags=["Organizations"])
 settings = Settings()
@@ -59,12 +60,21 @@ async def create_organization(organization: Organization):
 @router.get("/authenticate/{api_key}", response_model=OrganizationResponse)
 async def check_auth_token(api_key: str):
     logger.info(f"Authenticating API key: {api_key}")
+    cache_key = f"org_{api_key}"
+
+    cached_data = get_cached_data(cache_key)
+    if cached_data:
+        logger.info(f"Cache hit for API key: {api_key}. Auth complete")
+        return cached_data
+
+    logger.info(f"Cache miss for API key: {api_key}. Authenticating from db")
     if (
         org := client.quiz.organization.find_one(
             {"key": api_key},
         )
     ) is not None:
         logger.info(f"Authenticated API key: {api_key}")
+        cache_data(cache_key, org)
         return org
 
     logger.error(f"Failed to authenticate API key: {api_key}")

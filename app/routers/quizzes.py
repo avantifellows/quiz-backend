@@ -6,59 +6,11 @@ from models import Quiz, GetQuizResponse, CreateQuizResponse
 from settings import Settings
 from schemas import QuizType
 from logger_config import get_logger
+from cache import cache_data, get_cached_data
 
 router = APIRouter(prefix="/quiz", tags=["Quiz"])
 settings = Settings()
 logger = get_logger()
-
-
-def update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz):
-    """
-    if given quiz contains question sets that do not have max_questions_allowed_to_attempt key,
-    update the question sets (in-place) with the key and value as len(questions) in that set.
-    Additionally, add a default title and marking scheme for the set.
-    Finally, add quiz to quiz_collection
-    (NOTE: this is a primitive form of versioning)
-    """
-    is_backwards_compatibile = True
-    for question_set_index, question_set in enumerate(quiz["question_sets"]):
-        if "max_questions_allowed_to_attempt" not in question_set:
-            is_backwards_compatibile = False
-            question_set["max_questions_allowed_to_attempt"] = len(
-                question_set["questions"]
-            )
-            question_set["title"] = "Section A"
-
-        if (
-            "marking_scheme" not in question_set
-            or question_set["marking_scheme"] is None
-        ):
-            is_backwards_compatibile = False
-            question_marking_scheme = question_set["questions"][0]["marking_scheme"]
-            if question_marking_scheme is not None:
-                question_set["marking_scheme"] = question_marking_scheme
-            else:
-                question_set["marking_scheme"] = {
-                    "correct": 1,
-                    "wrong": 0,
-                    "skipped": 0,
-                }  # default
-
-    if is_backwards_compatibile:
-        logger.info("Quiz is already backwards compatible")
-        return
-
-    logger.info("Starting update for backwards compatibility")
-    update_result = quiz_collection.update_one({"_id": quiz_id}, {"$set": quiz})
-
-    if not update_result.acknowledged:
-        logger.error("Failed to update quiz for backwards compatibility")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update quiz for backwards compatibility",
-        )
-
-    logger.info("Quiz updated for backwards compatibility")
 
 
 @router.post("/", response_model=CreateQuizResponse)
@@ -141,15 +93,20 @@ async def create_quiz(quiz: Quiz):
 @router.get("/{quiz_id}", response_model=GetQuizResponse)
 async def get_quiz(quiz_id: str):
     logger.info(f"Starting to get quiz: {quiz_id}")
+    cache_key = f"quiz_{quiz_id}"
     quiz_collection = client.quiz.quizzes
 
+    cached_data = get_cached_data(cache_key)
+    if cached_data:
+        logger.info(f"Finished getting quiz from cache: {quiz_id}")
+        return cached_data
+
+    logger.info(f"Fetching quiz from database: {quiz_id}")
     if (quiz := quiz_collection.find_one({"_id": quiz_id})) is None:
         logger.warning(f"Requested quiz {quiz_id} not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"quiz {quiz_id} not found"
         )
-
-    update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz)
 
     if (
         "metadata" not in quiz
@@ -205,7 +162,7 @@ async def get_quiz(quiz_id: str):
                 if question_index < settings.subset_size:
                     continue
 
-                # options_count will be zero for subbjective/numerical questions
+                # options_count will be zero for subjective/numerical questions
                 question["options"] = [
                     {"text": "", "image": None}
                 ] * options_count_per_set[question_index]
@@ -214,6 +171,8 @@ async def get_quiz(quiz_id: str):
             quiz["question_sets"][question_set_index]["questions"][
                 settings.subset_size :
             ] = updated_subset_without_details
+
+    cache_data(cache_key, quiz)
 
     logger.info(f"Finished getting quiz: {quiz_id}")
     return quiz

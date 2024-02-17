@@ -38,9 +38,10 @@ resource "aws_iam_instance_profile" "ec2_profile" {
 
 # ASG with launch template
 resource "aws_launch_template" "ec2_launch_templ" {
-  name_prefix   = "${local.environment_prefix}ec2_launch_templ"
-  image_id      = "ami-0a0f1259dd1c90938"
-  instance_type = "t2.micro"
+  name_prefix = "${local.environment_prefix}ec2_launch_templ"
+  image_id    = "ami-0a0f1259dd1c90938"
+  # instance_type = "t2.micro"
+  instance_type = "c5a.large"
   user_data     = filebase64("user_data.sh")
 
   network_interfaces {
