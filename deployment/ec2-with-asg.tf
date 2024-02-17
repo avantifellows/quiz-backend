@@ -41,7 +41,7 @@ resource "aws_launch_template" "ec2_launch_templ" {
   name_prefix = "${local.environment_prefix}ec2_launch_templ"
   image_id    = "ami-0a0f1259dd1c90938"
   # instance_type = "t2.micro"
-  instance_type = "c5a.large"
+  instance_type = "c5a.xlarge"
   user_data     = filebase64("user_data.sh")
 
   network_interfaces {
@@ -66,9 +66,9 @@ resource "aws_launch_template" "ec2_launch_templ" {
 
 resource "aws_autoscaling_group" "asg" {
   name_prefix      = "${local.environment_prefix}asg"
-  desired_capacity = 1
-  max_size         = 1
-  min_size         = 1
+  desired_capacity = 4
+  max_size         = 4
+  min_size         = 4
 
   # connect to the target group
   target_group_arns = [aws_lb_target_group.alb_tg.arn]

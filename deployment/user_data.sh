@@ -62,4 +62,4 @@ cd app
 
 # Start Uvicorn server
 echo "Starting Uvicorn server..."
-uvicorn main:app --host 0.0.0.0 --port 80 --workers 2
+uvicorn main:app --host 0.0.0.0 --port 80 --workers 8
