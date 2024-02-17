@@ -75,7 +75,7 @@ for id in $instanceIds; do
         source venv/bin/activate
         pip install -r app/requirements.txt
         cd app
-        nohup uvicorn main:app --host 0.0.0.0 --port 80 --workers 4 > uvicorn.log 2>&1 &
+        nohup uvicorn main:app --host 0.0.0.0 --port 80 --workers 8 > uvicorn.log 2>&1 &
         disown
 EOF
     echo "[EC2 Action] Completed actions on instance $id."
