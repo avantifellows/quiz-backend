@@ -46,4 +46,4 @@ def setup_logger():
 
 
 def get_logger():
-    return logging.getLogger("quizenginelogger")
+    return logging.getLogger("QuizBackend")
