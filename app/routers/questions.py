@@ -35,29 +35,39 @@ async def get_questions(question_set_id: str, skip: int = None, limit: int = Non
         f"Fetching questions with question_set_id: {question_set_id} with skip: {skip} and limit: {limit}"
     )
 
-    cache_key = f"questions_{question_set_id}_{skip}_{limit}"
+    cache_key = f"questions_in_qset_{question_set_id}"
     cached_data = get_cached_data(cache_key)
     if cached_data:
         logger.info(f"Found questions with question_set_id: {question_set_id} in cache")
-        return cached_data
+        # from the cached data, return the subset of questions after applying skip and limit, if they exist
+        return (
+            cached_data[skip : skip + limit]
+            if skip is not None and limit is not None
+            else cached_data
+        )
 
+    # if not cached, fetch all questions of the question_set from the db, cache it, and return the subset
     pipeline = [
         {"$match": {"question_set_id": question_set_id}},
         {"$sort": {"_id": 1}},
     ]
 
-    if skip:
-        pipeline.append({"$skip": skip})
+    # if skip:
+    #     pipeline.append({"$skip": skip})
 
-    if limit:
-        pipeline.append({"$limit": limit})
+    # if limit:
+    #     pipeline.append({"$limit": limit})
 
     if (questions := list(client.quiz.questions.aggregate(pipeline))) is not None:
         logger.info(
             f"Found {len(questions)} questions with question_set_id: {question_set_id}"
         )
         cache_data(cache_key, questions)
-        return questions
+        return (
+            questions[skip : skip + limit]
+            if skip is not None and limit is not None
+            else questions
+        )
 
     error_message = (
         f"No questions found belonging to question_set_id: {question_set_id}"
