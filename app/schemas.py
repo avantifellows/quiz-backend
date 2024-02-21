@@ -24,6 +24,7 @@ class QuestionType(Enum):
     subjective = "subjective"
     numerical_integer = "numerical-integer"
     numerical_float = "numerical-float"
+    matrix_match = "matrix-match"
 
 
 class NavigationMode(Enum):

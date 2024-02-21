@@ -12,7 +12,7 @@ from schemas import (
 )
 from datetime import datetime
 
-answerType = Union[List[int], float, int, str, None]
+answerType = Union[List[int], List[str], float, int, str, None]
 
 
 class Organization(BaseModel):
@@ -110,7 +110,8 @@ class Question(BaseModel):
     image: Optional[Image] = None
     options: Optional[List[Option]] = []
     max_char_limit: Optional[int] = None
-    correct_answer: Union[List[int], float, int, None] = None
+    matrix_size: Optional[List[int]] = None  # for matrix match question
+    correct_answer: Union[List[int], List[str], float, int, None] = None
     graded: bool = True
     marking_scheme: MarkingScheme = None
     solution: Optional[List[str]] = []
