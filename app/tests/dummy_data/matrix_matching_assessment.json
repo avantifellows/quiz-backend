@@ -1,0 +1,1319 @@
+{
+    "title": "CT06 - THERMODYNAMIC- ADVANCE",
+    "question_sets": [
+        {
+            "title": "Chemistry - Section A",
+            "questions": [
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p>The\u00a0\\(\\Delta H_f^0\\) of \\(CO_{2\\left(g\\right)},CO_{\\left(g\\right)},H_2O_{\\left(l\\right)}\\) are \\(-393.5, -110.5, -241.8\\)\u00a0\\(kJ/mol\\) respectively.</p><p>The standard enthalpy change (in\u00a0\\(kJ/mol\\))\u00a0 for the reaction\u00a0\\(CO_{2\\left(g\\right)}+H_{2\\left(g\\right)}\\rightarrow CO_{\\left(g\\right)}+H_2O_{\\left(l\\right)}\\) is:</p>",
+                    "type": "single-choice",
+                    "options": [
+                        {
+                            "text": "<p>\\(41.2\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(262.5\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(-41.2\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(-262.5\\)</p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        0
+                    ],
+                    "source_id": "55f949a469702d5dfd000a0a",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Introduction",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "560c06cc4c6f670adf000009",
+                        "grade": "12",
+                        "difficulty": "1",
+                        "skill": "",
+                        "skill_id": "",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                },
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p><font face=\"Fira Sans\">For which process will<font face=\"Fira Sans\"><span style=\"\">\u00a0</span></font></font>\\(\\Delta H^\\circ\\:\\)<font face=\"Fira Sans\"><span style=\"\">\u00a0and\u00a0</span></font>\\(\\Delta G^\\circ\\)<font face=\"Fira Sans\"><span style=\"\">\u00a0be expected to be most similar?</span></font></p>",
+                    "type": "single-choice",
+                    "options": [
+                        {
+                            "text": "<p>\\(2Al_{\\left(s\\right)}+Fe_2O_{3{\\left(s\\right)}}\\rightarrow2Fe_{\\left(s\\right)}+Al_2O_{3{\\left(s\\right)}}\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(2Na_{\\left(s\\right)}+2H_2O_{\\left(l\\right)}\\rightarrow 2NaOH_{\\left(aq\\right)}+H_{2\\left(g\\right)}\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(2NO_{2\\left(g\\right)}\\rightarrow N_2O_{4(g)}\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(2H_{2\\left(g\\right)}+O_{2\\left(g\\right)}\\rightarrow2H_2O_{\\left(g\\right)}\\)</p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        0
+                    ],
+                    "source_id": "58cfbae93562d94c64000615",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Introduction",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "560c06cc4c6f670adf000009",
+                        "grade": "12",
+                        "difficulty": "1",
+                        "skill": "",
+                        "skill_id": "",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                },
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p><b>Directions:</b>\u00a0In the following questions, a statement\u00a0of assertion (A) is followed by a statement of\u00a0reason (R). Mark the correct choice as :</p><p><b>Assertion :\u00a0</b>Sublimation of solid is nonspontaneous.</p><p></p><p><b>Reason :</b>\u00a0Sublimation is an exothermic process.</p><p></p><ol type=\"A\"><li>If both assertion and reason are true and reason is the correct explanation of assertion</li><li>If both assertion and reason are true but reason is not the correct explanation of assertion</li><li>If assertion is true but reason is false.</li><li>If both assertion and reason are false.</li></ol>",
+                    "type": "single-choice",
+                    "options": [
+                        {
+                            "text": "<p>A</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>B</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>C</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>D</p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        3
+                    ],
+                    "source_id": "646867993562d923ca00b847",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Assertions & Reasons",
+                        "chapter_id": "5cf8b0893562d94cd9000a17",
+                        "topic_id": "646865a03562d923ca00b82e",
+                        "grade": "12",
+                        "difficulty": "2",
+                        "skill": "",
+                        "skill_id": "575a96ad3562d92638000008",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                },
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p><b>Directions:</b>\u00a0In the following questions, a statement\u00a0of assertion (A) is followed by a statement of\u00a0reason (R). Mark the correct choice as :</p><p><b>Assertion :\u00a0</b>Heat given to a system under constant volume is used up in increasing energy instead of work done.</p><p></p><p><b>Reason :</b>\u00a0Mechanical work done is zero at constant volume.</p><p></p><ol type=\"A\"><li>If both assertion and reason are true and reason is the correct explanation of assertion</li><li>If both assertion and reason are true but reason is not the correct explanation of assertion</li><li>If assertion is true but reason is false.</li><li>If both assertion and reason are false.</li></ol>",
+                    "type": "single-choice",
+                    "options": [
+                        {
+                            "text": "<p>A</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>B</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>C</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>D</p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        0
+                    ],
+                    "source_id": "646868293562d923ca00b853",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Assertions & Reasons",
+                        "chapter_id": "5cf8b0893562d94cd9000a17",
+                        "topic_id": "646865a03562d923ca00b82e",
+                        "grade": "12",
+                        "difficulty": "2",
+                        "skill": "",
+                        "skill_id": "575a96ad3562d92638000008",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                },
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<div><font face=\"Fira Sans\"><span>Combustion of glucose takes place according to the equation:\u00a0</span></font></div><div>\\(C_6 H_12 O_6+6CO_2\u21926CO_2+6H_2 O; \u2206H= -72kcal/mo\\)\u00a0</div><div>How much energy will be required for the production of \\(1.6g\\) of glucose? (Molar mass of glucose\\( = 180g/mol\\))\u00a0<br/></div><div><br/></div>",
+                    "type": "single-choice",
+                    "options": [
+                        {
+                            "text": "0.064 kcal",
+                            "image": null
+                        },
+                        {
+                            "text": "0.64 kcal",
+                            "image": null
+                        },
+                        {
+                            "text": "6.4 kcal",
+                            "image": null
+                        },
+                        {
+                            "text": "64 kcal",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        1
+                    ],
+                    "source_id": "562498db69702d71b800259a",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Introduction",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "560c06cc4c6f670adf000009",
+                        "grade": "12",
+                        "difficulty": "1",
+                        "skill": "",
+                        "skill_id": "",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                },
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p>A system is allowed to move from state A to B following path ACB by absorbing 80 J of heat energy. The work done by the system is 30J. The work done by the system in reaching state B from A is 10J through the path ADB. Which of these statements are correct?</p><table class=\"table table-bordered\"><tbody><tr><td><ol type=\"I\"><li>Increase in internal energy from state A to state B is \\(50J\\)</li><li>If path ADB is being followed to reach state B\\(, \u2206U=50J\\)</li><li>If work done by the system in path AB is 20 J, the heat absorbed during path \\(AB=70J\\)</li><li>The value \\(U_C-U_A\\) \u00a0is equal to \\(U_D-U_B\\)</li><li>Heat absorbed by the system to reach B from A through path \\(ADB\\) is \\(60J\u00a0\\)\u00a0</li></ol></td><td><img src=\"https://cdn.avantifellows.org/quiz-engine/images/5624969469702d71b8002579/0.png\" style=\"width: 126.604px; height: 117px;\"/><br/></td></tr></tbody></table>",
+                    "type": "single-choice",
+                    "options": [
+                        {
+                            "text": "<p>I, V</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>I, III, V</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>I, II, III, V</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>I, IV, V</p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        2
+                    ],
+                    "source_id": "5624969469702d71b8002579",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Introduction",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "560c06cc4c6f670adf000009",
+                        "grade": "12",
+                        "difficulty": "3",
+                        "skill": "",
+                        "skill_id": "",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                },
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p>The bond enthalpies of\u00a0\\(H-H,Cl-Cl\\) and\u00a0\\(H-Cl\\) are \\(435\\), \\(243 \\) and\u00a0\\(431 \u00a0kJ \u00a0mol^{-1}\\), respectively. The enthalpy of formation of\u00a0\\(HCl(g)\\) will be</p>",
+                    "type": "single-choice",
+                    "options": [
+                        {
+                            "text": "<p>\\(92 \u00a0kJ \u00a0mol^{-1}\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(-92 \u00a0kJ \u00a0mol^{-1}\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(247 \u00a0kJ \u00a0mol^{-1}\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(770 \u00a0kJ \u00a0mol^{-1}\\)</p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        1
+                    ],
+                    "source_id": "57d7bab23562d95f8c0027cc",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Introduction",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "560c06cc4c6f670adf000009",
+                        "grade": "12",
+                        "difficulty": "2",
+                        "skill": "",
+                        "skill_id": "",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                },
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p><img src=\"https://cdn.avantifellows.org/quiz-engine/images/583fcc143562d956a800228b/0.png\" style=\"width: 142.136px; float: right; height: 118px;\"/>One mole of an ideal gas\u00a0\\((C_V=3 \u00a0\\text{cal} \u00a0mol^{-1} \u00a0K^{-1})\\) occupies\u00a0\\(1 \u00a0L\\) volume at\u00a0\\(100 \u00a0K\\) (initial state, Pt. <i>A</i>) and\u00a0\\(2 \u00a0L\\) volume at\u00a0\\(200 \u00a0K\\) (final state, Pt. <i>C</i>). The change from the initial state to final state is brought about along the two paths\u00a0\\(ABC\\) and\u00a0\\(ADC\\). Calculate\u00a0\\(W\\) for both the paths</p>",
+                    "type": "single-choice",
+                    "options": [
+                        {
+                            "text": "<p>\\(W_{ABC}=230.3\\cdot R\\cdot log2\\)</p><p>\\(W_{ADC}=460.6\\cdot R\\cdot log2\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(W_{ABC}=-230.3\\cdot R\\cdot log2\\)</p><p>\\(W_{ADC}=-460.6\\cdot R\\cdot log2\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(W_{ABC}=460.6\\cdot R\\cdot log2\\)</p><p>\\(W_{ADC}=230.3\\cdot R\\cdot log2\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(W_{ABC}=-460.6\\cdot R\\cdot log2\\)</p><p>\\(W_{ADC}=-230.3\\cdot R\\cdot log2\\)</p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        2
+                    ],
+                    "source_id": "583fcc143562d956a800228b",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Introduction",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "560c06cc4c6f670adf000009",
+                        "grade": "12",
+                        "difficulty": "2",
+                        "skill": "",
+                        "skill_id": "",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                },
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p>\\(50\\)\u00a0\\(mL\\) of water takes\u00a0\\(5\\) minutes to evaporate from a vessel on a heater connected to an electric source which delivers\u00a0\\(400\\)\u00a0\\(W\\). The enthalpy of vaporisation of water is (density of water \\(=1 g/mL\\))</p>",
+                    "type": "single-choice",
+                    "options": [
+                        {
+                            "text": "<p>\\(40.3\\)\u00a0\\(kJ/mol\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p><span style=\"\">\\(43.2\\)\u00a0\\(kJ/mol\\)</span></p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(16.7\\) \\(kJ/mol\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(180.4\\) \\(kJ/mol\\)</p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        1
+                    ],
+                    "source_id": "583e97d13562d956a8001989",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Introduction",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "560c06cc4c6f670adf000009",
+                        "grade": "12",
+                        "difficulty": "2",
+                        "skill": "",
+                        "skill_id": "",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                },
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p>At\u00a0\\(298K,\\)\u00a0<span>the\r\nheat of the reaction when solid magnesium sulphate\u00a0\\((MgSO_4)\\) froms aqueous\u00a0\\(MgSO_4.7H_2O\\) is\u00a0</span><span>\\(-91.21kJ \u00a0mol^{-1}\\) and that when solid\u00a0\\(MgSO_4. 7H_2O\\) from aqueous\u00a0\\(MgSO_4. 7H_2O\\) is\u00a0</span>\\(13.81kJ \u00a0mol^{-1}\\). The heat\u00a0<span>of reaction\r\nwhen seven molecules of water are added to solid magnesium sulphate is:</span></p>",
+                    "type": "single-choice",
+                    "options": [
+                        {
+                            "text": "<p>\\(-91.21 \u00a0kJ \u00a0mol^{-1}\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(-105.02 \u00a0kJ \u00a0mol^{-1}\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(+105.02 \u00a0kJ \u00a0mol^{-1}\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(+91.21 \u00a0kJ \u00a0mol^{-1}\\)</p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        1
+                    ],
+                    "source_id": "584bcf013562d953d000073f",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Introduction",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "560c06cc4c6f670adf000009",
+                        "grade": "12",
+                        "difficulty": "2",
+                        "skill": "",
+                        "skill_id": "575a96ad3562d92638000008",
+                        "concept": "",
+                        "concept_id": "584e9e423562d953d0001c0f"
+                    }
+                },
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p><img src=\"https://cdn.avantifellows.org/quiz-engine/images/584bda753562d953d00008a5/0.png\" style=\"width: 25%; float: right;\"/>A sample of\u00a0\\(1.0 mole\\) of monoatomic ideal gas is taken through a process of expansion and compression as shown in the figure.\u00a0\\(A(2atm, 10L), B(1atm, \u00a020L)\\) and\u00a0\\(C(1atm, 10L)\\) are the coordinates of states A, B, and C in the given graph. Find out the value of\u00a0\\(\\Delta\\)G for the process as a whole.</p>",
+                    "type": "single-choice",
+                    "options": [
+                        {
+                            "text": "<p>\\(-101.3 \u00a0J\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(-10 \u00a0J\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(+10 \u00a0J\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(0 \u00a0J\\)</p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        3
+                    ],
+                    "source_id": "584bda753562d953d00008a5",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Introduction",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "560c06cc4c6f670adf000009",
+                        "grade": "12",
+                        "difficulty": "2",
+                        "skill": "",
+                        "skill_id": "575a96983562d92638000007",
+                        "concept": "",
+                        "concept_id": "584e9e8d3562d953d0001c2b"
+                    }
+                },
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p>Match List I (Equations) with List II (Type of processes) and select the correct option.</p><table class=\"table table-bordered\"><tbody><tr><td style=\"text-align: center;\">List I Equations</td><td style=\"text-align: center;\">List II Type of processes</td></tr><tr><td><ol type=\"A\"><li>\\(K_p&gt;Q\\) </li></ol></td><td><ol type=\"i\"><li>Non-spontaneous</li></ol></td></tr><tr><td><ol start=\"2\" type=\"A\"><li>\\(\\Delta G^\\circ&lt;RT \\ln Q\\) </li></ol></td><td><ol start=\"2\" type=\"i\"><li>Equilibrium</li></ol></td></tr><tr><td><ol start=\"3\" type=\"A\"><li>\\(K_p=Q\\) </li></ol></td><td><ol start=\"3\" type=\"i\"><li>Spontaneous and endothermic</li></ol></td></tr><tr><td><ol start=\"4\" type=\"A\"><li>\\(T&gt;\\frac{\\Delta H}{\\Delta S}\\)<br/></li></ol></td><td><ol start=\"4\" type=\"i\"><li>Spontaneous</li></ol></td></tr></tbody></table>",
+                    "type": "single-choice",
+                    "options": [
+                        {
+                            "text": "<p>A-(i), B-(ii), C-(iii), D-(iv)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>A-(iii), B-(iv), C-(ii), D-(i)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>A-(iv), B-(i), C-(ii), D-(iii)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>A-(ii), B-(i), C-(iv), D-(iii)</p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        2
+                    ],
+                    "source_id": "5c78c6cf3562d9694f00175a",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Introduction",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "560c06cc4c6f670adf000009",
+                        "grade": "12",
+                        "difficulty": "1",
+                        "skill": "",
+                        "skill_id": "575a96ad3562d92638000008",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                }
+            ],
+            "max_questions_allowed_to_attempt": 12,
+            "marking_scheme": {
+                "correct": 4,
+                "wrong": -1,
+                "skipped": 0
+            },
+            "description": "<u>MCQs with SINGLE correct option</u><br>Correct: <span style='color: green; font-weight: bold;'>+4</span>,Wrong: <span style='color: red; font-weight: bold;'>-1</span>, Skipped: 0"
+        },
+        {
+            "title": "Chemistry - Section B",
+            "questions": [
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p>Match the following:</p><table class=\"table table-bordered\" style=\"background-color: rgb(255, 255, 255);\"><tbody><tr><td><br/></td><td style=\"text-align: center;\">List-I</td><td><br/></td><td style=\"text-align: center;\">List-II</td></tr><tr><td><p style=\"text-align: center; \">A.</p></td><td>Isothermal process</td><td><p style=\"text-align: center; \">P.</p></td><td>\\(\\Delta E=0\\) </td></tr><tr><td><p style=\"text-align: center; \">B.</p></td><td>Reversible adiabatic process</td><td><p style=\"text-align: center; \">Q.</p></td><td>\\(\\Delta H=0\\) </td></tr><tr><td><p style=\"text-align: center; \">C.</p></td><td>Cyclic process\u00a0</td><td><p style=\"text-align: center; \">R.</p></td><td>\\(\\Delta S=0\\) </td></tr><tr><td><p style=\"text-align: center; \">D.</p></td><td>Isochoric process\u00a0</td><td><p style=\"text-align: center; \">S.</p></td><td>\\(w=0\\) </td></tr><tr><td><br/></td><td><br/></td><td><p style=\"text-align: center; \">T.</p></td><td>\\(\\Delta G=0\\) </td></tr></tbody></table>",
+                    "type": "matrix-match",
+                    "options": [],
+                    "matrix_size": [4, 5],
+                    "correct_answer": [
+                        "AP",
+                        "AQ",
+                        "BR",
+                        "CP",
+                        "CQ",
+                        "CR",
+                        "CT",
+                        "DS"
+                    ],
+                    "source_id": "5a670aa13562d97afd000161",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Advanced",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "5a339de93562d90492000611",
+                        "grade": "12",
+                        "difficulty": "2",
+                        "skill": "",
+                        "skill_id": "575a96ad3562d92638000008",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                }
+            ],
+            "max_questions_allowed_to_attempt": 1,
+            "marking_scheme": {
+                "correct": 4,
+                "wrong": -1,
+                "skipped": 0
+            },
+            "description": "<u>Advanced Matrix Matching</u><br>ALL correct matches are selected:\n            <span style='color: green; font-weight: bold;'>+4</span><br>If ANY wrong match selected:\n            <span style='color: red; font-weight: bold;'>-1</span>,\n            <br>Skipped: 0"
+        },
+        {
+            "title": "Chemistry - Section C",
+            "questions": [
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p>Entropy changes for ideal gas are follows:</p><ol type=\"i\"><li>Entropy change is terms of temperature and volume is given by<br/>\\(\\Delta S=nC_v\\ln\\frac{T_2}{T_1}+nR\\ln\\frac{V_2}{V_1}\\) <br/>It is for\u00a0\\(n\\) moles of an ideal gas from\u00a0\\(V_1\\) to\u00a0\\(V_2\\) when temperature changes from\u00a0\\(T_1\\) to\u00a0\\(T_2\\).\u00a0\\(C_v\\) is the heat capacity at constant volume.</li><li>Entropy change in terms of temperature and pressure:<br/>\\(\\Delta S=nC_p\\ln\\frac{T_2}{T_1}+nR\\ln\\frac{P_2}{P_1}\\) (For \\(n\\) moles of gas)<br/>\\(C_p\\) is the molar heat capacity at constant pressure.</li></ol><p>The entropy change for expansion of\u00a0\\(14\\,g\\) of nitrogen when heated from\u00a0\\(27^\\circ C\\) to\u00a0\\(127^\\circ C\\) at constant volume and constant pressure will be (in cal/degree) respectively.</p><p>(Given, \\(C_v=4.94\\,cal/mol\\) in this temperature range)</p>",
+                    "type": "single-choice",
+                    "options": [
+                        {
+                            "text": "<p>\\(0.70, 0.99\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(0.99, 0.70\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(0.50, 0.70\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(0.70, 0.50\\)</p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        0
+                    ],
+                    "source_id": "653127f83562d97a63003d0e",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Introduction",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "560c06cc4c6f670adf000009",
+                        "grade": "12",
+                        "difficulty": "2",
+                        "skill": "",
+                        "skill_id": "575a96ad3562d92638000008",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                },
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p>Entropy changes for ideal gas are follows:</p><ol type=\"i\"><li>Entropy change is terms of temperature and volume is given by<br/>\\(\\Delta S=nC_v\\ln\\frac{T_2}{T_1}+nR\\ln\\frac{V_2}{V_1}\\) <br/>It is for\u00a0\\(n\\) moles of an ideal gas from\u00a0\\(V_1\\) to\u00a0\\(V_2\\) when temperature changes from\u00a0\\(T_1\\) to\u00a0\\(T_2\\).\u00a0\\(C_v\\) is the heat capacity at constant volume.</li><li>Entropy change in terms of temperature and pressure:<br/>\\(\\Delta S=nC_p\\ln\\frac{T_2}{T_1}+nR\\ln\\frac{P_2}{P_1}\\) (For \\(n\\) moles of gas)<br/>\\(C_p\\) is the molar heat capacity at constant pressure.</li></ol><p>When two moles of an ideal gas\u00a0\\(\\left(C_{p,m}=\\frac 52R\\right)\\) is heated from\u00a0\\(300K\\) to\u00a0\\(600K\\) at constant pressure, the value of\u00a0\\(\\Delta S\\) is</p>",
+                    "type": "single-choice",
+                    "options": [
+                        {
+                            "text": "<p>\\(\\frac 32R\\ln 2\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(-\\frac 32R\\ln 2\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(5R\\ln 2\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(\\frac 52R\\ln 2\\)</p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        2
+                    ],
+                    "source_id": "6531286e3562d97a63003d14",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Introduction",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "560c06cc4c6f670adf000009",
+                        "grade": "12",
+                        "difficulty": "2",
+                        "skill": "",
+                        "skill_id": "575a96ad3562d92638000008",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                }
+            ],
+            "max_questions_allowed_to_attempt": 2,
+            "marking_scheme": {
+                "correct": 4,
+                "wrong": -1,
+                "skipped": 0
+            },
+            "description": "<u>MCQs with SINGLE correct option</u><br>Correct: <span style='color: green; font-weight: bold;'>+4</span>,Wrong: <span style='color: red; font-weight: bold;'>-1</span>, Skipped: 0"
+        },
+        {
+            "title": "Chemistry - Section D",
+            "questions": [
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p>\\(8.21\\:dm^3\\text{ of }NH_3\\text{ at }500\\:K\\text{ and }1\\:atm\\) expands adiabatically upto\u00a0\\(0.5\\)\u00a0\\(atm\\) against a constant external pressure of\u00a0\\(0.5\\)\u00a0\\(atm\\). (Assume that\u00a0\\(NH_3\\) behaves as an ideal gas and vibrational degrees of freedom are inactive.\u00a0\\(\\left(R=2\\:cal\\:mol^{-1}K^{-1}=0.0821\\:atm\\text{-lit}\\:K^{-1}\\:mol^{-1}\\right).\\)</p><p>The value of\u00a0\\(\\frac{\\left|\\Delta U\\right|}{15}\\) (In calories)\u00a0is</p>",
+                    "type": "numerical-integer",
+                    "options": [],
+                    "correct_answer": "5",
+                    "source_id": "5a3751cf3562d93e92000039",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Advanced",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "5a339de93562d90492000611",
+                        "grade": "12",
+                        "difficulty": "3",
+                        "skill": "",
+                        "skill_id": "575a96ad3562d92638000008",
+                        "concept": "",
+                        "concept_id": "5938f44b3562d9236b002cb1"
+                    }
+                },
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p>Carbon monoxide \\((CO)\\)  and oxygen \\((O_2)\\)  react according to</p><p>\\(2CO(g)+O_2(g)\\to 2CO_2(g)\\)</p><p>Assuming that the reaction takes place and goes to completion, determine the total pressure after the valve is opened in the apparatus represented in the accompanying figure. Also assume that the temperature is fixed at \\(300\\,\ud835\udc3e\\). If you get the total pressure to be \u2018\\(P\\)\u2019 report the answer as \\(10\\times P\\).<br/></p><p><img data-filename=\"image.png\" src=\"https://cdn.avantifellows.org/quiz-engine/images/5bf7da403562d93ca2002cb0/0.png\" style=\"width: 237.109px; height: 69px;\"/></p>",
+                    "type": "numerical-integer",
+                    "options": [],
+                    "correct_answer": "5",
+                    "source_id": "5bf7da403562d93ca2002cb0",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Advanced",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "5a339de93562d90492000611",
+                        "grade": "12",
+                        "difficulty": "3",
+                        "skill": "",
+                        "skill_id": "575a96b83562d92638000009",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                },
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p>For the combustion of benzene \\((C_6H_6), 1\\,mole\\) of benzene is taken in a vessel and its heat of reaction at constant volume is \\(7000\\, kCal\\). This process occurs at \\(300\\,K\\).</p><p>When benzene is combusted at constant pressure, a mass of \\(100\\, kilos\\) is put on a piston which maintains the constant pressure. How high in metres will the piston rise?</p>",
+                    "type": "numerical-integer",
+                    "options": [],
+                    "correct_answer": "4",
+                    "source_id": "5bf7dbed3562d93ca2002ce2",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Advanced",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "5a339de93562d90492000611",
+                        "grade": "12",
+                        "difficulty": "3",
+                        "skill": "",
+                        "skill_id": "575a96b83562d92638000009",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                },
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p>\\(10\\,g\\)  of ice at \\(0^\\circ C\\)  are added to \\(20\\,g\\) of water at \\(90^\\circ C\\) in a thermally insulated flask of negligible heat capacity. If we break this process down into \\(3\\)  distinct steps as mentioned below:</p><ol type=\"I\"><li>ice melting and forming water</li><li>raising the temperature of this water at \\(0^\\circ C\\)  to \\('T'\\,^\\circ C\\).</li><li>Change of temperature of water present initially from \\(90^\\circ C\\)  to \\('T'\\,^\\circ C\\)<br/></li></ol><p>Find \\(q_i+q_{ii}+q_{iii}+\\Delta S_i+\\Delta S_{ii}+\\Delta S_{iii}\\), where all the quantities can take a value of \\(0\\)  or \\(1\\). If \\(q\\)  is positive, then it takes a value of \\(1\\), if it is negative it takes a value of \\(0\\). \\(\\Delta S\\) values behave similarly.</p>",
+                    "type": "numerical-integer",
+                    "options": [],
+                    "correct_answer": "4",
+                    "source_id": "5bf7dddb3562d93ca2002cff",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Advanced",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "5a339de93562d90492000611",
+                        "grade": "12",
+                        "difficulty": "3",
+                        "skill": "",
+                        "skill_id": "575a96b83562d92638000009",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                },
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p>In the figure shown \\(A\\) is of mass \\(1\\:kg\\)  and \\(B\\)  of mass \\(2\\:kg\\). \\(A\\) moves with velocity \\(3\\:m/s\\)  and rises on \\(B\\)  which\u00a0<span style=\"\">is initially at rest. All the surfaces are smooth. By the time \\(A\\) reaches the highest point on \\(B\\), find the work\u00a0</span><span style=\"\">done by \\(A\\)  on \\(B\\)  in joule</span></p><p><img data-filename=\"image.png\" src=\"https://cdn.avantifellows.org/quiz-engine/images/5ce3985f3562d97583000804/0.png\" style=\"width: 170.021px; height: 87.1181px;\"/>\u00a0<span style=\"\"><br/></span></p>",
+                    "type": "numerical-integer",
+                    "options": [],
+                    "correct_answer": "1",
+                    "source_id": "5ce3985f3562d97583000804",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Advanced",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "5a339de93562d90492000611",
+                        "grade": "12",
+                        "difficulty": "3",
+                        "skill": "",
+                        "skill_id": "575a96ad3562d92638000008",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                }
+            ],
+            "max_questions_allowed_to_attempt": 5,
+            "marking_scheme": {
+                "correct": 4,
+                "wrong": -1,
+                "skipped": 0
+            },
+            "description": "<u>Non-Negative Integer answer</u><br>Correct: <span style='color: green; font-weight: bold;'>+4</span>,Wrong: <span style='color: red; font-weight: bold;'>-1</span>, Skipped: 0"
+        },
+        {
+            "title": "Chemistry - Section E",
+            "questions": [
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p>A system is changed from an initial state to a final state by a manner such that if the same change from the initial state to the final state were made by a different path, which of the following statements are correct for\u00a0\\(\\Delta H\\) system?</p>",
+                    "type": "multi-choice",
+                    "options": [
+                        {
+                            "text": "<p>remain the same</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>will depend upon the type of path</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>Heat exchanged\u00a0\\(q\\) will be same if the path is isobaric</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>Heat exchanged\u00a0\\(q\\) will be different if the path is not isobaric</p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        0,
+                        2,
+                        3
+                    ],
+                    "source_id": "5a65b8be3562d904ba002156",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0,
+                        "partial": [
+                            {
+                                "conditions": [
+                                    {
+                                        "num_correct_selected": 1
+                                    }
+                                ],
+                                "marks": 1
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "num_correct_selected": 2
+                                    }
+                                ],
+                                "marks": 2
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "num_correct_selected": 3
+                                    }
+                                ],
+                                "marks": 3
+                            }
+                        ]
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Advanced",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "5a339de93562d90492000611",
+                        "grade": "12",
+                        "difficulty": "3",
+                        "skill": "",
+                        "skill_id": "575a96983562d92638000007",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                },
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p>For a reaction taking place in a container in equilibrium with its surroundings, the effect of temperature on its equilibrium constant \\(K\\)  in terms of change in entropy is described by</p>",
+                    "type": "multi-choice",
+                    "options": [
+                        {
+                            "text": "<p>With increase in temperature, the value of \\(K\\)  for exothermic reaction decreases because the entropy change of the system is positive</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>With increase in temperature, the value of \\(K\\)  for endothermic reaction increases because the entropy change of the system is negative</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>With increase in temperature, the value of \\(K\\)  for exothermic reaction decreases because favourable change in entropy of the surroundings decreases</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>With increase in temperature, the value of \\(K\\)  for endothermic reaction increases because unfavourable change in entropy of the surroundings decreases</p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        2,
+                        3
+                    ],
+                    "source_id": "5a82779d3562d94ac60011fc",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0,
+                        "partial": [
+                            {
+                                "conditions": [
+                                    {
+                                        "num_correct_selected": 1
+                                    }
+                                ],
+                                "marks": 1
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "num_correct_selected": 2
+                                    }
+                                ],
+                                "marks": 2
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "num_correct_selected": 3
+                                    }
+                                ],
+                                "marks": 3
+                            }
+                        ]
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Advanced",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "5a339de93562d90492000611",
+                        "grade": "12",
+                        "difficulty": "3",
+                        "skill": "",
+                        "skill_id": "575a96ad3562d92638000008",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                },
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p>An ideal gas in a thermally insulated vessel at internal pressure\u00a0\\(=P_1\\), volume\u00a0\\(=V_1\\)\u00a0and absolute temperature\u00a0\\(=T_1\\)\u00a0expands irreversibly against zero external pressure, as\u00a0shown in the diagram. The final internal pressure, volume and absolute temperature of\u00a0the gas are\u00a0\\(P_2,V_2\\) and\u00a0\\(T_2\\),\u00a0respectively. For this expansion,</p><p><img data-filename=\"image.png\" src=\"https://cdn.avantifellows.org/quiz-engine/images/5aa7a3f83562d95142000f59/0.png\" style=\"width: 397.452px; height: 201px;\"/></p>",
+                    "type": "multi-choice",
+                    "options": [
+                        {
+                            "text": "<p>\\(q=0\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(T_2=T_1\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(P_2V_2=P_1V_1\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(P_2V_2^\\gamma=P_1V_1^\\gamma\\)</p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        0,
+                        1,
+                        2
+                    ],
+                    "source_id": "5aa7a3f83562d95142000f59",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0,
+                        "partial": [
+                            {
+                                "conditions": [
+                                    {
+                                        "num_correct_selected": 1
+                                    }
+                                ],
+                                "marks": 1
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "num_correct_selected": 2
+                                    }
+                                ],
+                                "marks": 2
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "num_correct_selected": 3
+                                    }
+                                ],
+                                "marks": 3
+                            }
+                        ]
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Advanced",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "5a339de93562d90492000611",
+                        "grade": "12",
+                        "difficulty": "2",
+                        "skill": "",
+                        "skill_id": "575a96ad3562d92638000008",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                },
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p><font face=\"Fira Sans\"><span style=\"\">On the basis of the following graph (\\(P\\)-\\(V\\)  graph), choose the correct\u00a0</span></font>statements.</p><p><img alt=\"\" src=\"https://cdn.avantifellows.org/quiz-engine/images/65311b723562d97a63003c5d/0.png\" style=\"width: 198.746px; height: 122.7px;\"/><br/></p><p><font face=\"Fira Sans\"><span style=\"\"><br/></span></font></p>",
+                    "type": "multi-choice",
+                    "options": [
+                        {
+                            "text": "<p><font face=\"Fira Sans\"><span style=\"\">The entropy change for the over all process is zero.</span></font></p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p><font face=\"Fira Sans\"><span style=\"\">For the over all process \\(\\Delta H &gt; \\Delta E.\\) </span></font></p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p><font face=\"Fira Sans\"><span style=\"\">Total work done, \\(W=q\\) </span></font></p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p><font face=\"Fira Sans\"><span style=\"\">Total work \\(= -620.77\\,J\\) </span></font></p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        0,
+                        3
+                    ],
+                    "source_id": "65311b723562d97a63003c5d",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0,
+                        "partial": [
+                            {
+                                "conditions": [
+                                    {
+                                        "num_correct_selected": 1
+                                    }
+                                ],
+                                "marks": 1
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "num_correct_selected": 2
+                                    }
+                                ],
+                                "marks": 2
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "num_correct_selected": 3
+                                    }
+                                ],
+                                "marks": 3
+                            }
+                        ]
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Introduction",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "560c06cc4c6f670adf000009",
+                        "grade": "12",
+                        "difficulty": "2",
+                        "skill": "",
+                        "skill_id": "575a96ad3562d92638000008",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                },
+                {
+                    "grade": "12",
+                    "source": "cms",
+                    "text": "<p><font face=\"Fira Sans\"><span style=\"\">Which of the following are correct for an isothermal reversible expansion of an ideal gas\u00a0</span></font></p>",
+                    "type": "multi-choice",
+                    "options": [
+                        {
+                            "text": "<p>\\(\\Delta E=0\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p><span style=\"\">\\(\\Delta H=0\\)</span></p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(W=nRTln\\frac{P_1}{P_2}\\)</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>\\(W=-q\\)</p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        0,
+                        1,
+                        3
+                    ],
+                    "source_id": "65311c343562d97a63003c6e",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0,
+                        "partial": [
+                            {
+                                "conditions": [
+                                    {
+                                        "num_correct_selected": 1
+                                    }
+                                ],
+                                "marks": 1
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "num_correct_selected": 2
+                                    }
+                                ],
+                                "marks": 2
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "num_correct_selected": 3
+                                    }
+                                ],
+                                "marks": 3
+                            }
+                        ]
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Thermodynamics",
+                        "topic": "Introduction",
+                        "chapter_id": "559fbcd969702d2e98560500",
+                        "topic_id": "560c06cc4c6f670adf000009",
+                        "grade": "12",
+                        "difficulty": "2",
+                        "skill": "",
+                        "skill_id": "575a96ad3562d92638000008",
+                        "concept": "",
+                        "concept_id": ""
+                    }
+                }
+            ],
+            "max_questions_allowed_to_attempt": 5,
+            "marking_scheme": {
+                "correct": 4,
+                "wrong": -1,
+                "skipped": 0,
+                "partial": [
+                    {
+                        "conditions": [
+                            {
+                                "num_correct_selected": 1
+                            }
+                        ],
+                        "marks": 1
+                    },
+                    {
+                        "conditions": [
+                            {
+                                "num_correct_selected": 2
+                            }
+                        ],
+                        "marks": 2
+                    },
+                    {
+                        "conditions": [
+                            {
+                                "num_correct_selected": 3
+                            }
+                        ],
+                        "marks": 3
+                    }
+                ]
+            },
+            "description": "<u>MCQs with ONE or MORE correct options</u><br>ALL correct options are selected:\n            <span style='color: green; font-weight: bold;'>+4</span>,\n            <br>Partial marks awarded if no wrong option is selected and: <span style='color: blue; font-weight: bold;'>+1</span>\n            if 1 correct, <span style='color: blue; font-weight: bold;'>+2</span>\n            if 2 correct, <span style='color: blue; font-weight: bold;'>+3</span>\n            if 3 correct,<br>If ANY wrong option selected:\n            <span style='color: red; font-weight: bold;'>-1</span>,\n            <br>Skipped: 0"
+        }
+    ],
+    "max_marks": 100,
+    "num_graded_questions": 25,
+    "time_limit": {
+        "min": 0,
+        "max": 3600
+    },
+    "shuffle": false,
+    "review_immediate": true,
+    "metadata": {
+        "quiz_type": "assessment",
+        "grade": "12",
+        "test_format": "chapter_test",
+        "session_end_time": "2024-04-30T23:45:00",
+        "subject": "Chemistry",
+        "source": "cms",
+        "source_id": "656814e83562d9489a0022ee",
+        "chapter": "",
+        "topic": ""
+    }
+}

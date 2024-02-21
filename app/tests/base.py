@@ -73,6 +73,14 @@ class BaseTestCase(unittest.TestCase):
             self.partial_mark_data
         )
 
+        # quiz with matrix matching
+        self.matrix_match_data = json.load(
+            open("app/tests/dummy_data/matrix_matching_assessment.json")
+        )
+        self.matrix_match_quiz_id, self.matrix_match_quiz = self.post_and_get_quiz(
+            self.matrix_match_data
+        )
+
     def post_and_get_quiz(self, quiz_data):
         """helper function to add quiz to db and retrieve it"""
         """We are currently not providing an endpoint for creating questions and the only way to
