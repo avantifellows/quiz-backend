@@ -110,6 +110,7 @@ class Question(BaseModel):
     image: Optional[Image] = None
     options: Optional[List[Option]] = []
     max_char_limit: Optional[int] = None
+    matrix_size: Optional[List[int]] = None  # for matrix match question
     correct_answer: Union[List[int], List[str], float, int, None] = None
     graded: bool = True
     marking_scheme: MarkingScheme = None

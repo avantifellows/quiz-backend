@@ -586,6 +586,7 @@
                     "text": "<p>Match the following:</p><table class=\"table table-bordered\" style=\"background-color: rgb(255, 255, 255);\"><tbody><tr><td><br/></td><td style=\"text-align: center;\">List-I</td><td><br/></td><td style=\"text-align: center;\">List-II</td></tr><tr><td><p style=\"text-align: center; \">A.</p></td><td>Isothermal process</td><td><p style=\"text-align: center; \">P.</p></td><td>\\(\\Delta E=0\\) </td></tr><tr><td><p style=\"text-align: center; \">B.</p></td><td>Reversible adiabatic process</td><td><p style=\"text-align: center; \">Q.</p></td><td>\\(\\Delta H=0\\) </td></tr><tr><td><p style=\"text-align: center; \">C.</p></td><td>Cyclic process\u00a0</td><td><p style=\"text-align: center; \">R.</p></td><td>\\(\\Delta S=0\\) </td></tr><tr><td><p style=\"text-align: center; \">D.</p></td><td>Isochoric process\u00a0</td><td><p style=\"text-align: center; \">S.</p></td><td>\\(w=0\\) </td></tr><tr><td><br/></td><td><br/></td><td><p style=\"text-align: center; \">T.</p></td><td>\\(\\Delta G=0\\) </td></tr></tbody></table>",
                     "type": "matrix-match",
                     "options": [],
+                    "matrix_size": [4, 5],
                     "correct_answer": [
                         "AP",
                         "AQ",
