@@ -43,6 +43,15 @@ resource "aws_security_group" "sg_for_ec2" {
     security_groups = [aws_security_group.sg_for_elb.id]
   }
 
+  # Allow Redis traffic from the Redis instance
+  ingress {
+    description     = "Allow Redis traffic from Redis instance"
+    from_port       = 6379
+    to_port         = 6379
+    protocol        = "tcp"
+    security_groups = [aws_security_group.sg_for_redis.id]
+  }
+
   egress {
     description = "Allow all traffic to anywhere"
     from_port   = 0
@@ -51,6 +60,29 @@ resource "aws_security_group" "sg_for_ec2" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
+
+resource "aws_security_group" "sg_for_redis" {
+  name        = "${local.environment_prefix}sg-for-redis"
+  description = "Security group for Redis"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description = "Allow all inbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Allow all traffic to anywhere"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
 
 # Security Group for Bastion Host
 resource "aws_security_group" "sg_bastion" {
@@ -74,11 +106,20 @@ resource "aws_security_group" "sg_bastion" {
   }
 }
 
-resource "aws_security_group_rule" "allow_ssh_from_bastion" {
+resource "aws_security_group_rule" "allow_ssh_from_bastion_to_ec2" {
   type              = "ingress"
   from_port         = 22
   to_port           = 22
   protocol          = "tcp"
   cidr_blocks       = ["${aws_instance.bastion_host.private_ip}/32"] # Use the private IP of the bastion host
   security_group_id = aws_security_group.sg_for_ec2.id
+}
+
+resource "aws_security_group_rule" "allow_ssh_from_bastion_to_redis" {
+  type              = "ingress"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  cidr_blocks       = ["${aws_instance.bastion_host.private_ip}/32"] # Use the private IP of the bastion host
+  security_group_id = aws_security_group.sg_for_redis.id
 }

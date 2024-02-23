@@ -81,6 +81,31 @@ resource "aws_autoscaling_group" "asg" {
   }
 }
 
+resource "aws_instance" "redis_cache" {
+  ami           = "ami-0a0f1259dd1c90938" # Use an appropriate AMI for your region
+  instance_type = "t3.micro"              # Adjust the instance type as needed
+  subnet_id     = aws_subnet.subnet_2.id  # Place the instance in a private subnet
+
+  tags = {
+    Name = "RedisCacheInstance"
+  }
+
+  key_name = "AvantiFellows"
+
+  user_data = <<-EOF
+                #!/bin/bash
+                # sudo yum install -y redis
+                # sudo systemctl start redis
+                # sudo systemctl enable redis
+                sudo dnf install -y redis6
+                sudo systemctl start redis6
+                sudo systemctl enable redis6
+                sudo systemctl is-enabled redis6
+                redis6-server --version
+                redis6-cli ping
+                EOF
+}
+
 # Bastion Host Instance
 resource "aws_instance" "bastion_host" {
   ami             = "ami-0a0f1259dd1c90938"

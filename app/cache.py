@@ -1,10 +1,20 @@
 import redis
 import json
+import os
 
-r = redis.Redis(decode_responses=True)
+if "REDIS_HOST" not in os.environ:
+    from dotenv import load_dotenv
+
+    load_dotenv("../.env")
+
+r = redis.Redis(
+    host=os.getenv("REDIS_HOST") or 'localhost',
+    port=6379,
+    decode_responses=True
+)
 
 
-def cache_data(key: str, value, expire: int = 60):
+def cache_data(key: str, value, expire: int = 60 * 60 * 24):
     """Cache data in Redis."""
     r.set(key, json.dumps(value), ex=expire)
 
