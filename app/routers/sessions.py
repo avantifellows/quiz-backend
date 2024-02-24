@@ -181,11 +181,11 @@ async def create_session(session: Session):
     current_session["session_answers"] = session_answers
 
     # insert current session into db
-    session_ids_to_insert = get_cached_data("session_ids_to_insert")
-    if session_ids_to_insert is None:
-        session_ids_to_insert = []
-    session_ids_to_insert.append(current_session["_id"])
-    cache_data("session_ids_to_insert", session_ids_to_insert)
+    # session_ids_to_insert = get_cached_data("session_ids_to_insert")
+    # if session_ids_to_insert is None:
+    #     session_ids_to_insert = []
+    # session_ids_to_insert.append(current_session["_id"])
+    cache_data(f"session_id_to_insert_{current_session['_id']}", "x")
     cache_data(f"session_{current_session['_id']}", current_session)
     if previous_two_sessions is None or len(previous_two_sessions) == 0:
         cache_data(
