@@ -6,7 +6,7 @@ from models import Quiz, GetQuizResponse, CreateQuizResponse
 from settings import Settings
 from schemas import QuizType
 from logger_config import get_logger
-from cache import cache_data, get_cached_data
+from cache import cache_data_local, get_cached_data_local
 
 router = APIRouter(prefix="/quiz", tags=["Quiz"])
 settings = Settings()
@@ -96,7 +96,7 @@ async def get_quiz(quiz_id: str):
     cache_key = f"quiz_{quiz_id}"
     quiz_collection = client.quiz.quizzes
 
-    cached_data = get_cached_data(cache_key)
+    cached_data = get_cached_data_local(cache_key)
     if cached_data:
         logger.info(f"Finished getting quiz from cache: {quiz_id}")
         return cached_data
@@ -172,7 +172,7 @@ async def get_quiz(quiz_id: str):
                 settings.subset_size :
             ] = updated_subset_without_details
 
-    cache_data(cache_key, quiz)
+    cache_data_local(cache_key, quiz)
 
     logger.info(f"Finished getting quiz: {quiz_id}")
     return quiz

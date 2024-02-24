@@ -31,12 +31,12 @@ git clone https://github.com/avantifellows/quiz-backend.git /home/ec2-user/quiz-
 # sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/home/ec2-user/quiz-backend/deployment/cloudwatch-agent-config.json -s
 
 # # Install redis server
-# sudo dnf install -y redis6
-# sudo systemctl start redis6
-# sudo systemctl enable redis6
-# sudo systemctl is-enabled redis6
-# redis6-server --version
-# redis6-cli ping
+sudo dnf install -y redis6
+sudo systemctl start redis6
+sudo systemctl enable redis6
+sudo systemctl is-enabled redis6
+redis6-server --version
+redis6-cli ping
 
 # Navigate to the cloned directory
 cd /home/ec2-user/quiz-backend
