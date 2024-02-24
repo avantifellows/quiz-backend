@@ -92,6 +92,10 @@ resource "aws_instance" "redis_cache" {
 
   key_name = "AvantiFellows"
 
+  security_groups             = [aws_security_group.sg_for_redis.id]
+  associate_public_ip_address = false
+  iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
+
   user_data = <<-EOF
                 #!/bin/bash
                 # sudo yum install -y redis
@@ -103,6 +107,11 @@ resource "aws_instance" "redis_cache" {
                 sudo systemctl is-enabled redis6
                 redis6-server --version
                 redis6-cli ping
+                # Update Redis configuration to listen on both localhost and the private IP
+                PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=RedisCacheInstance" "Name=instance-state-name,Values=running" --query "Reservations[*].Instances[*].PrivateIpAddress" --region ap-south-1 --output text)
+                echo $PRIVATE_IP > /tmp/private_ip.txt
+                sudo sed -i "s/bind 127.0.0.1 -::1/bind 127.0.0.1 $PRIVATE_IP/" /etc/redis6/redis6.conf
+                sudo systemctl restart redis6
                 EOF
 }
 

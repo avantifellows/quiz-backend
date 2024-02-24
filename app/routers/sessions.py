@@ -14,6 +14,7 @@ from models import (
 )
 from datetime import datetime
 from logger_config import get_logger
+from cache import cache_data, get_cached_data
 
 
 def str_to_datetime(datetime_str: str) -> datetime:
@@ -32,29 +33,45 @@ async def create_session(session: Session):
     )
     current_session = jsonable_encoder(session)
 
-    quiz = client.quiz.quizzes.find_one({"_id": current_session["quiz_id"]})
-
-    if quiz is None:
-        error_message = (
-            f"Quiz {current_session['quiz_id']} not found while creating the session"
-        )
-        logger.error(error_message)
-        raise HTTPException(
-            status_code=404,
-            detail=error_message,
-        )
+    # get quiz from cache or db
+    quiz = None
+    quiz_cache_key = f"quiz_{current_session['quiz_id']}"
+    cached_quiz = get_cached_data(quiz_cache_key)
+    if not cached_quiz:
+        quiz = client.quiz.quizzes.find_one({"_id": current_session["quiz_id"]})
+        if quiz is None:
+            error_message = (
+                f"Quiz {current_session['quiz_id']} not found while creating the session"
+            )
+            logger.error(error_message)
+            raise HTTPException(
+                status_code=404,
+                detail=error_message,
+            )
+        cache_data(quiz_cache_key, quiz)
+    else:
+        quiz = cached_quiz
 
     # try to get the previous two sessions of a user+quiz pair if they exist
-    previous_two_sessions = list(
-        client.quiz.sessions.find(
-            {
-                "quiz_id": current_session["quiz_id"],
-                "user_id": current_session["user_id"],
-            },
-            sort=[("_id", pymongo.DESCENDING)],
-            limit=2,
+    previous_two_sessions = None
+    previous_two_session_ids_cache_key = f"previous_two_session_ids_{current_session['user_id']}_{current_session['quiz_id']}"
+    cached_previous_two_session_ids = get_cached_data(previous_two_session_ids_cache_key)
+    if not cached_previous_two_session_ids:
+        previous_two_sessions = list(
+            client.quiz.sessions.find(
+                {
+                    "quiz_id": current_session["quiz_id"],
+                    "user_id": current_session["user_id"],
+                },
+                sort=[("_id", pymongo.DESCENDING)],
+                limit=2,
+            )
         )
-    )
+        cache_data(previous_two_session_ids_cache_key, [s["_id"] for s in previous_two_sessions])
+        [cache_data(f"session_{previous_two_sessions[i]['_id']}", previous_two_sessions[i]) for i in range(len(previous_two_sessions))]
+    else:
+        previous_two_sessions = [get_cached_data(f"session_{sid}") for sid in cached_previous_two_session_ids]
+
     last_session, second_last_session = None, None
     # only one session exists
     if len(previous_two_sessions) == 1:
@@ -135,19 +152,43 @@ async def create_session(session: Session):
     current_session["session_answers"] = session_answers
 
     # insert current session into db
-    result = client.quiz.sessions.insert_one(current_session)
-    if result.acknowledged:
-        logger.info(
-            f"Created new session with id {result.inserted_id} for user: {session.user_id} and quiz: {session.quiz_id}"
+    session_ids_to_insert = get_cached_data("session_ids_to_insert")
+    if session_ids_to_insert is None:
+        session_ids_to_insert = []
+    session_ids_to_insert.append(current_session["_id"])
+    cache_data("session_ids_to_insert", session_ids_to_insert)
+    cache_data(f"session_{current_session['_id']}", current_session)
+    if len(previous_two_sessions) == 0:
+        cache_data(
+            previous_two_session_ids_cache_key, 
+            [current_session["_id"]]
         )
-    else:
-        logger.error(
-            f"Failed to insert new session for user: {session.user_id} and quiz: {session.quiz_id}"
+    elif len(previous_two_sessions) == 1 or len(previous_two_sessions) == 2:
+        cache_data(
+            previous_two_session_ids_cache_key, 
+            [
+                current_session["_id"],
+                last_session["_id"]
+            ]
         )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to insert new session",
-        )
+
+    logger.info(
+        f"InCache: Created new session for user: {session.user_id} and quiz: {session.quiz_id}"
+    )
+
+    # result = client.quiz.sessions.insert_one(current_session)
+    # if result.acknowledged:
+    #     logger.info(
+    #         f"Created new session with id {result.inserted_id} for user: {session.user_id} and quiz: {session.quiz_id}"
+    #     )
+    # else:
+    #     logger.error(
+    #         f"Failed to insert new session for user: {session.user_id} and quiz: {session.quiz_id}"
+    #     )
+    #     raise HTTPException(
+    #         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    #         detail="Failed to insert new session",
+    #     )
 
     # return the created session
     return JSONResponse(status_code=status.HTTP_201_CREATED, content=current_session)
@@ -171,15 +212,23 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     #         status_code=status.HTTP_200_OK, content={"time_remaining": None}
     #     )
 
-    session = client.quiz.sessions.find_one({"_id": session_id})
-    if session is None:
-        logger.error(
-            f"Received session update request, but session_id {session_id} not found"
-        )
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"session {session_id} not found",
-        )
+    session = None
+    cached_session = get_cached_data(f"session_{session_id}")
+    if cached_session:
+        session = cached_session
+    else:
+        session = client.quiz.sessions.find_one({"_id": session_id})
+        if session is None:
+            logger.error(
+                f"Received session update request, but session_id {session_id} not found"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"session {session_id} not found",
+            )
+        cache_data(f"session_{session_id}", session)
+
+    
     user_id, quiz_id = session["user_id"], session["quiz_id"]
     log_message += f", for user: {user_id} and quiz: {quiz_id}"
     logger.info(log_message)
@@ -187,10 +236,10 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     new_event_obj = jsonable_encoder(Event.parse_obj({"event_type": new_event}))
     if session["events"] is None:
         session["events"] = [new_event_obj]
-        if "$set" not in session_update_query:
-            session_update_query["$set"] = {"events": [new_event_obj]}
-        else:
-            session_update_query["$set"].update({"events": [new_event_obj]})
+        # if "$set" not in session_update_query:
+        #     session_update_query["$set"] = {"events": [new_event_obj]}
+        # else:
+        #     session_update_query["$set"].update({"events": [new_event_obj]})
     else:
         if (
             new_event == EventType.dummy_event
@@ -198,22 +247,23 @@ async def update_session(session_id: str, session_updates: UpdateSession):
         ):
             # if previous event is dummy, just change the updated_at time of previous event
             last_event_index = len(session["events"]) - 1
-            last_event_update_query = {
-                "events."
-                + str(last_event_index)
-                + ".updated_at": new_event_obj["created_at"]
-            }
-            if "$set" not in session_update_query:
-                session_update_query["$set"] = last_event_update_query
-            else:
-                session_update_query["$set"].update(last_event_update_query)
+            session["events"][last_event_index]["updated_at"] = new_event_obj["created_at"]
+            # last_event_update_query = {
+            #     "events."
+            #     + str(last_event_index)
+            #     + ".updated_at": new_event_obj["created_at"]
+            # }
+            # if "$set" not in session_update_query:
+            #     session_update_query["$set"] = last_event_update_query
+            # else:
+            #     session_update_query["$set"].update(last_event_update_query)
 
         else:
             session["events"].append(new_event_obj)
-            if "$push" not in session_update_query:
-                session_update_query["$push"] = {"events": new_event_obj}
-            else:
-                session_update_query["$push"].update({"events": new_event_obj})
+            # if "$push" not in session_update_query:
+            #     session_update_query["$push"] = {"events": new_event_obj}
+            # else:
+            #     session_update_query["$push"].update({"events": new_event_obj})
 
     # diff between times of last two events
     time_elapsed = 0
@@ -265,31 +315,34 @@ async def update_session(session_id: str, session_updates: UpdateSession):
         # if `time_remaining` key is not present =>
         # no time limit is set, no need to respond with time_remaining
         time_remaining = max(0, session["time_remaining"] - time_elapsed)
-        if "$set" not in session_update_query:
-            session_update_query["$set"] = {"time_remaining": time_remaining}
-        else:
-            session_update_query["$set"].update({"time_remaining": time_remaining})
+        session["time_remaining"] = time_remaining
+        # if "$set" not in session_update_query:
+        #     session_update_query["$set"] = {"time_remaining": time_remaining}
+        # else:
+        #     session_update_query["$set"].update({"time_remaining": time_remaining})
         response_content = {"time_remaining": time_remaining}
 
     # update the document in the sessions collection
     if new_event == EventType.end_quiz:
-        if "$set" not in session_update_query:
-            session_update_query["$set"] = {"has_quiz_ended": True}
-        else:
-            session_update_query["$set"].update({"has_quiz_ended": True})
+        session["has_quiz_ended"] = True
+        # if "$set" not in session_update_query:
+        #     session_update_query["$set"] = {"has_quiz_ended": True}
+        # else:
+        #     session_update_query["$set"].update({"has_quiz_ended": True})
 
-    update_result = client.quiz.sessions.update_one(
-        {"_id": session_id}, session_update_query
-    )
-    if update_result.modified_count == 0:
-        logger.error(f"Failed to update session with id {session_id}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update session with id {session_id}",
-        )
+    cache_data(f"session_{session_id}", session)
+    # update_result = client.quiz.sessions.update_one(
+    #     {"_id": session_id}, session_update_query
+    # )
+    # if update_result.modified_count == 0:
+    #     logger.error(f"Failed to update session with id {session_id}")
+    #     raise HTTPException(
+    #         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    #         detail=f"Failed to update session with id {session_id}",
+    #     )
 
     logger.info(
-        f"Updated session with id {session_id} for user: {user_id} and quiz: {quiz_id}"
+        f"InCache: Updated session with id {session_id} for user: {user_id} and quiz: {quiz_id}"
     )
     return JSONResponse(status_code=status.HTTP_200_OK, content=response_content)
 
@@ -297,11 +350,20 @@ async def update_session(session_id: str, session_updates: UpdateSession):
 @router.get("/{session_id}", response_model=SessionResponse)
 async def get_session(session_id: str):
     logger.info(f"Fetching session with id {session_id}")
-    if (session := client.quiz.sessions.find_one({"_id": session_id})) is not None:
-        logger.info(f"Found session with id {session_id}")
-        return session
-
-    logger.error(f"Session {session_id} not found")
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail=f"session {session_id} not found"
-    )
+    session = None
+    cached_session = get_cached_data(f"session_{session_id}")
+    if cached_session:
+        session = cached_session
+        logger.info(f"InCache: Found session with id {session_id}")
+    else:
+        logger.info(f"Session with id {session_id} not found in cache")
+        session = client.quiz.sessions.find_one({"_id": session_id})
+        if session is None:
+            logger.error(f"Session {session_id} not found in db")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"session {session_id} not found"
+            )
+        cache_data(f"session_{session_id}", session)
+    
+    logger.info(f"InCache: Found session with id {session_id}")
+    return session

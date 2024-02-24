@@ -6,6 +6,7 @@ from models import UpdateSessionAnswer
 from utils import remove_optional_unset_args
 from logger_config import get_logger
 from typing import List, Tuple
+from cache import cache_data, get_cached_data
 
 router = APIRouter(prefix="/session_answers", tags=["Session Answers"])
 logger = get_logger()
@@ -25,14 +26,20 @@ async def update_session_answers_at_specific_positions(
     positions_and_answers - a list of tuples that contain the position index and the corresponding session answer object.
     """
     log_message = f"Updating multiple session answers for session: {session_id}"
-    session = client.quiz.sessions.find_one({"_id": session_id})
-    if session is None:
-        session_id_error_message = f"Received multiple session_answer update request, but provided session with id {session_id} not found"
-        logger.error(session_id_error_message)
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=session_id_error_message,
-        )
+    session = None
+    cached_session = get_cached_data(f"session_{session_id}")
+    if cached_session:
+        session = cached_session
+    else:
+        session = client.quiz.sessions.find_one({"_id": session_id})
+        if session is None:
+            session_id_error_message = f"Received multiple session_answer update request, but provided session with id {session_id} not found"
+            logger.error(session_id_error_message)
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=session_id_error_message,
+            )
+        cache_data(f"session_{session_id}", session)
 
     user_id, quiz_id = session["user_id"], session["quiz_id"]
     log_message += f"(user: {user_id}, quiz: {quiz_id})"
@@ -60,23 +67,29 @@ async def update_session_answers_at_specific_positions(
         for session_answer in session_answers
     ]
 
-    setQuery = {
-        f"session_answers.{position_index}.{key}": value
-        for position_index, session_answer in zip(positions, input_session_answers)
-        for key, value in session_answer.items()
-    }
+    # setQuery = {
+    #     f"session_answers.{position_index}.{key}": value
+    #     for position_index, session_answer in zip(positions, input_session_answers)
+    #     for key, value in session_answer.items()
+    # }
 
-    result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
-    if result.modified_count == 0:
-        error_message = f"Failed to update multiple session answers for session: {session_id} (user: {user_id} and quiz: {quiz_id})"
-        logger.error(error_message)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_message,
-        )
+    for position_index, session_answer in zip(positions, input_session_answers):
+        for key, value in session_answer.items():
+            session["session_answers"][position_index][key] = value
+    
+    cache_data(f"session_{session_id}", session)
+        
+    # result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
+    # if result.modified_count == 0:
+    #     error_message = f"Failed to update multiple session answers for session: {session_id} (user: {user_id} and quiz: {quiz_id})"
+    #     logger.error(error_message)
+    #     raise HTTPException(
+    #         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    #         detail=error_message,
+    #     )
 
     logger.info(
-        f"Updated multiple session answers for session: {session_id} (user: {user_id} and quiz: {quiz_id})"
+        f"InCache: Updated multiple session answers for session: {session_id} (user: {user_id} and quiz: {quiz_id})"
     )
     return JSONResponse(status_code=status.HTTP_200_OK, content=None)
 
@@ -96,15 +109,20 @@ async def update_session_answer_in_a_session(
     session_answer = jsonable_encoder(session_answer)
 
     # check if the session exists
-    session = client.quiz.sessions.find_one({"_id": session_id})
-    if session is None:
-        logger.error(
-            f"Received session_answer update request, but provided session with id {session_id} not found"
-        )
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Received session_answer update request, but provided session with id {session_id} not found",
-        )
+    session = None
+    cached_session = get_cached_data(f"session_{session_id}")
+    if cached_session:
+        session = cached_session
+    else:
+        session = client.quiz.sessions.find_one({"_id": session_id})
+        if session is None:
+            session_id_error_message = f"Received session_answer update request, but provided session with id {session_id} not found"
+            logger.error(session_id_error_message)
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=session_id_error_message,
+            )
+        cache_data(f"session_{session_id}", session)
 
     # get user_id and quiz_id for logging
     # Note: every session must have these keys
@@ -133,23 +151,27 @@ async def update_session_answer_in_a_session(
         )
 
     # constructing the $set query for mongodb
-    setQuery = {}
+    # setQuery = {}
+    # for key, value in session_answer.items():
+    #     setQuery[f"session_answers.{position_index}.{key}"] = value
     for key, value in session_answer.items():
-        setQuery[f"session_answers.{position_index}.{key}"] = value
+        session["session_answers"][position_index][key] = value
 
     # update the document in the session_answers collection
-    result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
-    if result.modified_count == 0:
-        logger.error(
-            f"Failed to update session answer for session: {session_id} (user: {user_id} and quiz: {quiz_id}), position: {position_index}"
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update session answer for session: {session_id}, position: {position_index}",
-        )
+    # result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
+    cache_data(f"session_{session_id}", session)
+
+    # if result.modified_count == 0:
+    #     logger.error(
+    #         f"Failed to update session answer for session: {session_id} (user: {user_id} and quiz: {quiz_id}), position: {position_index}"
+    #     )
+    #     raise HTTPException(
+    #         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    #         detail=f"Failed to update session answer for session: {session_id}, position: {position_index}",
+    #     )
 
     logger.info(
-        f"Updated session answer for session: {session_id} (user: {user_id} and quiz: {quiz_id}), position: {position_index}"
+        f"InCache: Updated session answer for session: {session_id} (user: {user_id} and quiz: {quiz_id}), position: {position_index}"
     )
     return JSONResponse(status_code=status.HTTP_200_OK, content=None)
 
@@ -159,34 +181,68 @@ async def get_session_answer_from_a_session(session_id: str, position_index: int
     logger.info(
         f"Getting session answer for session: {session_id}, position: {position_index}"
     )
-    pipeline = [
-        {
-            "$match": {  # match the session with the provided session_id
-                "_id": session_id
-            }
-        },
-        {
-            "$project": {  # project the required element from session_answers array
-                "_id": 0,
-                "session_answer": {
-                    "$arrayElemAt": ["$session_answers", position_index]
-                },
-            }
-        },
-    ]
-    aggregation_result = list(client.quiz.sessions.aggregate(pipeline))
-    if len(aggregation_result) == 0:
-        logger.error(
-            f"Either session_id {session_id} is wrong or position_index {position_index} is out of bounds"
-        )
+    # pipeline = [
+    #     {
+    #         "$match": {  # match the session with the provided session_id
+    #             "_id": session_id
+    #         }
+    #     },
+    #     {
+    #         "$project": {  # project the required element from session_answers array
+    #             "_id": 0,
+    #             "session_answer": {
+    #                 "$arrayElemAt": ["$session_answers", position_index]
+    #             },
+    #         }
+    #     },
+    # ]
+    # aggregation_result = list(client.quiz.sessions.aggregate(pipeline))
+
+    # if len(aggregation_result) == 0:
+    #     logger.error(
+    #         f"Either session_id {session_id} is wrong or position_index {position_index} is out of bounds"
+    #     )
+    #     raise HTTPException(
+    #         status_code=status.HTTP_400_BAD_REQUEST,
+    #         detail=f"Either session_id {session_id} is wrong or position_index {position_index} is out of bounds",
+    #     )
+
+    session = None
+    cached_session = get_cached_data(f"session_{session_id}")
+    if cached_session:
+        session = cached_session
+    else:
+        session = client.quiz.sessions.find_one({"_id": session_id})
+        if session is None:
+            session_id_error_message = f"Received session_answer get request, but provided session with id {session_id} not found"
+            logger.error(session_id_error_message)
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=session_id_error_message,
+            )
+        cache_data(f"session_{session_id}", session)
+    
+    if "session_answers" not in session or session["session_answers"] is None:
+        no_session_answer_error_message = f"No session answers found in the session with id {session_id}"
+        logger.error(no_session_answer_error_message)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Either session_id {session_id} is wrong or position_index {position_index} is out of bounds",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=no_session_answer_error_message,
         )
 
+    if position_index > len(session["session_answers"]):
+        error_message = "Provided position index is out of bounds of the session answers array"
+        logger.error(error_message)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_message,
+        )
+
+    result = session["session_answers"][position_index]
+
     logger.info(
-        f"Retrieved session answer for session: {session_id}, position: {position_index}"
+        f"InCache: Retrieved session answer for session: {session_id}, position: {position_index}"
     )
     return JSONResponse(
-        status_code=status.HTTP_200_OK, content=aggregation_result[0]["session_answer"]
+        status_code=status.HTTP_200_OK, content=result
     )
