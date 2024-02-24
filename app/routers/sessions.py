@@ -205,6 +205,9 @@ async def create_session(session: Session):
                     f"Sent session with id {second_last_session['_id']} for user: {session.user_id} and quiz: {session.quiz_id} to the db"
                 )
                 invalidate_cache(f"session_{second_last_session['_id']}")
+                # if this session was created in cache itself, then invalidate it
+                if get_cached_data(f"session_id_to_insert_{second_last_session['_id']}") is not None:
+                    invalidate_cache(f"session_id_to_insert_{second_last_session['_id']}")
                 logger.info(f"invalidated cache for session with id {second_last_session['_id']}")
             else:
                 log_message = f"Failed to insert second last session with id {second_last_session['_id']} for user: {session.user_id} and quiz: {session.quiz_id} to db"

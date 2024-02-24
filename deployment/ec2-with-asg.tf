@@ -82,7 +82,7 @@ resource "aws_autoscaling_group" "asg" {
 }
 
 resource "aws_instance" "redis_cache" {
-  ami           = "ami-0a0f1259dd1c90938" # Use an appropriate AMI for your region
+  ami           = "ami-0ab84d9093b4c0d81" # Use an appropriate AMI for your region
   instance_type = "r6g.medium"              # Adjust the instance type as needed
   subnet_id     = aws_subnet.subnet_2.id  # Place the instance in a private subnet
 
