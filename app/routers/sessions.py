@@ -32,7 +32,6 @@ async def create_session(session: Session):
         f"Creating new session for user: {session.user_id} and quiz: {session.quiz_id}"
     )
     current_session = jsonable_encoder(session)
-
     # get quiz from cache or db
     quiz = None
     quiz_cache_key = f"quiz_{current_session['quiz_id']}"
@@ -56,7 +55,7 @@ async def create_session(session: Session):
     previous_two_sessions = None
     previous_two_session_ids_cache_key = f"previous_two_session_ids_{current_session['user_id']}_{current_session['quiz_id']}"
     cached_previous_two_session_ids = get_cached_data(previous_two_session_ids_cache_key)
-    if not cached_previous_two_session_ids:
+    if cached_previous_two_session_ids is None:
         previous_two_sessions = list(
             client.quiz.sessions.find(
                 {
@@ -67,8 +66,27 @@ async def create_session(session: Session):
                 limit=2,
             )
         )
-        cache_data(previous_two_session_ids_cache_key, [s["_id"] for s in previous_two_sessions])
-        [cache_data(f"session_{previous_two_sessions[i]['_id']}", previous_two_sessions[i]) for i in range(len(previous_two_sessions))]
+        # cache_data(previous_two_session_ids_cache_key, [s["_id"] for s in previous_two_sessions])
+        # [cache_data(f"session_{previous_two_sessions[i]['_id']}", previous_two_sessions[i]) for i in range(len(previous_two_sessions))]
+
+        if len(previous_two_sessions) == 0:
+            pass
+        elif len(previous_two_sessions) == 1:
+            cache_data(
+                previous_two_session_ids_cache_key, 
+                [previous_two_sessions[0]["_id"]]
+            )
+            cache_data(f"session_{previous_two_sessions[0]['_id']}", previous_two_sessions[0])
+        elif len(previous_two_sessions) == 2:
+            cache_data(
+                previous_two_session_ids_cache_key, 
+                [
+                    previous_two_sessions[0]["_id"],
+                    previous_two_sessions[1]["_id"]
+                ]
+            )
+            cache_data(f"session_{previous_two_sessions[0]['_id']}", previous_two_sessions[0])
+            cache_data(f"session_{previous_two_sessions[1]['_id']}", previous_two_sessions[1])
     else:
         previous_two_sessions = [get_cached_data(f"session_{sid}") for sid in cached_previous_two_session_ids]
 
@@ -77,10 +95,21 @@ async def create_session(session: Session):
     if len(previous_two_sessions) == 1:
         logger.info("Only one previous session exists for this user-quiz combo")
         last_session = previous_two_sessions[0]
+        # cache_data(
+        #     previous_two_session_ids_cache_key,
+        #     [last_session["_id"]]
+        # )
+        # cache_data(f"session_{last_session['_id']}", last_session)
     # two previous sessions exist
     elif len(previous_two_sessions) == 2:
         logger.info("Two previous sessions exists for this user-quiz combo")
         last_session, second_last_session = previous_two_sessions  # unpack
+        # cache_data(
+        #     previous_two_session_ids_cache_key,
+        #     [last_session["_id"], second_last_session["_id"]]
+        # )
+        # cache_data(f"session_{last_session['_id']}", last_session)
+        # cache_data(f"session_{second_last_session['_id']}", second_last_session)
 
     session_answers = []
     if last_session is None:
@@ -158,7 +187,7 @@ async def create_session(session: Session):
     session_ids_to_insert.append(current_session["_id"])
     cache_data("session_ids_to_insert", session_ids_to_insert)
     cache_data(f"session_{current_session['_id']}", current_session)
-    if len(previous_two_sessions) == 0:
+    if previous_two_sessions is None or len(previous_two_sessions) == 0:
         cache_data(
             previous_two_session_ids_cache_key, 
             [current_session["_id"]]
