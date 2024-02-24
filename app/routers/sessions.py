@@ -360,6 +360,8 @@ async def update_session(session_id: str, session_updates: UpdateSession):
         #     session_update_query["$set"].update({"has_quiz_ended": True})
 
     cache_data(f"session_{session_id}", session)
+    if (get_cached_data(f"session_id_to_insert_{session_id}") is None):
+        cache_data(f"session_id_to_update_{session_id}", "x")
     # update_result = client.quiz.sessions.update_one(
     #     {"_id": session_id}, session_update_query
     # )

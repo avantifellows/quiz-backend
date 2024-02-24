@@ -26,6 +26,9 @@ def get_cached_data(key: str):
         return json.loads(cached_data)
     return None
 
+def get_keys(pattern: str):
+    """Retrieve keys from Redis cache."""
+    return r.keys(pattern)
 
 def invalidate_cache(key: str):
     """Invalidate cache."""

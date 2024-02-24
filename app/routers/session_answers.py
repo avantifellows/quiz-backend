@@ -78,6 +78,8 @@ async def update_session_answers_at_specific_positions(
             session["session_answers"][position_index][key] = value
     
     cache_data(f"session_{session_id}", session)
+    if (get_cached_data(f"session_id_to_insert_{session_id}") is None):
+        cache_data(f"session_id_to_update_{session_id}")
         
     # result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
     # if result.modified_count == 0:
@@ -160,6 +162,8 @@ async def update_session_answer_in_a_session(
     # update the document in the session_answers collection
     # result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
     cache_data(f"session_{session_id}", session)
+    if (get_cached_data(f"session_id_to_insert_{session_id}") is None):
+        cache_data(f"session_id_to_update_{session_id}", "x")
 
     # if result.modified_count == 0:
     #     logger.error(
