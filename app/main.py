@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from routers import questions, quizzes, session_answers, sessions, organizations
@@ -6,14 +6,34 @@ from mangum import Mangum
 import random
 import string
 import time
+import asyncio
 from logger_config import setup_logger
+from cache import get_cached_data
 
 logger = setup_logger()
 
 COMPRESS_MIN_THRESHOLD = 1000  # if more than 1000 bytes (~1KB), compress
+MAX_RETRIES = 10
+RETRY_DELAY = 0.5
+WRITE_BACK_LOCK_KEY = "write_back_lock"
 
 app = FastAPI()
 
+
+async def check_write_back_lock():
+    retries = 0
+    while retries < MAX_RETRIES:
+        if not get_cached_data(WRITE_BACK_LOCK_KEY):
+            return
+        await asyncio.sleep(RETRY_DELAY)
+        retries += 1
+    raise HTTPException(status_code=503, detail="Service temporarily unavailable due to maintenance")
+
+@app.middleware("http")
+async def write_back_lock_middleware(request: Request, call_next):
+    await check_write_back_lock()
+    response = await call_next(request)
+    return response
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):

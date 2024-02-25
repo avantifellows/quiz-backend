@@ -66,9 +66,9 @@ resource "aws_launch_template" "ec2_launch_templ" {
 
 resource "aws_autoscaling_group" "asg" {
   name_prefix      = "${local.environment_prefix}asg"
-  desired_capacity = 3
-  max_size         = 3
-  min_size         = 3
+  desired_capacity = 1
+  max_size         = 1
+  min_size         = 1
 
   # connect to the target group
   target_group_arns = [aws_lb_target_group.alb_tg.arn]
