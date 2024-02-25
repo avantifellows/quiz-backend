@@ -3,6 +3,9 @@
 # extract TARGET_GROUP_NAME from .env file and store it in an environment variable
 TARGET_GROUP_NAME=$(grep TARGET_GROUP_NAME .env | cut -d '=' -f2)
 
+# extract REDIS_HOST from .env file and store it in an environment variable
+REDIS_HOST=$(grep REDIS_HOST .env | cut -d '=' -f2)
+
 # Define variables
 echo "[EC2 Action] Defining variables..."
 targetGroupName=$TARGET_GROUP_NAME
@@ -39,8 +42,6 @@ for id in $instanceIds; do
     echo "[EC2 Action] Getting private IP of instance $id..."
     instanceIp=$(aws ec2 describe-instances --instance-ids $id --query "Reservations[*].Instances[*].PrivateIpAddress" --output text)
 
-    # Change access permissions for the directory
-    # sudo chown -R ec2-user:ec2-user /home/ec2-user/quiz-backend
     echo "[EC2 Action] Changing access permissions for the directory..."
     ssh -o StrictHostKeyChecking=no -i $keyPath ec2-user@$instanceIp "sudo chown -R ec2-user:ec2-user /home/ec2-user/quiz-backend"
 
@@ -80,5 +81,32 @@ for id in $instanceIds; do
 EOF
     echo "[EC2 Action] Completed actions on instance $id."
 done
+
+# Transfer .env file to the redis instance
+echo "[EC2 Action] Transferring .env file to Redis instance..."
+
+# Change access permissions for the directory
+echo "[EC2 Action] Changing access permissions for the directory in redis instance..."
+ssh -o StrictHostKeyChecking=no -i $keyPath ec2-user@$REDIS_HOST "sudo chown -R ec2-user:ec2-user /home/ec2-user/quiz-backend"
+
+# Transfer .env file
+echo "[EC2 Action] Transferring .env file to Redis instance..."
+scp -o StrictHostKeyChecking=no -i $keyPath $envFile ec2-user@$REDIS_HOST:/home/ec2-user/quiz-backend
+
+# Execute commands on the Redis instance
+echo "[EC2 Action] Executing commands on Redis instance..."
+ssh -o StrictHostKeyChecking=no -i $keyPath ec2-user@$REDIS_HOST << EOF
+    echo "[EC2 Action] Updating codebase and restarting the application..."
+    cd /home/ec2-user/quiz-backend
+    git checkout $BRANCH_NAME_TO_DEPLOY
+    git pull origin $BRANCH_NAME_TO_DEPLOY
+
+    source venv/bin/activate
+    pip install -r app/requirements.txt
+    cd app
+    # CRON JOB HERE
+EOF
+echo "[EC2 Action] Completed actions on Redis instance."
+
 
 echo "[EC2 Action] Completed updating all instances in target group."
