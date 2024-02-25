@@ -39,6 +39,7 @@ async def update_session_answers_at_specific_positions(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=session_id_error_message,
             )
+        logger.info(f"xxx caching session_{session_id} in update_session_answers_at_specific_positions line 43")
         cache_data(f"session_{session_id}", session)
 
     user_id, quiz_id = session["user_id"], session["quiz_id"]
@@ -77,8 +78,10 @@ async def update_session_answers_at_specific_positions(
         for key, value in session_answer.items():
             session["session_answers"][position_index][key] = value
     
+    logger.info(f"xxx caching session_{session_id} in update_session_answers_at_specific_positions line 82")
     cache_data(f"session_{session_id}", session)
     if (get_cached_data(f"session_id_to_insert_{session_id}") is None):
+        logger.info(f"xxx caching session_id_to_update_{session_id} in update_session_answers_at_specific_positions line 85")
         cache_data(f"session_id_to_update_{session_id}")
         
     # result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
@@ -124,6 +127,7 @@ async def update_session_answer_in_a_session(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=session_id_error_message,
             )
+        logger.info(f"xxx caching session_{session_id} in update_session_answer_in_a_session line 131")
         cache_data(f"session_{session_id}", session)
 
     # get user_id and quiz_id for logging
@@ -161,8 +165,10 @@ async def update_session_answer_in_a_session(
 
     # update the document in the session_answers collection
     # result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
+    logger.info(f"xxx caching session_{session_id} in update_session_answer_in_a_session line 169")
     cache_data(f"session_{session_id}", session)
     if (get_cached_data(f"session_id_to_insert_{session_id}") is None):
+        logger.info(f"xxx caching session_id_to_update_{session_id} in update_session_answer_in_a_session line 172")
         cache_data(f"session_id_to_update_{session_id}", "x")
 
     # if result.modified_count == 0:
@@ -224,6 +230,7 @@ async def get_session_answer_from_a_session(session_id: str, position_index: int
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=session_id_error_message,
             )
+        logger.info(f"xxx caching session_{session_id} in get_session_answer_from_a_session line 234")
         cache_data(f"session_{session_id}", session)
     
     if "session_answers" not in session or session["session_answers"] is None:

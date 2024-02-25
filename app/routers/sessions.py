@@ -72,12 +72,15 @@ async def create_session(session: Session):
         if len(previous_two_sessions) == 0:
             pass
         elif len(previous_two_sessions) == 1:
+            logger.info(f"xxx caching previous two sessions for user: {current_session['user_id']} and quiz: {current_session['quiz_id']}, session ids: {previous_two_sessions[0]['_id']} in create_session at line 76")
             cache_data(
                 previous_two_session_ids_cache_key, 
                 [previous_two_sessions[0]["_id"]]
             )
+            logger.info(f"xxx caching session_{previous_two_sessions[0]['_id']} in create_session at line 81")
             cache_data(f"session_{previous_two_sessions[0]['_id']}", previous_two_sessions[0])
         elif len(previous_two_sessions) == 2:
+            logger.info(f"xxx caching previous two sessions for user: {current_session['user_id']} and quiz: {current_session['quiz_id']}, session ids: {previous_two_sessions[0]['_id']} and {previous_two_sessions[1]['_id']} in create_session at line 84")
             cache_data(
                 previous_two_session_ids_cache_key, 
                 [
@@ -85,7 +88,9 @@ async def create_session(session: Session):
                     previous_two_sessions[1]["_id"]
                 ]
             )
+            logger.info(f"xxx caching session_{previous_two_sessions[0]['_id']} in create_session at line 92")
             cache_data(f"session_{previous_two_sessions[0]['_id']}", previous_two_sessions[0])
+            logger.info(f"xxx caching session_{previous_two_sessions[1]['_id']} in create_session at line 94")
             cache_data(f"session_{previous_two_sessions[1]['_id']}", previous_two_sessions[1])
     else:
         previous_two_sessions = [get_cached_data(f"session_{sid}") for sid in cached_previous_two_session_ids]
@@ -180,14 +185,18 @@ async def create_session(session: Session):
 
     current_session["session_answers"] = session_answers
 
+    logger.info(f"xxx caching session_id_to_insert_{current_session['_id']} in create_session at line 189")
     cache_data(f"session_id_to_insert_{current_session['_id']}", "x")
+    logger.info(f"xxx caching session_{current_session['_id']} in create_session at line 191")
     cache_data(f"session_{current_session['_id']}", current_session)
     if previous_two_sessions is None or len(previous_two_sessions) == 0:
+        logger.info(f"xxx caching previous two sessions for user: {current_session['user_id']} and quiz: {current_session['quiz_id']}, session ids: {current_session['_id']} in create_session at line 194")
         cache_data(
             previous_two_session_ids_cache_key, 
             [current_session["_id"]]
         )
     elif len(previous_two_sessions) == 1 or len(previous_two_sessions) == 2:
+        logger.info(f"xxx caching previous two sessions for user: {current_session['user_id']} and quiz: {current_session['quiz_id']}, session ids: {current_session['_id']} and {last_session['_id']} in create_session at line 200")
         cache_data(
             previous_two_session_ids_cache_key, 
             [
@@ -204,9 +213,11 @@ async def create_session(session: Session):
                 logger.info(
                     f"Sent session with id {second_last_session['_id']} for user: {session.user_id} and quiz: {session.quiz_id} to the db"
                 )
+                logger.info(f"yyy invalidating cache for session with id {second_last_session['_id']} in create_session at line 217")
                 invalidate_cache(f"session_{second_last_session['_id']}")
                 # if this session was created in cache itself, then invalidate it
                 if get_cached_data(f"session_id_to_insert_{second_last_session['_id']}") is not None:
+                    logger.info(f"yyy invalidating cache for session_id_to_insert_{second_last_session['_id']} in create_session at line 221")
                     invalidate_cache(f"session_id_to_insert_{second_last_session['_id']}")
                 logger.info(f"invalidated cache for session with id {second_last_session['_id']}")
             else:
@@ -271,6 +282,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"session {session_id} not found",
             )
+        logger.info(f"xxx caching session_{session_id} in update_session at line 286")
         cache_data(f"session_{session_id}", session)
 
     
@@ -374,9 +386,10 @@ async def update_session(session_id: str, session_updates: UpdateSession):
         #     session_update_query["$set"] = {"has_quiz_ended": True}
         # else:
         #     session_update_query["$set"].update({"has_quiz_ended": True})
-
+    logger.info(f"xxx caching session_{session_id} in update_session at line 390")
     cache_data(f"session_{session_id}", session)
     if (get_cached_data(f"session_id_to_insert_{session_id}") is None):
+        logger.info(f"xxx caching session_id_to_update_{session_id} in update_session at line 393")
         cache_data(f"session_id_to_update_{session_id}", "x")
     # update_result = client.quiz.sessions.update_one(
     #     {"_id": session_id}, session_update_query
@@ -410,6 +423,7 @@ async def get_session(session_id: str):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail=f"session {session_id} not found"
             )
+        logger.info(f"xxx caching session_{session_id} in get_session at line 427")
         cache_data(f"session_{session_id}", session)
     
     logger.info(f"InCache: Found session with id {session_id}")
