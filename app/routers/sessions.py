@@ -24,7 +24,7 @@ def str_to_datetime(datetime_str: str) -> datetime:
 
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
 logger = get_logger()
-
+MAX_SESSIONS_TO_CACHE_FOR_A_USER_QUIZ_PAIR = 5
 
 @router.post("/", response_model=SessionResponse)
 async def create_session(session: Session):
@@ -189,44 +189,79 @@ async def create_session(session: Session):
     cache_data(f"session_id_to_insert_{current_session['_id']}", "x")
     logger.info(f"xxx caching session_{current_session['_id']} in create_session at line 191")
     cache_data(f"session_{current_session['_id']}", current_session)
-    if previous_two_sessions is None or len(previous_two_sessions) == 0:
-        logger.info(f"xxx caching previous two sessions for user: {current_session['user_id']} and quiz: {current_session['quiz_id']}, session ids: {current_session['_id']} in create_session at line 194")
-        cache_data(
-            previous_two_session_ids_cache_key, 
-            [current_session["_id"]]
+
+    previous_two_sessions.insert(0, current_session)
+    if len(previous_two_sessions) > MAX_SESSIONS_TO_CACHE_FOR_A_USER_QUIZ_PAIR:
+        # send to db then invalidate
+        _session = previous_two_sessions[-1]
+        _session_id = _session["_id"]
+        result = client.quiz.sessions.replace_one(
+            {"_id": _session_id}, _session, upsert=True
         )
-    elif len(previous_two_sessions) == 1 or len(previous_two_sessions) == 2:
-        logger.info(f"xxx caching previous two sessions for user: {current_session['user_id']} and quiz: {current_session['quiz_id']}, session ids: {current_session['_id']} and {last_session['_id']} in create_session at line 200")
-        cache_data(
-            previous_two_session_ids_cache_key, 
-            [
-                current_session["_id"],
-                last_session["_id"]
-            ]
-        )
-        if len(previous_two_sessions) == 2:
-            # send to db then invalidate
-            result = client.quiz.sessions.replace_one(
-                {"_id": second_last_session["_id"]}, second_last_session, upsert=True
+        if result.acknowledged:
+            logger.info(
+                f"Sent session with id {_session_id} for user: {_session.user_id} and quiz: {_session.quiz_id} to the db"
             )
-            if result.acknowledged:
-                logger.info(
-                    f"Sent session with id {second_last_session['_id']} for user: {session.user_id} and quiz: {session.quiz_id} to the db"
-                )
-                logger.info(f"yyy invalidating cache for session with id {second_last_session['_id']} in create_session at line 217")
-                invalidate_cache(f"session_{second_last_session['_id']}")
-                # if this session was created in cache itself, then invalidate it
-                if get_cached_data(f"session_id_to_insert_{second_last_session['_id']}") is not None:
-                    logger.info(f"yyy invalidating cache for session_id_to_insert_{second_last_session['_id']} in create_session at line 221")
-                    invalidate_cache(f"session_id_to_insert_{second_last_session['_id']}")
-                logger.info(f"invalidated cache for session with id {second_last_session['_id']}")
-            else:
-                log_message = f"Failed to insert second last session with id {second_last_session['_id']} for user: {session.user_id} and quiz: {session.quiz_id} to db"
-                logger.error(log_message)
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=log_message,
-                )
+            logger.info(f"yyy invalidating cache for session with id {_session_id} in create_session at line 217")
+            previous_two_sessions.pop()
+            invalidate_cache(f"session_{_session_id}")
+            # if this session was created in cache itself, then invalidate it
+            if get_cached_data(f"session_id_to_insert_{_session_id}") is not None:
+                logger.info(f"yyy invalidating cache for session_id_to_insert_{_session_id} in create_session at line 221")
+                invalidate_cache(f"session_id_to_insert_{_session_id}")
+            logger.info(f"invalidated cache for session with id {_session_id}")
+        else:
+            log_message = f"Failed to insert last session with id {_session_id} for user: {_session.user_id} and quiz: {_session.quiz_id} to db"
+            logger.error(log_message)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=log_message,
+            )
+    
+    cache_data(
+        previous_two_session_ids_cache_key, 
+        [s["_id"] for s in previous_two_sessions]
+    )
+
+    # if previous_two_sessions is None or len(previous_two_sessions) == 0:
+    #     logger.info(f"xxx caching previous two sessions for user: {current_session['user_id']} and quiz: {current_session['quiz_id']}, session ids: {current_session['_id']} in create_session at line 194")
+    #     cache_data(
+    #         previous_two_session_ids_cache_key, 
+    #         [current_session["_id"]]
+    #     )
+    # elif len(previous_two_sessions) == 1 or len(previous_two_sessions) == 2:
+    #     logger.info(f"xxx caching previous two sessions for user: {current_session['user_id']} and quiz: {current_session['quiz_id']}, session ids: {current_session['_id']} and {last_session['_id']} in create_session at line 200")
+    #     cache_data(
+    #         previous_two_session_ids_cache_key, 
+    #         [
+    #             current_session["_id"],
+    #             last_session["_id"]
+    #         ]
+    #     )
+    # else: 
+    #     if len(previous_two_sessions) == 2:
+    #         # send to db then invalidate
+    #         result = client.quiz.sessions.replace_one(
+    #             {"_id": second_last_session["_id"]}, second_last_session, upsert=True
+    #         )
+    #         if result.acknowledged:
+    #             logger.info(
+    #                 f"Sent session with id {second_last_session['_id']} for user: {session.user_id} and quiz: {session.quiz_id} to the db"
+    #             )
+    #             logger.info(f"yyy invalidating cache for session with id {second_last_session['_id']} in create_session at line 217")
+    #             invalidate_cache(f"session_{second_last_session['_id']}")
+    #             # if this session was created in cache itself, then invalidate it
+    #             if get_cached_data(f"session_id_to_insert_{second_last_session['_id']}") is not None:
+    #                 logger.info(f"yyy invalidating cache for session_id_to_insert_{second_last_session['_id']} in create_session at line 221")
+    #                 invalidate_cache(f"session_id_to_insert_{second_last_session['_id']}")
+    #             logger.info(f"invalidated cache for session with id {second_last_session['_id']}")
+    #         else:
+    #             log_message = f"Failed to insert second last session with id {second_last_session['_id']} for user: {session.user_id} and quiz: {session.quiz_id} to db"
+    #             logger.error(log_message)
+    #             raise HTTPException(
+    #                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    #                 detail=log_message,
+    #             )
 
     logger.info(
         f"InCache: Created new session for user: {session.user_id} and quiz: {session.quiz_id}"
