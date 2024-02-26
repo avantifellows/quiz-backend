@@ -36,11 +36,11 @@ def setup_logger():
         "../app.log", when="midnight", interval=1, backupCount=30
     )
     fileHandler.setFormatter(formatter)
-    fileHandler.setLevel(logging.DEBUG)
+    fileHandler.setLevel(logging.INFO)
     logger.addHandler(fileHandler)
 
     # Set the logger level
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
 
     return logger
 

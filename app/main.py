@@ -35,6 +35,7 @@ async def write_back_lock_middleware(request: Request, call_next):
     response = await call_next(request)
     return response
 
+# ONLY ENABLE IN DEBUG ENVIRONMENTS
 # @app.middleware("http")
 # async def log_requests(request: Request, call_next):
 #     """
@@ -46,17 +47,16 @@ async def write_back_lock_middleware(request: Request, call_next):
 #     """
 #     # random id for request so that we can track it in logs
 #     idem = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
-#     logger.info(
+#     logger.debug(
 #         f"rid={idem} start request path={request.url.path} method={request.method} headers={request.headers}"
 #     )
 #     start_time = time.time()
 #     response = await call_next(request)
 #     process_time = (time.time() - start_time) * 1000
 #     formatted_process_time = "{0:.2f}".format(process_time)
-#     logger.info(
+#     logger.debug(
 #         f"rid={idem} completed_in={formatted_process_time}ms status_code={response.status_code}"
 #     )
-
 #     return response
 
 

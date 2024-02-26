@@ -33,34 +33,30 @@ async def update_session_answers_at_specific_positions(
     else:
         session = client.quiz.sessions.find_one({"_id": session_id})
         if session is None:
-            session_id_error_message = f"Received multiple session_answer update request, but provided session with id {session_id} not found"
-            logger.error(session_id_error_message)
+            log_message += f", provided session with id {session_id} not found in db"
+            logger.error(log_message)
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=session_id_error_message,
+                detail=log_message,
             )
-        logger.info(f"xxx caching session_{session_id} in update_session_answers_at_specific_positions line 43")
-        cache_data(f"session_{session_id}", session)
 
-    user_id, quiz_id = session["user_id"], session["quiz_id"]
-    log_message += f"(user: {user_id}, quiz: {quiz_id})"
-    logger.info(log_message)
+    log_message += f" (user: {session['user_id']}, quiz: {session['quiz_id']})"
 
     if "session_answers" not in session or session["session_answers"] is None:
-        no_session_answer_error_message = f"No session answers found in the session with id {session_id}, for user: {user_id} and quiz: {quiz_id}"
-        logger.error(no_session_answer_error_message)
+        log_message += f", No session answers found in the session"
+        logger.error(log_message)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=no_session_answer_error_message,
+            detail=log_message,
         )
 
     positions, session_answers = zip(*positions_and_answers)
     if any(pos > len(session["session_answers"]) for pos in positions):
-        error_message = "One or more provided position indices are out of bounds of the session answers array"
-        logger.error(error_message)
+        log_message += f", provided position indices are out of bounds of the session answers array"
+        logger.error(log_message)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_message,
+            detail=log_message,
         )
 
     input_session_answers = [
@@ -78,10 +74,8 @@ async def update_session_answers_at_specific_positions(
         for key, value in session_answer.items():
             session["session_answers"][position_index][key] = value
     
-    logger.info(f"xxx caching session_{session_id} in update_session_answers_at_specific_positions line 82")
     cache_data(f"session_{session_id}", session)
     if (get_cached_data(f"session_id_to_insert_{session_id}") is None):
-        logger.info(f"xxx caching session_id_to_update_{session_id} in update_session_answers_at_specific_positions line 85")
         cache_data(f"session_id_to_update_{session_id}")
         
     # result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
@@ -93,9 +87,8 @@ async def update_session_answers_at_specific_positions(
     #         detail=error_message,
     #     )
 
-    logger.info(
-        f"InCache: Updated multiple session answers for session: {session_id} (user: {user_id} and quiz: {quiz_id})"
-    )
+    log_message += ", success!"
+    logger.info(log_message)
     return JSONResponse(status_code=status.HTTP_200_OK, content=None)
 
 
@@ -121,26 +114,21 @@ async def update_session_answer_in_a_session(
     else:
         session = client.quiz.sessions.find_one({"_id": session_id})
         if session is None:
-            session_id_error_message = f"Received session_answer update request, but provided session with id {session_id} not found"
-            logger.error(session_id_error_message)
+            log_message += f", provided session not found in db"
+            logger.error(log_message)
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=session_id_error_message,
+                detail=log_message,
             )
-        logger.info(f"xxx caching session_{session_id} in update_session_answer_in_a_session line 131")
-        cache_data(f"session_{session_id}", session)
 
     # get user_id and quiz_id for logging
     # Note: every session must have these keys
-    user_id, quiz_id = session["user_id"], session["quiz_id"]
-    log_message += f"(user: {user_id}, quiz: {quiz_id})"
-    logger.info(log_message)
+    log_message += f" (user: {session['user_id']}, quiz: {session['quiz_id']})"
 
     # check if the session has session answers key
     if "session_answers" not in session or session["session_answers"] is None:
-        logger.error(
-            f"No session answers found in the session with id {session_id}, for user: {user_id} and quiz: {quiz_id}"
-        )
+        log_message += f", No session answers found in the session"
+        logger.error(log_message)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No session answers found in the session with id {session_id}",
@@ -148,9 +136,8 @@ async def update_session_answer_in_a_session(
 
     # check if the session answer index that we're trying to access is out of bounds or not
     if position_index > len(session["session_answers"]):
-        logger.error(
-            f"Provided position index {position_index} is out of bounds of length of the session answers array"
-        )
+        log_message += f", provided position index is out of bounds of the session answers array"
+        logger.error(log_message)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Provided position index {position_index} is out of bounds of length of the session answers array",
@@ -165,10 +152,8 @@ async def update_session_answer_in_a_session(
 
     # update the document in the session_answers collection
     # result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
-    logger.info(f"xxx caching session_{session_id} in update_session_answer_in_a_session line 169")
     cache_data(f"session_{session_id}", session)
     if (get_cached_data(f"session_id_to_insert_{session_id}") is None):
-        logger.info(f"xxx caching session_id_to_update_{session_id} in update_session_answer_in_a_session line 172")
         cache_data(f"session_id_to_update_{session_id}", "x")
 
     # if result.modified_count == 0:
@@ -179,18 +164,14 @@ async def update_session_answer_in_a_session(
     #         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
     #         detail=f"Failed to update session answer for session: {session_id}, position: {position_index}",
     #     )
-
-    logger.info(
-        f"InCache: Updated session answer for session: {session_id} (user: {user_id} and quiz: {quiz_id}), position: {position_index}"
-    )
+    log_message += ", success!"
+    logger.info(log_message)
     return JSONResponse(status_code=status.HTTP_200_OK, content=None)
 
 
 @router.get("/{session_id}/{position_index}", response_model=None)
 async def get_session_answer_from_a_session(session_id: str, position_index: int):
-    logger.info(
-        f"Getting session answer for session: {session_id}, position: {position_index}"
-    )
+    log_message = f"Getting session answer for session: {session_id}, position: {position_index}"
     # pipeline = [
     #     {
     #         "$match": {  # match the session with the provided session_id
@@ -224,36 +205,33 @@ async def get_session_answer_from_a_session(session_id: str, position_index: int
     else:
         session = client.quiz.sessions.find_one({"_id": session_id})
         if session is None:
-            session_id_error_message = f"Received session_answer get request, but provided session with id {session_id} not found"
-            logger.error(session_id_error_message)
+            log_message += f", provided session not found in db"
+            logger.error(log_message)
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=session_id_error_message,
+                detail=log_message,
             )
-        logger.info(f"xxx caching session_{session_id} in get_session_answer_from_a_session line 234")
         cache_data(f"session_{session_id}", session)
     
     if "session_answers" not in session or session["session_answers"] is None:
-        no_session_answer_error_message = f"No session answers found in the session with id {session_id}"
-        logger.error(no_session_answer_error_message)
+        log_message += f", No session answers found in the session"
+        logger.error(log_message)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=no_session_answer_error_message,
+            detail=log_message,
         )
 
     if position_index > len(session["session_answers"]):
-        error_message = "Provided position index is out of bounds of the session answers array"
-        logger.error(error_message)
+        log_message += f", provided position index is out of bounds of the session answers array"
+        logger.error(log_message)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_message,
+            detail=log_message,
         )
 
     result = session["session_answers"][position_index]
-
-    logger.info(
-        f"InCache: Retrieved session answer for session: {session_id}, position: {position_index}"
-    )
+    log_message += ", success!"
+    logger.info(log_message)
     return JSONResponse(
         status_code=status.HTTP_200_OK, content=result
     )

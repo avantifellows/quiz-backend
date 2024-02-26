@@ -17,31 +17,14 @@ logger = get_logger()
 async def create_quiz(quiz: Quiz):
     quiz = jsonable_encoder(quiz)
 
-    log_message = "Starting quiz creation"
-    log_with_source = ""
-    log_with_source_id = ""
-    if "metadata" in quiz and "source" in quiz["metadata"]:
-        log_with_source = f" with source {quiz['metadata']['source']}"
-        log_message += log_with_source
-        if "source_id" in quiz["metadata"]:
-            log_with_source_id = f" and source id {quiz['metadata']['source_id']}"
-            log_message += log_with_source_id
-
-    logger.info(log_message)
-
     for question_set_index, question_set in enumerate(quiz["question_sets"]):
         questions = question_set["questions"]
         for question_index, _ in enumerate(questions):
             questions[question_index]["question_set_id"] = question_set["_id"]
 
         result = client.quiz.questions.insert_many(questions)
-        if result.acknowledged:
-            logger.info(
-                f"Inserted {len(questions)} questions for quiz{log_with_source}{log_with_source_id}"
-            )
-        else:
-            error_message = f"Failed to insert questions for quiz{log_with_source}{log_with_source_id}"
-            logger.error(error_message)
+        if not result.acknowledged:
+            error_message = f"Failed to insert questions for quiz_id: {quiz['_id']}"
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=error_message,
@@ -77,13 +60,11 @@ async def create_quiz(quiz: Quiz):
 
     new_quiz_result = client.quiz.quizzes.insert_one(quiz)
     if not new_quiz_result.acknowledged:
-        error_message = f"Failed to insert quiz{log_with_source}{log_with_source_id}"
-        logger.error(error_message)
+        error_message = f"Failed to insert quiz with id: {quiz['_id']}"
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=error_message,
         )
-    logger.info("Finished creating quiz with id: " + str(new_quiz_result.inserted_id))
 
     return JSONResponse(
         status_code=status.HTTP_201_CREATED, content={"id": new_quiz_result.inserted_id}
@@ -92,16 +73,13 @@ async def create_quiz(quiz: Quiz):
 
 @router.get("/{quiz_id}", response_model=GetQuizResponse)
 async def get_quiz(quiz_id: str):
-    logger.info(f"Starting to get quiz: {quiz_id}")
     cache_key = f"quiz_{quiz_id}"
     quiz_collection = client.quiz.quizzes
 
     cached_data = get_cached_data_local(cache_key)
     if cached_data:
-        logger.info(f"Finished getting quiz from cache: {quiz_id}")
         return cached_data
 
-    logger.info(f"Fetching quiz from database: {quiz_id}")
     if (quiz := quiz_collection.find_one({"_id": quiz_id})) is None:
         logger.warning(f"Requested quiz {quiz_id} not found")
         raise HTTPException(
@@ -114,14 +92,10 @@ async def get_quiz(quiz_id: str):
         or "quiz_type" not in quiz["metadata"]
         or quiz["metadata"]["quiz_type"] != QuizType.omr.value
     ):
-        logger.warning(
-            f"Quiz {quiz_id} does not have metadata or is not an OMR quiz, skipping option count calculation"
-        )
-
+        # Quiz does not have metadata or is not an OMR quiz, skipping option count calculation
+        pass
     else:
-        logger.info(
-            f"Quiz is an OMR type, calculating options count for quiz: {quiz_id}"
-        )
+        # Quiz is an OMR type, calculating options count for quiz
         question_set_ids = [
             question_set["_id"] for question_set in quiz["question_sets"]
         ]
@@ -173,6 +147,4 @@ async def get_quiz(quiz_id: str):
             ] = updated_subset_without_details
 
     cache_data_local(cache_key, quiz)
-
-    logger.info(f"Finished getting quiz: {quiz_id}")
     return quiz
