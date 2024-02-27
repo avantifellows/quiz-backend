@@ -43,7 +43,7 @@ bastionHostIP=$(aws ec2 describe-instances --instance-ids $instanceId --query "R
 
 # Get the private IP of an instance with the name RedisCacheInstance and store it in REDIS_HOST variable
 echo "Retrieving private IP of the Redis Cache instance..."
-REDIS_HOST=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=RedisCacheInstance" "Name=instance-state-name,Values=running" --query "Reservations[*].Instances[*].PrivateIpAddress" --region ap-south-1 --output text)
+REDIS_HOST=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=${ENVIRONMENT_PREFIX}RedisCacheInstance" "Name=instance-state-name,Values=running" --query "Reservations[*].Instances[*].PrivateIpAddress" --region ap-south-1 --output text)
 
 # Build the .env file from GitHub Secrets
 echo "Building .env file..."
@@ -51,6 +51,7 @@ echo "MONGO_AUTH_CREDENTIALS=$MONGO_AUTH_CREDENTIALS" > $envFile
 echo "BRANCH_NAME_TO_DEPLOY=$BRANCH_NAME_TO_DEPLOY" >> $envFile
 echo "TARGET_GROUP_NAME=$TARGET_GROUP_NAME" >> $envFile
 echo "REDIS_HOST=$REDIS_HOST" >> $envFile
+echo "ENVIRONMENT_PREFIX=$ENVIRONMENT_PREFIX" >> $envFile
 
 # Transfer the update script and .env file to the Bastion Host
 echo "Transferring scripts to the Bastion Host at $bastionHostIP..."

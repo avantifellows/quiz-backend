@@ -40,3 +40,4 @@ jobs:
         BRANCH_NAME_TO_DEPLOY: ${{ steps.extract_branch.outputs.branch }}
         BASTION_HOST_INSTANCE_NAME: "staging-QB-Bastion-Host"
         TARGET_GROUP_NAME: "staging-QB-lb-alb-tg"
+        ENVIRONMENT_PREFIX: "staging-QB-"

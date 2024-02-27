@@ -4,22 +4,23 @@ from database import client
 from cache import cache_data, get_cached_data, get_keys, invalidate_cache
 
 # Redis key prefix and lock key
-KEY_PREFIX_INSERT = 'session_id_to_insert_'
-KEY_PREFIX_UPDATE = 'session_id_to_update_'
-WRITE_BACK_LOCK_KEY = 'write_back_lock'
-PREVIOUS_TWO_SESSION_IDS_KEY = 'previous_two_session_ids_'
+KEY_PREFIX_INSERT = "session_id_to_insert_"
+KEY_PREFIX_UPDATE = "session_id_to_update_"
+WRITE_BACK_LOCK_KEY = "write_back_lock"
+PREVIOUS_TWO_SESSION_IDS_KEY = "previous_two_session_ids_"
+
 
 def perform_write_back_to_db():
     # import ipdb; ipdb.set_trace()
     # Set the write back lock key in Redis
-    cache_data(WRITE_BACK_LOCK_KEY, '1', 60 * 60)
+    cache_data(WRITE_BACK_LOCK_KEY, "1", 60 * 60)
 
     # Find all keys in Redis for insertion
     session_ids_to_insert = []
-    insert_keys = get_keys(f'{KEY_PREFIX_INSERT}*')
+    insert_keys = get_keys(f"{KEY_PREFIX_INSERT}*")
     insert_operations = []
     for key in insert_keys:
-        session_id = key.split('_')[-1]
+        session_id = key.split("_")[-1]
         session_data = get_cached_data(f"session_{session_id}")
         if session_data:
             session_ids_to_insert.append(session_id)
@@ -43,14 +44,16 @@ def perform_write_back_to_db():
 
     # Find all keys in Redis for update
     session_ids_to_update = []
-    update_keys = get_keys(f'{KEY_PREFIX_UPDATE}*')
+    update_keys = get_keys(f"{KEY_PREFIX_UPDATE}*")
     update_operations = []
     for key in update_keys:
-        session_id = key.split('_')[-1]
+        session_id = key.split("_")[-1]
         session_data = get_cached_data(f"session_{session_id}")
         if session_data:
             session_ids_to_update.append(session_id)
-            update_operations.append(UpdateOne({'_id': f"{session_id}"}, {'$set': session_data}, upsert=True))
+            update_operations.append(
+                UpdateOne({"_id": f"{session_id}"}, {"$set": session_data}, upsert=True)
+            )
 
     # Bulk update in MongoDB
     try:
@@ -67,7 +70,7 @@ def perform_write_back_to_db():
         invalidate_cache(WRITE_BACK_LOCK_KEY)
         return
 
-    previous_two_session_keys = get_keys(f'{PREVIOUS_TWO_SESSION_IDS_KEY}*')
+    previous_two_session_keys = get_keys(f"{PREVIOUS_TWO_SESSION_IDS_KEY}*")
     for key in previous_two_session_keys:
         invalidate_cache(key)
 
@@ -75,5 +78,5 @@ def perform_write_back_to_db():
     invalidate_cache(WRITE_BACK_LOCK_KEY)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     perform_write_back_to_db()

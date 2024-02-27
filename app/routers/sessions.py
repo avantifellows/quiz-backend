@@ -14,7 +14,13 @@ from models import (
 )
 from datetime import datetime
 from logger_config import get_logger
-from cache import cache_data, get_cached_data, get_cached_data_local, cache_data_local, invalidate_cache
+from cache import (
+    cache_data,
+    get_cached_data,
+    get_cached_data_local,
+    cache_data_local,
+    invalidate_cache,
+)
 
 
 def str_to_datetime(datetime_str: str) -> datetime:
@@ -25,6 +31,7 @@ def str_to_datetime(datetime_str: str) -> datetime:
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
 logger = get_logger()
 MAX_SESSIONS_TO_CACHE_FOR_A_USER_QUIZ_PAIR = 5
+
 
 @router.post("/", response_model=SessionResponse)
 async def create_session(session: Session):
@@ -37,9 +44,7 @@ async def create_session(session: Session):
     if not cached_quiz:
         quiz = client.quiz.quizzes.find_one({"_id": current_session["quiz_id"]})
         if quiz is None:
-            error_message = (
-                f"Quiz {current_session['quiz_id']} not found while creating the session"
-            )
+            error_message = f"Quiz {current_session['quiz_id']} not found while creating the session"
             logger.error(log_message + " " + error_message)
             raise HTTPException(
                 status_code=404,
@@ -52,7 +57,9 @@ async def create_session(session: Session):
     # try to get the previous two sessions of a user+quiz pair if they exist
     previous_two_sessions = None
     previous_two_session_ids_cache_key = f"previous_two_session_ids_{current_session['user_id']}_{current_session['quiz_id']}"
-    cached_previous_two_session_ids = get_cached_data(previous_two_session_ids_cache_key)
+    cached_previous_two_session_ids = get_cached_data(
+        previous_two_session_ids_cache_key
+    )
     if cached_previous_two_session_ids is None:
         previous_two_sessions = list(
             client.quiz.sessions.find(
@@ -69,22 +76,26 @@ async def create_session(session: Session):
             pass
         elif len(previous_two_sessions) == 1:
             cache_data(
-                previous_two_session_ids_cache_key, 
-                [previous_two_sessions[0]["_id"]]
+                previous_two_session_ids_cache_key, [previous_two_sessions[0]["_id"]]
             )
-            cache_data(f"session_{previous_two_sessions[0]['_id']}", previous_two_sessions[0])
+            cache_data(
+                f"session_{previous_two_sessions[0]['_id']}", previous_two_sessions[0]
+            )
         elif len(previous_two_sessions) == 2:
             cache_data(
-                previous_two_session_ids_cache_key, 
-                [
-                    previous_two_sessions[0]["_id"],
-                    previous_two_sessions[1]["_id"]
-                ]
+                previous_two_session_ids_cache_key,
+                [previous_two_sessions[0]["_id"], previous_two_sessions[1]["_id"]],
             )
-            cache_data(f"session_{previous_two_sessions[0]['_id']}", previous_two_sessions[0])
-            cache_data(f"session_{previous_two_sessions[1]['_id']}", previous_two_sessions[1])
+            cache_data(
+                f"session_{previous_two_sessions[0]['_id']}", previous_two_sessions[0]
+            )
+            cache_data(
+                f"session_{previous_two_sessions[1]['_id']}", previous_two_sessions[1]
+            )
     else:
-        previous_two_sessions = [get_cached_data(f"session_{sid}") for sid in cached_previous_two_session_ids]
+        previous_two_sessions = [
+            get_cached_data(f"session_{sid}") for sid in cached_previous_two_session_ids
+        ]
 
     last_session, second_last_session = None, None
     # only one session exists
@@ -180,16 +191,17 @@ async def create_session(session: Session):
             if get_cached_data(f"session_id_to_insert_{_session_id}") is not None:
                 invalidate_cache(f"session_id_to_insert_{_session_id}")
         else:
-            log_message += f", failed to insert last session with id {_session_id} to db"
+            log_message += (
+                f", failed to insert last session with id {_session_id} to db"
+            )
             logger.error(log_message)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=log_message,
             )
-    
+
     cache_data(
-        previous_two_session_ids_cache_key, 
-        [s["_id"] for s in previous_two_sessions]
+        previous_two_session_ids_cache_key, [s["_id"] for s in previous_two_sessions]
     )
     log_message += f", created new session with id {current_session['_id']}"
     logger.info(log_message)
@@ -229,7 +241,6 @@ async def update_session(session_id: str, session_updates: UpdateSession):
                 detail=f"session {session_id} not found",
             )
 
-    
     log_message += f", for user: {session['user_id']} and quiz: {session['quiz_id']}"
 
     new_event_obj = jsonable_encoder(Event.parse_obj({"event_type": new_event}))
@@ -246,7 +257,9 @@ async def update_session(session_id: str, session_updates: UpdateSession):
         ):
             # if previous event is dummy, just change the updated_at time of previous event
             last_event_index = len(session["events"]) - 1
-            session["events"][last_event_index]["updated_at"] = new_event_obj["created_at"]
+            session["events"][last_event_index]["updated_at"] = new_event_obj[
+                "created_at"
+            ]
             # last_event_update_query = {
             #     "events."
             #     + str(last_event_index)
@@ -329,7 +342,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
         # else:
         #     session_update_query["$set"].update({"has_quiz_ended": True})
     cache_data(f"session_{session_id}", session)
-    if (get_cached_data(f"session_id_to_insert_{session_id}") is None):
+    if get_cached_data(f"session_id_to_insert_{session_id}") is None:
         cache_data(f"session_id_to_update_{session_id}", "x")
     # update_result = client.quiz.sessions.update_one(
     #     {"_id": session_id}, session_update_query
@@ -343,7 +356,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
 
     log_message += f", success!"
     logger.info(log_message)
-    
+
     return JSONResponse(status_code=status.HTTP_200_OK, content=response_content)
 
 
@@ -358,7 +371,8 @@ async def get_session(session_id: str):
         if session is None:
             logger.error(f"Session {session_id} not found in db")
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=f"session {session_id} not found"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"session {session_id} not found",
             )
-        cache_data(f"session_{session_id}", session)    
+        cache_data(f"session_{session_id}", session)
     return session

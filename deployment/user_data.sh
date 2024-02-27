@@ -70,7 +70,7 @@ if [ -f "log_shipper.sh" ]; then
     echo "Making log_shipper.sh executable..."
     chmod +x log_shipper.sh
     echo "Setting up cron for log_shipper.sh..."
-    (crontab -l 2>/dev/null; echo "*/1 * * * * /home/ec2-user/quiz-backend/app/log_shipper.sh") | crontab -
+    (crontab -l 2>/dev/null; echo "*/10 * * * * /home/ec2-user/quiz-backend/app/log_shipper.sh") | crontab -
 fi
 
 # Start Uvicorn server

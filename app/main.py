@@ -27,13 +27,17 @@ async def check_write_back_lock():
             return
         await asyncio.sleep(RETRY_DELAY)
         retries += 1
-    raise HTTPException(status_code=503, detail="Service temporarily unavailable due to maintenance")
+    raise HTTPException(
+        status_code=503, detail="Service temporarily unavailable due to maintenance"
+    )
+
 
 @app.middleware("http")
 async def write_back_lock_middleware(request: Request, call_next):
     await check_write_back_lock()
     response = await call_next(request)
     return response
+
 
 # ONLY ENABLE IN DEBUG ENVIRONMENTS
 # @app.middleware("http")

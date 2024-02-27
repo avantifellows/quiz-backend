@@ -73,11 +73,11 @@ async def update_session_answers_at_specific_positions(
     for position_index, session_answer in zip(positions, input_session_answers):
         for key, value in session_answer.items():
             session["session_answers"][position_index][key] = value
-    
+
     cache_data(f"session_{session_id}", session)
-    if (get_cached_data(f"session_id_to_insert_{session_id}") is None):
+    if get_cached_data(f"session_id_to_insert_{session_id}") is None:
         cache_data(f"session_id_to_update_{session_id}")
-        
+
     # result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
     # if result.modified_count == 0:
     #     error_message = f"Failed to update multiple session answers for session: {session_id} (user: {user_id} and quiz: {quiz_id})"
@@ -136,7 +136,9 @@ async def update_session_answer_in_a_session(
 
     # check if the session answer index that we're trying to access is out of bounds or not
     if position_index > len(session["session_answers"]):
-        log_message += f", provided position index is out of bounds of the session answers array"
+        log_message += (
+            f", provided position index is out of bounds of the session answers array"
+        )
         logger.error(log_message)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -153,7 +155,7 @@ async def update_session_answer_in_a_session(
     # update the document in the session_answers collection
     # result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
     cache_data(f"session_{session_id}", session)
-    if (get_cached_data(f"session_id_to_insert_{session_id}") is None):
+    if get_cached_data(f"session_id_to_insert_{session_id}") is None:
         cache_data(f"session_id_to_update_{session_id}", "x")
 
     # if result.modified_count == 0:
@@ -171,7 +173,9 @@ async def update_session_answer_in_a_session(
 
 @router.get("/{session_id}/{position_index}", response_model=None)
 async def get_session_answer_from_a_session(session_id: str, position_index: int):
-    log_message = f"Getting session answer for session: {session_id}, position: {position_index}"
+    log_message = (
+        f"Getting session answer for session: {session_id}, position: {position_index}"
+    )
     # pipeline = [
     #     {
     #         "$match": {  # match the session with the provided session_id
@@ -212,7 +216,7 @@ async def get_session_answer_from_a_session(session_id: str, position_index: int
                 detail=log_message,
             )
         cache_data(f"session_{session_id}", session)
-    
+
     if "session_answers" not in session or session["session_answers"] is None:
         log_message += f", No session answers found in the session"
         logger.error(log_message)
@@ -222,7 +226,9 @@ async def get_session_answer_from_a_session(session_id: str, position_index: int
         )
 
     if position_index > len(session["session_answers"]):
-        log_message += f", provided position index is out of bounds of the session answers array"
+        log_message += (
+            f", provided position index is out of bounds of the session answers array"
+        )
         logger.error(log_message)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -232,6 +238,4 @@ async def get_session_answer_from_a_session(session_id: str, position_index: int
     result = session["session_answers"][position_index]
     log_message += ", success!"
     logger.info(log_message)
-    return JSONResponse(
-        status_code=status.HTTP_200_OK, content=result
-    )
+    return JSONResponse(status_code=status.HTTP_200_OK, content=result)

@@ -39,7 +39,8 @@ redis6-server --version
 redis6-cli ping
 
 # Update Redis configuration to listen on both localhost and the private IP
-PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=RedisCacheInstance" "Name=instance-state-name,Values=running" --query "Reservations[*].Instances[*].PrivateIpAddress" --region ap-south-1 --output text)
+ENVIRONMENT_PREFIX="${environment_prefix}"
+PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=${ENVIRONMENT_PREFIX}RedisCacheInstance" "Name=instance-state-name,Values=running" --query "Reservations[*].Instances[*].PrivateIpAddress" --region ap-south-1 --output text)
 echo $PRIVATE_IP > /tmp/private_ip.txt
 sudo sed -i "s/bind 127.0.0.1 -::1/bind 127.0.0.1 $PRIVATE_IP/" /etc/redis6/redis6.conf
 sudo systemctl restart redis6

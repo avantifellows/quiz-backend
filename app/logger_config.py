@@ -50,7 +50,7 @@ def setup_logger():
 
     # Create the TimedRotatingFileHandler with the custom filename
     fileHandler = TimedRotatingFileHandler(
-        log_filepath, when="M", interval=1, backupCount=10
+        log_filepath, when="M", interval=5, backupCount=10
     )
     fileHandler.setFormatter(formatter)
     fileHandler.setLevel(logging.INFO)
