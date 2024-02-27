@@ -52,6 +52,7 @@ for id in $instanceIds; do
 
     # Execute commands on the instance
     echo "[EC2 Action] Executing commands on instance $id..."
+    RANDOM_MINUTE=$((9 + RANDOM % 15))
     ssh -o StrictHostKeyChecking=no -i $keyPath ec2-user@$instanceIp << EOF
         echo "[EC2 Action] Stopping any process running on port 80..."
         sudo fuser -k 80/tcp
@@ -87,7 +88,6 @@ for id in $instanceIds; do
             echo "Making log_shipper.sh executable..."
             chmod +x log_shipper.sh
             echo "Setting up cron for log_shipper.sh..."
-            RANDOM_MINUTE=$((9 + RANDOM % 15))
             (crontab -l 2>/dev/null; echo "*/$RANDOM_MINUTE * * * * /home/ec2-user/quiz-backend/app/log_shipper.sh 2>> /home/ec2-user/quiz-backend/app/log_shipper_error.log") | crontab -
         fi
 
