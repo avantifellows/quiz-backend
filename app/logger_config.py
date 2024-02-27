@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timedelta, timezone
 from logging.handlers import TimedRotatingFileHandler
+import os
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -31,12 +32,29 @@ def setup_logger():
     # consoleHandler.setFormatter(formatter)
     # logger.addHandler(consoleHandler)
 
-    # File handler with log rotation
+    # Define the logs folder and log filename
+    logs_folder = "../logs"
+    log_filename = "app.log"
+
+    # Create the logs folder if it doesn't exist
+    if not os.path.exists(logs_folder):
+        os.makedirs(logs_folder)
+
+    log_filepath = os.path.join(logs_folder, log_filename)
+
+    # Custom namer function to add timestamp to rotated log files
+    def log_namer(name):
+        name_parts = name.split(".")
+        timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+        return f"{name_parts[0]}.{timestamp}.{name_parts[1]}"
+
+    # Create the TimedRotatingFileHandler with the custom filename
     fileHandler = TimedRotatingFileHandler(
-        "../app.log", when="midnight", interval=1, backupCount=30
+        log_filepath, when="M", interval=1, backupCount=10
     )
     fileHandler.setFormatter(formatter)
     fileHandler.setLevel(logging.INFO)
+    fileHandler.namer = log_namer
     logger.addHandler(fileHandler)
 
     # Set the logger level
