@@ -16,6 +16,26 @@ resource "aws_iam_role" "ec2_role" {
   })
 }
 
+resource "aws_iam_policy" "ec2_s3_put_object_policy" {
+  name_prefix = "${local.environment_prefix}ec2_s3_put_object_policy"
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = "s3:PutObject",
+        Effect = "Allow",
+        Resource = "arn:aws:s3:::staging-qb-ec2-logs/*"
+      },
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_s3_put_object_attachment" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = aws_iam_policy.ec2_s3_put_object_policy.arn
+}
+
+
 resource "aws_iam_role_policy_attachment" "ec2_elb_access" {
   role       = aws_iam_role.ec2_role.name
   policy_arn = "arn:aws:iam::aws:policy/ElasticLoadBalancingReadOnly"
