@@ -2,6 +2,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from logging.handlers import TimedRotatingFileHandler
 import os
+import random
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -49,8 +50,9 @@ def setup_logger():
         return f"{name_parts[0]}.{timestamp}.{name_parts[1]}"
 
     # Create the TimedRotatingFileHandler with the custom filename
+    random_interval = random.randint(5, 8)
     fileHandler = TimedRotatingFileHandler(
-        log_filepath, when="M", interval=5, backupCount=10
+        log_filepath, when="M", interval=random_interval, backupCount=100
     )
     fileHandler.setFormatter(formatter)
     fileHandler.setLevel(logging.INFO)

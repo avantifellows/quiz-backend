@@ -41,3 +41,4 @@ jobs:
         BASTION_HOST_INSTANCE_NAME: "staging-QB-Bastion-Host"
         TARGET_GROUP_NAME: "staging-QB-lb-alb-tg"
         ENVIRONMENT_PREFIX: "staging-QB-"
+        LOGS_S3_BUCKET: "staging-qb-ec2-logs"

@@ -22,8 +22,8 @@ resource "aws_iam_policy" "ec2_s3_put_object_policy" {
     Version = "2012-10-17",
     Statement = [
       {
-        Action = "s3:PutObject",
-        Effect = "Allow",
+        Action   = "s3:PutObject",
+        Effect   = "Allow",
         Resource = "arn:aws:s3:::staging-qb-ec2-logs/*"
       },
     ]
@@ -86,9 +86,9 @@ resource "aws_launch_template" "ec2_launch_templ" {
 
 resource "aws_autoscaling_group" "asg" {
   name_prefix      = "${local.environment_prefix}asg"
-  desired_capacity = 1
-  max_size         = 1
-  min_size         = 1
+  desired_capacity = 6
+  max_size         = 6
+  min_size         = 6
 
   # connect to the target group
   target_group_arns = [aws_lb_target_group.alb_tg.arn]
@@ -103,7 +103,7 @@ resource "aws_autoscaling_group" "asg" {
 
 resource "aws_instance" "redis_cache" {
   ami           = "ami-0ab84d9093b4c0d81" # Use an appropriate AMI for your region
-  instance_type = "r6g.medium"              # Adjust the instance type as needed
+  instance_type = "r6g.medium"            # Adjust the instance type as needed
   subnet_id     = aws_subnet.subnet_2.id  # Place the instance in a private subnet
 
   tags = {
@@ -112,7 +112,7 @@ resource "aws_instance" "redis_cache" {
 
   key_name = "AvantiFellows"
 
-  security_groups             = [aws_security_group.sg_for_redis.id]
+  security_groups = [aws_security_group.sg_for_redis.id]
 
   associate_public_ip_address = false
 
@@ -121,6 +121,7 @@ resource "aws_instance" "redis_cache" {
   # user_data = filebase64("user_data_redis.sh")
   user_data = templatefile("user_data_redis.sh.tpl", {
     environment_prefix = local.environment_prefix
+    LOG_FILE           = "/var/log/user_data_redis.log"
   })
 }
 

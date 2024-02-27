@@ -52,6 +52,7 @@ echo "BRANCH_NAME_TO_DEPLOY=$BRANCH_NAME_TO_DEPLOY" >> $envFile
 echo "TARGET_GROUP_NAME=$TARGET_GROUP_NAME" >> $envFile
 echo "REDIS_HOST=$REDIS_HOST" >> $envFile
 echo "ENVIRONMENT_PREFIX=$ENVIRONMENT_PREFIX" >> $envFile
+echo "LOGS_S3_BUCKET=$LOGS_S3_BUCKET" >> $envFile
 
 # Transfer the update script and .env file to the Bastion Host
 echo "Transferring scripts to the Bastion Host at $bastionHostIP..."
