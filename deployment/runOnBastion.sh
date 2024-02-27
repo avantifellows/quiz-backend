@@ -77,6 +77,11 @@ for id in $instanceIds; do
         pip install -r app/requirements.txt
         cd app
 
+        sudo yum install -y cronie
+        sudo systemctl start crond.service
+        sudo systemctl enable crond.service
+
+
         # if the log shipper script exists, make it executable and setup cron for it
         if [ -f "log_shipper.sh" ]; then
             echo "Making log_shipper.sh executable..."
