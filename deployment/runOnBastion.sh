@@ -64,11 +64,17 @@ for id in $instanceIds; do
         git pull origin $BRANCH_NAME_TO_DEPLOY
 
         # HOST_IP=$(curl http://169.254.169.254/latest/meta-data/local-ipv4)
+        echo $instanceIp
         echo "HOST_IP=$instanceIp" >> .env
+        echo "Added host ip to .env file"
 
+        echo "trying to activate venv"
         source venv/bin/activate
+        echo "activated venv"
         pip install -r app/requirements.txt
+        echo "installed requirements"
         cd app
+        echo "changed directory to app"
 
         # if the log shipper script exists, make it executable and setup cron for it
         if [ -f "log_shipper.sh" ]; then
