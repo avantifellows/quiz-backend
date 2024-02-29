@@ -60,8 +60,11 @@ for id in $instanceIds; do
 
         echo "[EC2 Action] Updating codebase and restarting the application..."
         cd /home/ec2-user/quiz-backend
+        echo "Changed directory to /home/ec2-user/quiz-backend"
         git checkout $BRANCH_NAME_TO_DEPLOY
+        echo "Checked out branch $BRANCH_NAME_TO_DEPLOY"
         git pull origin $BRANCH_NAME_TO_DEPLOY
+        echo "Pulled latest changes from $BRANCH_NAME_TO_DEPLOY"
 
         # HOST_IP=$(curl http://169.254.169.254/latest/meta-data/local-ipv4)
         echo $instanceIp
