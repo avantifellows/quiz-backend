@@ -66,7 +66,7 @@ echo "Installing requirements..."
 pip install -r app/requirements.txt
 
 # Navigate to the app directory
-cd app
+cd /home/ec2-user/quiz-backend/app
 
 # if the log shipper script exists, make it executable and setup cron for it
 if [ -f "log_shipper.sh" ]; then
@@ -78,9 +78,20 @@ if [ -f "log_shipper.sh" ]; then
     (crontab -l 2>/dev/null | grep -v 'log_shipper.sh' ; echo "*/$RANDOM_MINUTE * * * * /home/ec2-user/quiz-backend/app/log_shipper.sh 2>> /home/ec2-user/quiz-backend/app/log_shipper_error.log") | crontab -
 fi
 
+# Setup cron for redis write back script
+echo "Setting up cron for redis write back script..."
+cd /home/ec2-user/quiz-backend/app/cache
+if [ -f "cache_write_back.sh" ]; then
+    echo "Making cache_write_back.sh executable..."
+    chmod +x cache_write_back.sh
+    # run every night at 9:30 PM UTC which is 3:00 AM IST
+    (crontab -l 2>/dev/null | grep -v 'cache_write_back.sh' ; echo "30 21 * * * /home/ec2-user/quiz-backend/app/cache/cache_write_back.sh 2>> /home/ec2-user/quiz-backend/logs/cache_write_back_cron.log") | crontab -
+fi
+
 # Start Uvicorn server
+cd /home/ec2-user/quiz-backend/app
 echo "Starting Uvicorn server..."
-uvicorn main:app --host 0.0.0.0 --port 80 --workers 8 > /home/ec2-user/quiz-backend/app/uvicorn.log 2>&1 &
+uvicorn main:app --host 0.0.0.0 --port 80 --workers 8 > /home/ec2-user/quiz-backend/logs/uvicorn.log 2>&1 &
 
 
 # Install Amazon CloudWatch Agent

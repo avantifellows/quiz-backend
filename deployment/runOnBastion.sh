@@ -93,7 +93,17 @@ for i in "${!instanceIdsArray[@]}"; do
             (crontab -l 2>/dev/null | grep -v 'log_shipper.sh' ; echo "*/$RANDOM_MINUTE * * * * /home/ec2-user/quiz-backend/app/log_shipper.sh 2>> /home/ec2-user/quiz-backend/app/log_shipper_error.log") | crontab -
         fi
 
-        nohup uvicorn main:app --host 0.0.0.0 --port 80 --workers 8 > uvicorn.log 2>&1 &
+        # Setup cron for redis write back script
+        echo "Setting up cron for redis write back script..."
+        cd /home/ec2-user/quiz-backend/app/cache
+        if [ -f "cache_write_back.sh" ]; then
+            echo "Making cache_write_back.sh executable..."
+            chmod +x cache_write_back.sh
+            # run every night at 9:30 PM UTC which is 3:00 AM IST
+            (crontab -l 2>/dev/null | grep -v 'cache_write_back.sh' ; echo "30 21 * * * /home/ec2-user/quiz-backend/app/cache/cache_write_back.sh 2>> /home/ec2-user/quiz-backend/logs/cache_write_back_cron.log") | crontab -
+        fi
+
+        nohup uvicorn main:app --host 0.0.0.0 --port 80 --workers 8 > /home/ec2-user/quiz-backend/logs/uvicorn.log 2>&1 &
         disown
 EOF
     echo "[EC2 Action] Completed actions on instance $id."
@@ -121,7 +131,6 @@ ssh -o StrictHostKeyChecking=no -i $keyPath ec2-user@$REDIS_HOST << EOF
     source venv/bin/activate
     pip install -r app/requirements.txt
     cd app
-    # CRON JOB HERE
 EOF
 echo "[EC2 Action] Completed actions on Redis instance."
 

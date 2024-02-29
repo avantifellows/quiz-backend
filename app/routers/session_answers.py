@@ -6,7 +6,7 @@ from models import UpdateSessionAnswer
 from utils import remove_optional_unset_args
 from logger_config import get_logger
 from typing import List, Tuple
-from cache import cache_data, get_cached_data
+from cache.cache import cache_data, get_cached_data
 
 router = APIRouter(prefix="/session_answers", tags=["Session Answers"])
 logger = get_logger()

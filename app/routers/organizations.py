@@ -7,7 +7,7 @@ import secrets
 import string
 from fastapi.encoders import jsonable_encoder
 from logger_config import get_logger
-from cache import cache_data_local, get_cached_data_local
+from cache.cache import cache_data_local, get_cached_data_local
 
 router = APIRouter(prefix="/organizations", tags=["Organizations"])
 settings = Settings()

@@ -8,7 +8,7 @@ import string
 import time
 import asyncio
 from logger_config import setup_logger
-from cache import get_cached_data
+from cache.cache import get_cached_data
 
 logger = setup_logger()
 

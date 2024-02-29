@@ -6,7 +6,7 @@ from models import Quiz, GetQuizResponse, CreateQuizResponse
 from settings import Settings
 from schemas import QuizType
 from logger_config import get_logger
-from cache import cache_data_local, get_cached_data_local
+from cache.cache import cache_data_local, get_cached_data_local
 
 router = APIRouter(prefix="/quiz", tags=["Quiz"])
 settings = Settings()

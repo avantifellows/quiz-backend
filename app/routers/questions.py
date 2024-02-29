@@ -2,7 +2,7 @@ from fastapi import APIRouter, status, HTTPException
 from database import client
 from models import QuestionResponse
 from logger_config import get_logger
-from cache import cache_data_local, get_cached_data_local
+from cache.cache import cache_data_local, get_cached_data_local
 
 router = APIRouter(prefix="/questions", tags=["Questions"])
 logger = get_logger()
