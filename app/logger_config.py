@@ -49,7 +49,7 @@ def setup_logger():
     def log_namer(name):
         name_parts = name.split(".")
         timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-        return f"{name_parts[0]}.{timestamp}.{name_parts[1]}"
+        return f"{name_parts[0]}.{name_parts[1]}.{name_parts[2]}.{name_parts[3]}.{timestamp}.{name_parts[4]}"
 
     # Create the TimedRotatingFileHandler with the custom filename
     random_interval = random.randint(5, 8)
