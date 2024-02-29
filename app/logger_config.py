@@ -52,7 +52,8 @@ def setup_logger():
         return f"{name_parts[0]}.{name_parts[1]}.{name_parts[2]}.{name_parts[3]}.{timestamp}.{name_parts[4]}"
 
     # Create the TimedRotatingFileHandler with the custom filename
-    random_interval = random.randint(5, 8)
+    # random_interval = random.randint(5, 8)
+    random_interval = 1
     fileHandler = TimedRotatingFileHandler(
         log_filepath, when="M", interval=random_interval, backupCount=100
     )

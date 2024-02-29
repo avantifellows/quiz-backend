@@ -73,7 +73,8 @@ if [ -f "log_shipper.sh" ]; then
     echo "Making log_shipper.sh executable..."
     chmod +x log_shipper.sh
     echo "Setting up cron for log_shipper.sh..."
-    RANDOM_MINUTE=$((9 + RANDOM % 15))
+    # RANDOM_MINUTE=$((9 + RANDOM % 15))
+    RANDOM_MINUTE=2
     (crontab -l 2>/dev/null | grep -v 'log_shipper.sh' ; echo "*/$RANDOM_MINUTE * * * * /home/ec2-user/quiz-backend/app/log_shipper.sh 2>> /home/ec2-user/quiz-backend/app/log_shipper_error.log") | crontab -
 fi
 
