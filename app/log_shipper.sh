@@ -9,7 +9,7 @@ source "/home/ec2-user/quiz-backend/.env"
 cd "$LOG_DIR"
 
 # List all rotated log files with a timestamp (modify the pattern as needed)
-for log_file in app.????_??_??_??_??_??.log; do
+for log_file in app_*_*_????_??_??_??_??_??.log; do
     if [[ -f "$log_file" ]]; then
         # Check if the file exists in the S3 bucket
         if aws s3 ls "s3://$LOGS_S3_BUCKET/$log_file" >/dev/null 2>&1; then
