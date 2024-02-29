@@ -65,8 +65,6 @@ for id in $instanceIds; do
         echo "Checked out branch $BRANCH_NAME_TO_DEPLOY"
         git pull origin $BRANCH_NAME_TO_DEPLOY
         echo "Pulled latest changes from $BRANCH_NAME_TO_DEPLOY"
-
-        # HOST_IP=$(curl http://169.254.169.254/latest/meta-data/local-ipv4)
         echo $id
         echo "HOST_IP=$id" >> .env
         echo "Added host ip to .env file"
