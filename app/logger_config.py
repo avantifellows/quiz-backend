@@ -34,8 +34,10 @@ def setup_logger():
     # logger.addHandler(consoleHandler)
 
     # Define the logs folder and log filename
+    pid = os.getpid()
+    machine_ip = os.getenv("HOST_IP", "localhost")
     logs_folder = "../logs"
-    log_filename = "app.log"
+    log_filename = f"app_{machine_ip}_{pid}.log"
 
     # Create the logs folder if it doesn't exist
     if not os.path.exists(logs_folder):

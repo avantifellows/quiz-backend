@@ -62,7 +62,14 @@ resource "aws_launch_template" "ec2_launch_templ" {
   image_id    = "ami-0a0f1259dd1c90938"
   # instance_type = "t2.micro"
   instance_type = "c5a.large"
-  user_data     = filebase64("user_data.sh")
+  user_data = base64encode(templatefile("user_data.sh.tpl", {
+    LOG_FILE               = "/var/log/user_data.log"
+    BRANCH_NAME_TO_DEPLOY  = data.dotenv.env_file.env["BRANCH_NAME_TO_DEPLOY"]
+    MONGO_AUTH_CREDENTIALS = data.dotenv.env_file.env["MONGO_AUTH_CREDENTIALS"]
+    TARGET_GROUP_NAME      = aws_lb_target_group.alb_tg.name
+    environment_prefix     = local.environment_prefix
+    LOGS_S3_BUCKET         = data.dotenv.env_file.env["LOGS_S3_BUCKET"]
+  }))
 
   network_interfaces {
     associate_public_ip_address = false
@@ -82,13 +89,19 @@ resource "aws_launch_template" "ec2_launch_templ" {
   iam_instance_profile {
     name = aws_iam_instance_profile.ec2_profile.name
   }
+
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_put_response_hop_limit = 1
+    http_tokens                 = "optional"
+  }
 }
 
 resource "aws_autoscaling_group" "asg" {
   name_prefix      = "${local.environment_prefix}asg"
-  desired_capacity = 6
-  max_size         = 6
-  min_size         = 6
+  desired_capacity = 3
+  max_size         = 3
+  min_size         = 3
 
   # connect to the target group
   target_group_arns = [aws_lb_target_group.alb_tg.arn]
@@ -119,10 +132,16 @@ resource "aws_instance" "redis_cache" {
   iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
 
   # user_data = filebase64("user_data_redis.sh")
-  user_data = templatefile("user_data_redis.sh.tpl", {
+  user_data = base64encode(templatefile("user_data_redis.sh.tpl", {
     environment_prefix = local.environment_prefix
     LOG_FILE           = "/var/log/user_data_redis.log"
-  })
+  }))
+
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_put_response_hop_limit = 1
+    http_tokens                 = "optional"
+  }
 }
 
 # Bastion Host Instance

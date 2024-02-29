@@ -63,32 +63,19 @@ for id in $instanceIds; do
         git checkout $BRANCH_NAME_TO_DEPLOY
         git pull origin $BRANCH_NAME_TO_DEPLOY
 
-        # setup and restart cloudwatch agent
-        if [ "$BRANCH_NAME_TO_DEPLOY" != "release" ]; then
-            echo "Branch is not 'release'. Prepending staging to cloudwatch config file log group name"
-            if ! grep -q "StagingQuizBackendLogs" $pathToCloudwatchConfig; then
-                echo "Replacing 'QuizBackendLogs' with 'StagingQuizBackendLogs' in JSON file."
-                sed -i 's/QuizBackendLogs/StagingQuizBackendLogs/g' $pathToCloudwatchConfig
-            fi
-        fi
-        # sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:$pathToCloudwatchConfig -s
-
+        # HOST_IP=$(curl http://169.254.169.254/latest/meta-data/local-ipv4)
+        echo "HOST_IP=$instanceIp" >> .env
 
         source venv/bin/activate
         pip install -r app/requirements.txt
         cd app
-
-        sudo yum install -y cronie
-        sudo systemctl start crond.service
-        sudo systemctl enable crond.service
-
 
         # if the log shipper script exists, make it executable and setup cron for it
         if [ -f "log_shipper.sh" ]; then
             echo "Making log_shipper.sh executable..."
             chmod +x log_shipper.sh
             echo "Setting up cron for log_shipper.sh..."
-            (crontab -l 2>/dev/null; echo "*/$RANDOM_MINUTE * * * * /home/ec2-user/quiz-backend/app/log_shipper.sh 2>> /home/ec2-user/quiz-backend/app/log_shipper_error.log") | crontab -
+            (crontab -l 2>/dev/null | grep -v 'log_shipper.sh' ; echo "*/$RANDOM_MINUTE * * * * /home/ec2-user/quiz-backend/app/log_shipper.sh 2>> /home/ec2-user/quiz-backend/app/log_shipper_error.log") | crontab -
         fi
 
         nohup uvicorn main:app --host 0.0.0.0 --port 80 --workers 8 > uvicorn.log 2>&1 &
