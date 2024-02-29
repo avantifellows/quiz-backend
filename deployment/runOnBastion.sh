@@ -47,6 +47,10 @@ for i in "${!instanceIdsArray[@]}"; do
     private_ip=${privateIpsArray[$i]}
     echo "[EC2 Action] Processing instance ID: $id"
 
+    # Get private IP of the instance
+    echo "[EC2 Action] Getting private IP of instance $id..."
+    instanceIp=$(aws ec2 describe-instances --instance-ids $id --query "Reservations[*].Instances[*].PrivateIpAddress" --output text)
+
     echo "[EC2 Action] Changing access permissions for the directory..."
     ssh -o StrictHostKeyChecking=no -i $keyPath ec2-user@$instanceIp "sudo chown -R ec2-user:ec2-user /home/ec2-user/quiz-backend"
 
@@ -70,7 +74,7 @@ for i in "${!instanceIdsArray[@]}"; do
         git pull origin $BRANCH_NAME_TO_DEPLOY
         echo "Pulled latest changes from $BRANCH_NAME_TO_DEPLOY"
         echo $id
-        echo "HOST_IP=$private_ip" >> .env
+        echo "HOST_IP=$instanceIp" >> .env
         echo "Added host ip to .env file"
 
         echo "trying to activate venv"
