@@ -43,17 +43,12 @@ privateIpsArray=($privateIps)
 BRANCH_NAME_TO_DEPLOY=$(grep BRANCH_NAME_TO_DEPLOY $envFile | cut -d '=' -f2)
 
 for i in "${!instanceIdsArray[@]}"; do
-    id = ${instanceIdsArray[$i]}
-    private_ip = ${privateIpsArray[$i]}
+    id=${instanceIdsArray[$i]}
+    private_ip=${privateIpsArray[$i]}
     echo "[EC2 Action] Processing instance ID: $id"
-
-    # Get private IP of the instance
-    echo "[EC2 Action] Getting private IP of instance $id..."
-    instanceIp=$(aws ec2 describe-instances --instance-ids $id --query "Reservations[*].Instances[*].PrivateIpAddress" --output text)
 
     echo "[EC2 Action] Changing access permissions for the directory..."
     ssh -o StrictHostKeyChecking=no -i $keyPath ec2-user@$instanceIp "sudo chown -R ec2-user:ec2-user /home/ec2-user/quiz-backend"
-
 
     # Transfer .env file
     echo "[EC2 Action] Transferring .env file to instance $id at IP $instanceIp..."
