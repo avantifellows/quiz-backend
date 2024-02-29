@@ -106,7 +106,7 @@ for i in "${!instanceIdsArray[@]}"; do
         fi
 
         cd /home/ec2-user/quiz-backend/app
-        nohup uvicorn main:app --host 0.0.0.0 --port 80 --workers 8 
+        nohup uvicorn main:app --host 0.0.0.0 --port 80 --workers 8 > /dev/null 2>&1 &
         # > /home/ec2-user/quiz-backend/logs/uvicorn.log 2>&1 &
         disown
 EOF
