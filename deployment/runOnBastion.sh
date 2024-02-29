@@ -32,10 +32,19 @@ pathToCloudwatchConfig="/home/ec2-user/quiz-backend/deployment/cloudwatch-agent-
 echo "[EC2 Action] Fetching instance IDs of the target group..."
 instanceIds=$(aws elbv2 describe-target-health --target-group-arn $targetGroupArn --query "TargetHealthDescriptions[*].Target.Id" --output text --region $region)
 
+echo "[EC2 Action] Fetching private IP addresses of the instances..."
+privateIps=$(aws ec2 describe-instances --instance-ids $instanceIds --query "Reservations[*].Instances[*].PrivateIpAddress" --output text --region $region)
+
+# Convert the space-separated strings into arrays
+instanceIdsArray=($instanceIds)
+privateIpsArray=($privateIps)
+
 # extract BRANCH_NAME_TO_DEPLOY from .env file and store it in an environment variable
 BRANCH_NAME_TO_DEPLOY=$(grep BRANCH_NAME_TO_DEPLOY $envFile | cut -d '=' -f2)
 
-for id in $instanceIds; do
+for i in "${!instanceIdsArray[@]}"; do
+    id = ${instanceIdsArray[$i]}
+    private_ip = ${privateIpsArray[$i]}
     echo "[EC2 Action] Processing instance ID: $id"
 
     # Get private IP of the instance
@@ -66,7 +75,7 @@ for id in $instanceIds; do
         git pull origin $BRANCH_NAME_TO_DEPLOY
         echo "Pulled latest changes from $BRANCH_NAME_TO_DEPLOY"
         echo $id
-        echo "HOST_IP=$id" >> .env
+        echo "HOST_IP=$private_ip" >> .env
         echo "Added host ip to .env file"
 
         echo "trying to activate venv"
