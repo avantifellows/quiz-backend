@@ -60,7 +60,7 @@ for i in "${!instanceIdsArray[@]}"; do
 
     # Execute commands on the instance
     echo "[EC2 Action] Executing commands on instance $id..."
-    RANDOM_NUMBER=$((9 + RANDOM % (15 - 9 + 1)))
+    RANDOM_MINUTE=$((9 + RANDOM % (15 - 9 + 1)))
     echo "Random minute: $RANDOM_MINUTE"
     ssh -o StrictHostKeyChecking=no -i $keyPath ec2-user@$instanceIp << EOF
         echo "[EC2 Action] Stopping any process running on port 80..."
