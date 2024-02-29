@@ -61,6 +61,7 @@ for i in "${!instanceIdsArray[@]}"; do
     # Execute commands on the instance
     echo "[EC2 Action] Executing commands on instance $id..."
     RANDOM_MINUTE=$((9 + RANDOM % 15))
+    echo "Random minute: $RANDOM_MINUTE"
     ssh -o StrictHostKeyChecking=no -i $keyPath ec2-user@$instanceIp << EOF
         echo "[EC2 Action] Stopping any process running on port 80..."
         sudo fuser -k 80/tcp
@@ -105,7 +106,8 @@ for i in "${!instanceIdsArray[@]}"; do
         fi
 
         cd /home/ec2-user/quiz-backend/app
-        nohup uvicorn main:app --host 0.0.0.0 --port 80 --workers 8 > /home/ec2-user/quiz-backend/logs/uvicorn.log 2>&1 &
+        nohup uvicorn main:app --host 0.0.0.0 --port 80 --workers 8 
+        # > /home/ec2-user/quiz-backend/logs/uvicorn.log 2>&1 &
         disown
 EOF
     echo "[EC2 Action] Completed actions on instance $id."
