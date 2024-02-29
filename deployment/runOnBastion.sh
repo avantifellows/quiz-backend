@@ -68,6 +68,7 @@ for i in "${!instanceIdsArray[@]}"; do
 
         echo "[EC2 Action] Updating codebase and restarting the application..."
         cd /home/ec2-user/quiz-backend
+        git stash
         echo "Changed directory to /home/ec2-user/quiz-backend"
         git checkout $BRANCH_NAME_TO_DEPLOY
         echo "Checked out branch $BRANCH_NAME_TO_DEPLOY"
