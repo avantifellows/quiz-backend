@@ -47,9 +47,13 @@ def setup_logger():
 
     # Custom namer function to add timestamp to rotated log files
     def log_namer(name):
-        name_parts = name.split(".")
+        name_parts = name.split("_")
+        app = name_parts[0]
+        machine_ip = name_parts[1]
+        pid = name_parts[2].split(".")[0]
+        # app, machine_ip, pid
         timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-        return f"{name_parts[0]}.{name_parts[1]}.{name_parts[2]}.{name_parts[3]}.{timestamp}.{name_parts[4]}"
+        return f"{app}_{machine_ip}_{pid}_{timestamp}.log"
 
     # Create the TimedRotatingFileHandler with the custom filename
     # random_interval = random.randint(5, 8)
