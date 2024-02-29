@@ -31,7 +31,7 @@ jobs:
       run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
       id: extract_branch
 
-    - name: Run Deployment Script
+    - name:  Run Deployment Script
       run: |
         bash deployment/runOnGithubAction.sh
       env:
