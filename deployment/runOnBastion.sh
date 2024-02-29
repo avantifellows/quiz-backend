@@ -104,6 +104,7 @@ for i in "${!instanceIdsArray[@]}"; do
             (crontab -l 2>/dev/null | grep -v 'cache_write_back.sh' ; echo "30 21 * * * /home/ec2-user/quiz-backend/app/cache/cache_write_back.sh 2>> /home/ec2-user/quiz-backend/logs/cache_write_back_cron.log") | crontab -
         fi
 
+        cd /home/ec2-user/quiz-backend/app
         nohup uvicorn main:app --host 0.0.0.0 --port 80 --workers 8 > /home/ec2-user/quiz-backend/logs/uvicorn.log 2>&1 &
         disown
 EOF
