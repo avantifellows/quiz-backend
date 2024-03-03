@@ -6,14 +6,30 @@ import time
 
 
 def perform_write_back_to_db():
-    # import ipdb; ipdb.set_trace()
+    """
+    This function is used to write back the data from Redis to MongoDB.
+    When this begins, a lock key is set in Redis to prevent any incoming requests from being processed.
+    The lock key is released when the write back is complete or it fails.
+
+    The function first finds all the session_ids which need to be inserted into MongoDB and inserts them.
+    It then invalidates the cache for these session_ids.
+
+    Similarly, it finds all the session_ids which need to be updated in MongoDB and updates them.
+    It then invalidates the cache for these session_ids.
+
+    It also invalidates the cache for the previous two session_ids for a user-quiz combo.
+    """
     print("Checking if lock key is already set")
     # Check if the write back lock key is already set in Redis
     if get_cached_data(CacheKeys.WRITE_BACK_LOCK.value):
         print("Lock key already set, returning")
         return
+
+    # to measure the time taken for the write back
     t0 = time.time()
+
     print("Performing write back to DB")
+
     # Set the write back lock key in Redis
     cache_data(CacheKeys.WRITE_BACK_LOCK.value, "1", 60 * 60)
     print("Lock key set")
