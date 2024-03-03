@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# This script is repeatedly called by the cron job to write the cache back to the database
+
 cd /home/ec2-user/quiz-backend/
 source venv/bin/activate
 cd app
