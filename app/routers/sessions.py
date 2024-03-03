@@ -100,16 +100,16 @@ async def create_session(session: Session):
     last_session, second_last_session = None, None
     # only one session exists
     if len(previous_two_sessions) == 1:
-        log_message += f", only one previous session exists for this user-quiz combo"
+        log_message += ", only one previous session exists for this user-quiz combo"
         last_session = previous_two_sessions[0]
     # two previous sessions exist
     elif len(previous_two_sessions) == 2:
-        log_message += f", two previous sessions exist for this user-quiz combo"
+        log_message += ", two previous sessions exist for this user-quiz combo"
         last_session, second_last_session = previous_two_sessions  # unpack
 
     session_answers = []
     if last_session is None:
-        log_message += f", no previous session exists for this user-quiz combo"
+        log_message += ", no previous session exists for this user-quiz combo"
         current_session["is_first"] = True
         if quiz["time_limit"] is not None:
             current_session["time_remaining"] = quiz["time_limit"][
@@ -151,7 +151,9 @@ async def create_session(session: Session):
         # we reach here because some meaningful event (start/resume/end) has occurred in last_session
         # so, we HAVE to distinguish between current_session and last_session by creating
         # a new session for current_session
-        log_message += f", some meaningful event has occurred in last_session, creating new session"
+        log_message += (
+            ", some meaningful event has occurred in last_session, creating new session"
+        )
         current_session["is_first"] = False
         current_session["events"] = last_session.get("events", [])
         current_session["time_remaining"] = last_session.get("time_remaining", None)
@@ -220,7 +222,6 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     """
     new_event = jsonable_encoder(session_updates)["event"]
     log_message = f"Updating session with id {session_id} and event {new_event}"
-    session_update_query = {}
 
     # if new_event == EventType.dummy_event:
     #     return JSONResponse(
@@ -354,7 +355,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     #         detail=f"Failed to update session with id {session_id}",
     #     )
 
-    log_message += f", success!"
+    log_message += ", success!"
     logger.info(log_message)
 
     return JSONResponse(status_code=status.HTTP_200_OK, content=response_content)

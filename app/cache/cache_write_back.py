@@ -1,5 +1,4 @@
 from pymongo import UpdateOne
-from bson import ObjectId
 from database import client
 from cache.cache import cache_data, get_cached_data, get_keys, invalidate_cache
 import time
@@ -41,7 +40,7 @@ def perform_write_back_to_db():
         if len(insert_operations) > 0:
             print(f"Inserting {len(insert_operations)} sessions into MongoDB")
             inserted_result = client.quiz.sessions.insert_many(insert_operations)
-            print(f"Inserted_result", {inserted_result})
+            print("Inserted_result", {inserted_result})
             if len(inserted_result.inserted_ids) != len(insert_operations):
                 raise Exception("Some sessions were not inserted")
             else:
@@ -74,7 +73,7 @@ def perform_write_back_to_db():
         if update_operations:
             print(f"Updating {len(update_operations)} sessions in MongoDB")
             update_result = client.quiz.sessions.bulk_write(update_operations)
-            print(f"Update_result", {update_result})
+            print("Update_result", {update_result})
             if update_result.modified_count != len(update_operations):
                 raise Exception("Some sessions were not updated")
             else:

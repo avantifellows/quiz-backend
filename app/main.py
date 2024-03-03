@@ -3,9 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from routers import questions, quizzes, session_answers, sessions, organizations
 from mangum import Mangum
-import random
-import string
-import time
 import asyncio
 from logger_config import setup_logger
 from cache.cache import get_cached_data
