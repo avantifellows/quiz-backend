@@ -1,36 +1,31 @@
 from pymongo import UpdateOne
 from database import client
 from cache.cache import cache_data, get_cached_data, get_keys, invalidate_cache
+from cache.cache_keys import CacheKeys
 import time
-
-# Redis key prefix and lock key
-KEY_PREFIX_INSERT = "session_id_to_insert_"
-KEY_PREFIX_UPDATE = "session_id_to_update_"
-WRITE_BACK_LOCK_KEY = "write_back_lock"
-PREVIOUS_TWO_SESSION_IDS_KEY = "previous_two_session_ids_"
 
 
 def perform_write_back_to_db():
     # import ipdb; ipdb.set_trace()
     print("Checking if lock key is already set")
     # Check if the write back lock key is already set in Redis
-    if get_cached_data(WRITE_BACK_LOCK_KEY):
+    if get_cached_data(CacheKeys.WRITE_BACK_LOCK.value):
         print("Lock key already set, returning")
         return
     t0 = time.time()
     print("Performing write back to DB")
     # Set the write back lock key in Redis
-    cache_data(WRITE_BACK_LOCK_KEY, "1", 60 * 60)
+    cache_data(CacheKeys.WRITE_BACK_LOCK.value, "1", 60 * 60)
     print("Lock key set")
 
     # Find all keys in Redis for insertion
     session_ids_to_insert = []
-    insert_keys = get_keys(f"{KEY_PREFIX_INSERT}*")
+    insert_keys = get_keys(CacheKeys.SESSION_ID_TO_INSERT_.value + "*")
     print("Length of insert keys", len(insert_keys))
     insert_operations = []
     for key in insert_keys:
         session_id = key.split("_")[-1]
-        session_data = get_cached_data(f"session_{session_id}")
+        session_data = get_cached_data(CacheKeys.SESSION_.value + session_id)
         if session_data:
             session_ids_to_insert.append(session_id)
             insert_operations.append(session_data)
@@ -45,23 +40,23 @@ def perform_write_back_to_db():
                 raise Exception("Some sessions were not inserted")
             else:
                 for session_id in inserted_result.inserted_ids:
-                    invalidate_cache(f"{KEY_PREFIX_INSERT}{session_id}")
+                    invalidate_cache(CacheKeys.SESSION_ID_TO_INSERT_.value + session_id)
                     invalidate_cache(f"session_{session_id}")
                 print("Insertion successful, cache invalidated for inserted sessions")
     except Exception as e:
         print(f"Error while inserting: {e}")
-        invalidate_cache(WRITE_BACK_LOCK_KEY)
+        invalidate_cache(CacheKeys.WRITE_BACK_LOCK.value)
         print("Lock key released")
         return
 
     # Find all keys in Redis for update
     session_ids_to_update = []
-    update_keys = get_keys(f"{KEY_PREFIX_UPDATE}*")
+    update_keys = get_keys(CacheKeys.SESSION_ID_TO_UPDATE_.value + "*")
     print("Length of update keys", len(update_keys))
     update_operations = []
     for key in update_keys:
         session_id = key.split("_")[-1]
-        session_data = get_cached_data(f"session_{session_id}")
+        session_data = get_cached_data(CacheKeys.SESSION_.value + session_id)
         if session_data:
             session_ids_to_update.append(session_id)
             update_operations.append(
@@ -78,23 +73,25 @@ def perform_write_back_to_db():
                 raise Exception("Some sessions were not updated")
             else:
                 for session_id in session_ids_to_update:
-                    invalidate_cache(f"{KEY_PREFIX_UPDATE}{session_id}")
-                    invalidate_cache(f"session_{session_id}")
+                    invalidate_cache(CacheKeys.SESSION_ID_TO_UPDATE_.value + session_id)
+                    invalidate_cache(CacheKeys.SESSION_.value + session_id)
                 print("Update successful, cache invalidated for updated sessions")
     except Exception as e:
         print(f"Error while updating: {e}")
-        invalidate_cache(WRITE_BACK_LOCK_KEY)
+        invalidate_cache(CacheKeys.WRITE_BACK_LOCK.value)
         print("Lock key released")
         return
 
-    previous_two_session_keys = get_keys(f"{PREVIOUS_TWO_SESSION_IDS_KEY}*")
+    previous_two_session_keys = get_keys(
+        CacheKeys.PREVIOUS_TWO_SESSION_IDS_.value + "*"
+    )
     print("Length of previous two session keys", len(previous_two_session_keys))
     for key in previous_two_session_keys:
         invalidate_cache(key)
     print("Cache invalidated for previous two session keys")
 
     # Release the write back lock key in Redis
-    invalidate_cache(WRITE_BACK_LOCK_KEY)
+    invalidate_cache(CacheKeys.WRITE_BACK_LOCK.value)
     print("Lock key released")
 
     print("Write back to DB completed")

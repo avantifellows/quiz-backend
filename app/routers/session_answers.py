@@ -7,6 +7,7 @@ from utils import remove_optional_unset_args
 from logger_config import get_logger
 from typing import List, Tuple
 from cache.cache import cache_data, get_cached_data
+from cache.cache_keys import CacheKeys
 
 router = APIRouter(prefix="/session_answers", tags=["Session Answers"])
 logger = get_logger()
@@ -27,7 +28,7 @@ async def update_session_answers_at_specific_positions(
     """
     log_message = f"Updating multiple session answers for session: {session_id}"
     session = None
-    cached_session = get_cached_data(f"session_{session_id}")
+    cached_session = get_cached_data(CacheKeys.SESSION_.value + session_id)
     if cached_session:
         session = cached_session
     else:
@@ -76,9 +77,9 @@ async def update_session_answers_at_specific_positions(
         for key, value in session_answer.items():
             session["session_answers"][position_index][key] = value
 
-    cache_data(f"session_{session_id}", session)
-    if get_cached_data(f"session_id_to_insert_{session_id}") is None:
-        cache_data(f"session_id_to_update_{session_id}")
+    cache_data(CacheKeys.SESSION_.value + session_id, session)
+    if get_cached_data(CacheKeys.SESSION_ID_TO_INSERT_.value + session_id) is None:
+        cache_data(CacheKeys.SESSION_ID_TO_UPDATE_.value + session_id, "x")
 
     # result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
     # if result.modified_count == 0:
@@ -110,7 +111,7 @@ async def update_session_answer_in_a_session(
 
     # check if the session exists
     session = None
-    cached_session = get_cached_data(f"session_{session_id}")
+    cached_session = get_cached_data(CacheKeys.SESSION_.value + session_id)
     if cached_session:
         session = cached_session
     else:
@@ -156,9 +157,9 @@ async def update_session_answer_in_a_session(
 
     # update the document in the session_answers collection
     # result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
-    cache_data(f"session_{session_id}", session)
-    if get_cached_data(f"session_id_to_insert_{session_id}") is None:
-        cache_data(f"session_id_to_update_{session_id}", "x")
+    cache_data(CacheKeys.SESSION_.value + session_id, session)
+    if get_cached_data(CacheKeys.SESSION_ID_TO_INSERT_.value + session_id) is None:
+        cache_data(CacheKeys.SESSION_ID_TO_UPDATE_.value + session_id, "x")
 
     # if result.modified_count == 0:
     #     logger.error(
@@ -205,7 +206,7 @@ async def get_session_answer_from_a_session(session_id: str, position_index: int
     #     )
 
     session = None
-    cached_session = get_cached_data(f"session_{session_id}")
+    cached_session = get_cached_data(CacheKeys.SESSION_.value + session_id)
     if cached_session:
         session = cached_session
     else:
@@ -217,7 +218,7 @@ async def get_session_answer_from_a_session(session_id: str, position_index: int
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=log_message,
             )
-        cache_data(f"session_{session_id}", session)
+        cache_data(CacheKeys.SESSION_.value + session_id, session)
 
     if "session_answers" not in session or session["session_answers"] is None:
         log_message += ", No session answers found in the session"

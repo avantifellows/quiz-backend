@@ -21,6 +21,7 @@ from cache.cache import (
     cache_data_local,
     invalidate_cache,
 )
+from cache.cache_keys import CacheKeys
 
 
 def str_to_datetime(datetime_str: str) -> datetime:
@@ -39,7 +40,7 @@ async def create_session(session: Session):
     current_session = jsonable_encoder(session)
     # get quiz from cache or db
     quiz = None
-    quiz_cache_key = f"quiz_{current_session['quiz_id']}"
+    quiz_cache_key = CacheKeys.QUIZ_.value + current_session["quiz_id"]
     cached_quiz = get_cached_data_local(quiz_cache_key)
     if not cached_quiz:
         quiz = client.quiz.quizzes.find_one({"_id": current_session["quiz_id"]})
@@ -56,7 +57,12 @@ async def create_session(session: Session):
 
     # try to get the previous two sessions of a user+quiz pair if they exist
     previous_two_sessions = None
-    previous_two_session_ids_cache_key = f"previous_two_session_ids_{current_session['user_id']}_{current_session['quiz_id']}"
+    previous_two_session_ids_cache_key = (
+        CacheKeys.PREVIOUS_TWO_SESSION_IDS_
+        + current_session["user_id"]
+        + "_"
+        + current_session["quiz_id"]
+    )
     cached_previous_two_session_ids = get_cached_data(
         previous_two_session_ids_cache_key
     )
@@ -79,7 +85,8 @@ async def create_session(session: Session):
                 previous_two_session_ids_cache_key, [previous_two_sessions[0]["_id"]]
             )
             cache_data(
-                f"session_{previous_two_sessions[0]['_id']}", previous_two_sessions[0]
+                CacheKeys.SESSION_.value + previous_two_sessions[0]["_id"],
+                previous_two_sessions[0],
             )
         elif len(previous_two_sessions) == 2:
             cache_data(
@@ -87,14 +94,17 @@ async def create_session(session: Session):
                 [previous_two_sessions[0]["_id"], previous_two_sessions[1]["_id"]],
             )
             cache_data(
-                f"session_{previous_two_sessions[0]['_id']}", previous_two_sessions[0]
+                CacheKeys.SESSION_.value + previous_two_sessions[0]["_id"],
+                previous_two_sessions[0],
             )
             cache_data(
-                f"session_{previous_two_sessions[1]['_id']}", previous_two_sessions[1]
+                CacheKeys.SESSION_.value + previous_two_sessions[1]["_id"],
+                previous_two_sessions[1],
             )
     else:
         previous_two_sessions = [
-            get_cached_data(f"session_{sid}") for sid in cached_previous_two_session_ids
+            get_cached_data(CacheKeys.SESSION_.value + sid)
+            for sid in cached_previous_two_session_ids
         ]
 
     last_session, second_last_session = None, None
@@ -175,8 +185,8 @@ async def create_session(session: Session):
 
     current_session["session_answers"] = session_answers
 
-    cache_data(f"session_id_to_insert_{current_session['_id']}", "x")
-    cache_data(f"session_{current_session['_id']}", current_session)
+    cache_data(CacheKeys.SESSION_ID_TO_INSERT_.value + current_session["_id"], "x")
+    cache_data(CacheKeys.SESSION_.value + current_session["_id"], current_session)
 
     previous_two_sessions.insert(0, current_session)
     if len(previous_two_sessions) > MAX_SESSIONS_TO_CACHE_FOR_A_USER_QUIZ_PAIR:
@@ -190,8 +200,11 @@ async def create_session(session: Session):
             previous_two_sessions.pop()
             invalidate_cache(f"session_{_session_id}")
             # if this session was created in cache itself, then invalidate it
-            if get_cached_data(f"session_id_to_insert_{_session_id}") is not None:
-                invalidate_cache(f"session_id_to_insert_{_session_id}")
+            if (
+                get_cached_data(CacheKeys.SESSION_ID_TO_INSERT_.value + _session_id)
+                is not None
+            ):
+                invalidate_cache(CacheKeys.SESSION_ID_TO_INSERT_.value + _session_id)
         else:
             log_message += (
                 f", failed to insert last session with id {_session_id} to db"
@@ -229,7 +242,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     #     )
 
     session = None
-    cached_session = get_cached_data(f"session_{session_id}")
+    cached_session = get_cached_data(CacheKeys.SESSION_.value + session_id)
     if cached_session:
         session = cached_session
     else:
@@ -342,9 +355,9 @@ async def update_session(session_id: str, session_updates: UpdateSession):
         #     session_update_query["$set"] = {"has_quiz_ended": True}
         # else:
         #     session_update_query["$set"].update({"has_quiz_ended": True})
-    cache_data(f"session_{session_id}", session)
-    if get_cached_data(f"session_id_to_insert_{session_id}") is None:
-        cache_data(f"session_id_to_update_{session_id}", "x")
+    cache_data(CacheKeys.SESSION_.value + session_id, session)
+    if get_cached_data(CacheKeys.SESSION_ID_TO_INSERT_.value + session_id) is None:
+        cache_data(CacheKeys.SESSION_ID_TO_UPDATE_.value + session_id, "x")
     # update_result = client.quiz.sessions.update_one(
     #     {"_id": session_id}, session_update_query
     # )
@@ -364,7 +377,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
 @router.get("/{session_id}", response_model=SessionResponse)
 async def get_session(session_id: str):
     session = None
-    cached_session = get_cached_data(f"session_{session_id}")
+    cached_session = get_cached_data(CacheKeys.SESSION_.value + session_id)
     if cached_session:
         session = cached_session
     else:
@@ -375,5 +388,5 @@ async def get_session(session_id: str):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"session {session_id} not found",
             )
-        cache_data(f"session_{session_id}", session)
+        cache_data(CacheKeys.SESSION_.value + session_id, session)
     return session

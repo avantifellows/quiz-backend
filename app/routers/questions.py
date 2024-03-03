@@ -3,6 +3,7 @@ from database import client
 from models import QuestionResponse
 from logger_config import get_logger
 from cache.cache import cache_data_local, get_cached_data_local
+from cache.cache_keys import CacheKeys
 
 router = APIRouter(prefix="/questions", tags=["Questions"])
 logger = get_logger()
@@ -10,7 +11,7 @@ logger = get_logger()
 
 @router.get("/{question_id}", response_model=QuestionResponse)
 async def get_question(question_id: str):
-    cache_key = f"question_{question_id}"
+    cache_key = CacheKeys.QUESTION_.value + question_id
     cached_data = get_cached_data_local(cache_key)
     if cached_data:
         return cached_data
@@ -28,7 +29,14 @@ async def get_question(question_id: str):
 
 @router.get("/")
 async def get_questions(question_set_id: str, skip: int = None, limit: int = None):
-    cache_key = f"questions_in_qset_{question_set_id}_skip_{skip}_limit_{limit}"
+    cache_key = (
+        CacheKeys.QUESTIONS_IN_QSET_.value
+        + question_set_id
+        + CacheKeys._SKIP_.value
+        + str(skip)
+        + CacheKeys._LIMIT_.value
+        + str(limit)
+    )
     cached_data = get_cached_data_local(cache_key)
     if cached_data:
         return cached_data

@@ -8,6 +8,7 @@ import string
 from fastapi.encoders import jsonable_encoder
 from logger_config import get_logger
 from cache.cache import cache_data_local, get_cached_data_local
+from cache.cache_keys import CacheKeys
 
 router = APIRouter(prefix="/organizations", tags=["Organizations"])
 settings = Settings()
@@ -58,7 +59,7 @@ async def create_organization(organization: Organization):
 
 @router.get("/authenticate/{api_key}", response_model=OrganizationResponse)
 async def check_auth_token(api_key: str):
-    cache_key = f"org_{api_key}"
+    cache_key = CacheKeys.ORG_.value + api_key
 
     cached_data = get_cached_data_local(cache_key)
     if cached_data:

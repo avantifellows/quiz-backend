@@ -6,6 +6,7 @@ from mangum import Mangum
 import asyncio
 from logger_config import setup_logger
 from cache.cache import get_cached_data
+from cache.cache_keys import CacheKeys
 
 logger = setup_logger()
 
@@ -20,7 +21,7 @@ app = FastAPI()
 async def check_write_back_lock():
     retries = 0
     while retries < MAX_RETRIES:
-        if not get_cached_data(WRITE_BACK_LOCK_KEY):
+        if not get_cached_data(CacheKeys.WRITE_BACK_LOCK.value):
             return
         await asyncio.sleep(RETRY_DELAY)
         retries += 1

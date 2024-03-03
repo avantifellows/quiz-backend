@@ -7,6 +7,7 @@ from settings import Settings
 from schemas import QuizType
 from logger_config import get_logger
 from cache.cache import cache_data_local, get_cached_data_local
+from cache.cache_keys import CacheKeys
 
 router = APIRouter(prefix="/quiz", tags=["Quiz"])
 settings = Settings()
@@ -73,7 +74,7 @@ async def create_quiz(quiz: Quiz):
 
 @router.get("/{quiz_id}", response_model=GetQuizResponse)
 async def get_quiz(quiz_id: str):
-    cache_key = f"quiz_{quiz_id}"
+    cache_key = CacheKeys.QUIZ_.value + quiz_id
     quiz_collection = client.quiz.quizzes
 
     cached_data = get_cached_data_local(cache_key)
