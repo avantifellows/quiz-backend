@@ -7,7 +7,7 @@ if "REDIS_HOST" not in os.environ:
 
     load_dotenv("../.env")
 
-r = redis.Redis(
+r_centralised = redis.Redis(
     host=os.getenv("REDIS_HOST") or "localhost", port=6379, decode_responses=True
 )
 
@@ -16,7 +16,7 @@ r_local = redis.Redis(host="localhost", port=6379, decode_responses=True)
 
 def cache_data(key: str, value, expire: int = 60 * 60 * 24):
     """Cache data in Redis."""
-    r.set(key, json.dumps(value), ex=expire)
+    r_centralised.set(key, json.dumps(value), ex=expire)
 
 
 def cache_data_local(key: str, value, expire: int = 60 * 60 * 24):
@@ -26,7 +26,7 @@ def cache_data_local(key: str, value, expire: int = 60 * 60 * 24):
 
 def get_cached_data(key: str):
     """Retrieve data from Redis cache."""
-    cached_data = r.get(key)
+    cached_data = r_centralised.get(key)
     if cached_data:
         return json.loads(cached_data)
     return None
@@ -42,7 +42,7 @@ def get_cached_data_local(key: str):
 
 def get_keys(pattern: str):
     """Retrieve keys from Redis cache."""
-    return r.keys(pattern)
+    return r_centralised.keys(pattern)
 
 
 def get_keys_local(pattern: str):
@@ -52,7 +52,7 @@ def get_keys_local(pattern: str):
 
 def invalidate_cache(key: str):
     """Invalidate cache."""
-    r.delete(key)
+    r_centralised.delete(key)
 
 
 def invalidate_cache_local(key: str):
