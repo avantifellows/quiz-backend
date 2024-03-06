@@ -11,14 +11,24 @@ from cache.cache_keys import CacheKeys
 logger = setup_logger()
 
 COMPRESS_MIN_THRESHOLD = 1000  # if more than 1000 bytes (~1KB), compress
+
+# Retry settings for when the service is not available due to write back taking place from
+# the cache to the database
 MAX_RETRIES = 10
 RETRY_DELAY = 0.5
-WRITE_BACK_LOCK_KEY = "write_back_lock"
 
 app = FastAPI()
 
 
 async def check_write_back_lock():
+    """
+    Checks if the write back lock is set. If it's set, this function will retry
+    for a maximum of MAX_RETRIES times with a delay of RETRY_DELAY seconds between each
+    retry. If the lock is not set after MAX_RETRIES, the service will return a 503 status
+    code and a message indicating that the service is temporarily unavailable due to maintenance.
+
+    If the lock is not set, the function will return immediately.
+    """
     retries = 0
     while retries < MAX_RETRIES:
         if not get_cached_data(CacheKeys.WRITE_BACK_LOCK.value):
@@ -32,12 +42,24 @@ async def check_write_back_lock():
 
 @app.middleware("http")
 async def write_back_lock_middleware(request: Request, call_next):
+    """
+    Intercepts all http requests and checks if the write back lock is set.
+    The lock is set when the service is not available due to write back taking place from
+    the cache to the database.
+
+    If the lock is set, the service will return a 503 status code and a message indicating
+    that the service is temporarily unavailable due to maintenance.
+
+    If the lock is not set, the service will proceed as normal.
+    """
     await check_write_back_lock()
     response = await call_next(request)
     return response
 
 
 # ONLY ENABLE IN DEBUG ENVIRONMENTS
+# THIS IS VERY COMPUTE INTENSIVE AND WILL SLOW DOWN THE SERVICE IN A PRODUCTION ENVIRONMENT
+
 # @app.middleware("http")
 # async def log_requests(request: Request, call_next):
 #     """

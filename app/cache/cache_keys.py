@@ -10,8 +10,8 @@ class CacheKeys(Enum):
 
     # to cache a slice of the questions in a question set. The slice is defined by the skip and limit
     QUESTIONS_IN_QSET_ = "questions_in_qset_"
-    _SKIP_ = "_skip_"
-    _LIMIT_ = "_limit_"
+    SKIP = "_skip_"
+    LIMIT = "_limit_"
 
     # to cache the quiz data for a particular quiz with quiz_id
     QUIZ_ = "quiz_"

@@ -91,7 +91,7 @@ fi
 # Start Uvicorn server
 cd /home/ec2-user/quiz-backend/app
 echo "Starting Uvicorn server..."
-uvicorn main:app --host 0.0.0.0 --port 80 --workers 8 > /dev/null 2>&1 &
+uvicorn main:app --host 0.0.0.0 --port 80 --workers 8 > /home/ec2-user/quiz-backend/logs/uvicorn.log 2>&1 &
 #> /home/ec2-user/quiz-backend/logs/uvicorn.log 2>&1 &
 
 

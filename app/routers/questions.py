@@ -32,9 +32,9 @@ async def get_questions(question_set_id: str, skip: int = None, limit: int = Non
     cache_key = (
         CacheKeys.QUESTIONS_IN_QSET_.value
         + question_set_id
-        + CacheKeys._SKIP_.value
+        + CacheKeys.SKIP.value
         + str(skip)
-        + CacheKeys._LIMIT_.value
+        + CacheKeys.LIMIT.value
         + str(limit)
     )
     cached_data = get_cached_data_local(cache_key)

@@ -33,19 +33,26 @@ def setup_logger():
     # consoleHandler.setFormatter(formatter)
     # logger.addHandler(consoleHandler)
 
-    # Define the logs folder and log filename
+    # Define the logs folder where the logs will be stored
+    logs_folder = "../logs"
+
+    # Build the log filename. The filename will contain the machine IP and the process ID.
+    # This is because in a distributed environment, one server can have multiple processes of FastAPI running.
+    # Each of these processes can be represented by a process id (pid)
+    # And because there can be multiple servers, we also want to know which server the logs are coming from.
     pid = os.getpid()
     machine_ip = os.getenv("HOST_IP", "localhost")
-    logs_folder = "../logs"
     log_filename = f"app_{machine_ip}_{pid}.log"
 
     # Create the logs folder if it doesn't exist
     if not os.path.exists(logs_folder):
         os.makedirs(logs_folder)
 
+    # Build the full log file path
     log_filepath = os.path.join(logs_folder, log_filename)
 
-    # Custom namer function to add timestamp to rotated log files
+    # Custom namer function to add timestamp to rotated log files.
+    # At any time the log file is rotated, the filename will be appended with the current timestamp.
     def log_namer(name):
         name_parts = name.split("_")
         app = name_parts[0]
@@ -55,9 +62,10 @@ def setup_logger():
         timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
         return f"{app}_{machine_ip}_{pid}_{timestamp}.log"
 
-    # Create the TimedRotatingFileHandler with the custom filename
+    # Define a random time interval for log rotation. This is done so that all the servers don't rotate logs at the same time.
     random_interval = random.randint(5, 8)
 
+    # Create the TimedRotatingFileHandler with the custom filename
     fileHandler = TimedRotatingFileHandler(
         log_filepath, when="M", interval=random_interval, backupCount=100
     )
