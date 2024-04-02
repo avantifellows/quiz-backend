@@ -209,6 +209,7 @@ class Quiz(BaseModel):
     time_limit: Optional[QuizTimeLimit] = None
     # review answers immediately after quiz ends
     review_immediate: Optional[bool] = True
+    display_solution: Optional[bool] = True
     navigation_mode: NavigationMode = "linear"
     instructions: Optional[str] = None
     language: QuizLanguage = "en"
