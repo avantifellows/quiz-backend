@@ -4,6 +4,7 @@ from fastapi.encoders import jsonable_encoder
 import pymongo
 from database import client
 from schemas import EventType
+from typing import List
 from models import (
     Event,
     Session,
@@ -11,6 +12,8 @@ from models import (
     SessionResponse,
     UpdateSession,
     UpdateSessionResponse,
+    MetricPayload,
+    SessionMetrics,
 )
 from datetime import datetime
 from logger_config import get_logger
@@ -19,6 +22,50 @@ from logger_config import get_logger
 def str_to_datetime(datetime_str: str) -> datetime:
     """converts string to datetime format"""
     return datetime.fromisoformat(datetime_str)
+
+
+def reformat_metrics(metrics: List[MetricPayload]) -> SessionMetrics:
+    session_metrics = {}
+    session_metrics["total_sets"] = len(metrics)
+    qset_metrics = []
+    total_questions = 0
+    total_answered = 0
+    total_skipped = 0
+    total_correct = 0
+    total_wrong = 0
+    total_partially_correct = 0
+    for metric in metrics:
+        qset_metric = {}
+        qset_metric["name"] = metric["name"]
+        qset_metric["marks_scored"] = metric["marksScored"]
+        qset_metric["max_questions_allowed_to_attempt"] = metric[
+            "maxQuestionsAllowedToAttempt"
+        ]
+        total_questions += metric["maxQuestionsAllowedToAttempt"]
+        qset_metric["num_answered"] = metric["numAnswered"]
+        total_answered += metric["numAnswered"]
+        qset_metric["num_skipped"] = (
+            metric["maxQuestionsAllowedToAttempt"] - metric["numAnswered"]
+        )
+        total_skipped += metric["maxQuestionsAllowedToAttempt"] - metric["numAnswered"]
+        qset_metric["num_correct"] = metric["correctlyAnswered"]
+        total_correct += metric["correctlyAnswered"]
+        qset_metric["num_wrong"] = metric["wronglyAnswered"]
+        total_wrong += metric["wronglyAnswered"]
+        qset_metric["num_partially_correct"] = metric["partiallyAnswered"]
+        total_partially_correct += metric["partiallyAnswered"]
+        qset_metric["attempt_rate"] = round(metric["attemptRate"], 2)
+        qset_metric["accuracy_rate"] = round(metric["accuracyRate"], 2)
+        qset_metrics.append(qset_metric)
+    session_metrics["qset_metrics"] = qset_metrics
+    session_metrics["total_questions"] = total_questions
+    session_metrics["total_answered"] = total_answered
+    session_metrics["total_skipped"] = total_skipped
+    session_metrics["total_correct"] = total_correct
+    session_metrics["total_wrong"] = total_wrong
+    session_metrics["total_partially_correct"] = total_partially_correct
+
+    return session_metrics
 
 
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
@@ -117,6 +164,7 @@ async def create_session(session: Session):
         current_session["events"] = last_session.get("events", [])
         current_session["time_remaining"] = last_session.get("time_remaining", None)
         current_session["has_quiz_ended"] = last_session.get("has_quiz_ended", False)
+        current_session["metrics"] = last_session.get("metrics", None)
 
         # restore the answers from the last (previous) sessions
         session_answers_of_the_last_session = last_session["session_answers"]
@@ -161,6 +209,8 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     * resume button is clicked (resume-quiz event)
     * end button is clicked (end-quiz event)
     * dummy event logic added for JNV -- will be removed!
+
+    when end-quiz event is sent, session_updates also contains netrics
     """
     new_event = jsonable_encoder(session_updates)["event"]
     log_message = f"Updating session with id {session_id} and event {new_event}"
@@ -274,10 +324,17 @@ async def update_session(session_id: str, session_updates: UpdateSession):
 
     # update the document in the sessions collection
     if new_event == EventType.end_quiz:
+        session_metrics = reformat_metrics(jsonable_encoder(session_updates)["metrics"])
+
         if "$set" not in session_update_query:
-            session_update_query["$set"] = {"has_quiz_ended": True}
+            session_update_query["$set"] = {
+                "has_quiz_ended": True,
+                "metrics": session_metrics,
+            }
         else:
-            session_update_query["$set"].update({"has_quiz_ended": True})
+            session_update_query["$set"].update(
+                {"has_quiz_ended": True, "metrics": session_metrics}
+            )
 
     update_result = client.quiz.sessions.update_one(
         {"_id": session_id}, session_update_query

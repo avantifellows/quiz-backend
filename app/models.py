@@ -73,6 +73,43 @@ class Event(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class MetricPayload(BaseModel):
+    # metric object received from frontend
+    name: str
+    marksScored: int
+    maxQuestionsAllowedToAttempt: int
+    numAnswered: int
+    correctlyAnswered: int
+    wronglyAnswered: int
+    partiallyAnswered: int
+    attemptRate: float
+    accuracyRate: float
+
+
+class QuestionSetMetric(BaseModel):
+    name: str
+    marks_scored: int
+    max_questions_allowed_to_attempt: int
+    num_answered: int
+    num_skipped: int
+    num_correct: int
+    num_wrong: int
+    num_partially_correct: int
+    attempt_rate: float
+    accuracy_rate: float
+
+
+class SessionMetrics(BaseModel):
+    total_sets: int
+    qset_metrics: List[QuestionSetMetric]
+    total_questions: int
+    total_answered: int
+    total_skipped: int
+    total_correct: int
+    total_wrong: int
+    total_partially_correct: int
+
+
 class QuestionMetadata(BaseModel):
     grade: Optional[str]
     subject: Optional[str]
@@ -423,6 +460,7 @@ class Session(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     events: List[Event] = []
     has_quiz_ended: bool = False
+    metrics: Optional[SessionMetrics] = None
 
     class Config:
         allow_population_by_field_name = True
@@ -440,6 +478,7 @@ class UpdateSession(BaseModel):
     """Model for the body of the request that updates a session"""
 
     event: EventType
+    metrics: Optional[List[MetricPayload]]
 
     class Config:
         schema_extra = {"example": {"event": "start-quiz"}}
