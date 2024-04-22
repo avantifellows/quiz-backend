@@ -26,7 +26,7 @@ def str_to_datetime(datetime_str: str) -> datetime:
 
 def reformat_metrics(metrics: List[MetricPayload]) -> SessionMetrics:
     session_metrics = {}
-    session_metrics["total_sets"] = len(metrics)
+    session_metrics["total_sets"] = len(metrics) if metrics is not None else 0
     qset_metrics = []
     total_questions = 0
     total_answered = 0
@@ -34,29 +34,32 @@ def reformat_metrics(metrics: List[MetricPayload]) -> SessionMetrics:
     total_correct = 0
     total_wrong = 0
     total_partially_correct = 0
-    for metric in metrics:
-        qset_metric = {}
-        qset_metric["name"] = metric["name"]
-        qset_metric["marks_scored"] = metric["marksScored"]
-        qset_metric["max_questions_allowed_to_attempt"] = metric[
-            "maxQuestionsAllowedToAttempt"
-        ]
-        total_questions += metric["maxQuestionsAllowedToAttempt"]
-        qset_metric["num_answered"] = metric["numAnswered"]
-        total_answered += metric["numAnswered"]
-        qset_metric["num_skipped"] = (
-            metric["maxQuestionsAllowedToAttempt"] - metric["numAnswered"]
-        )
-        total_skipped += metric["maxQuestionsAllowedToAttempt"] - metric["numAnswered"]
-        qset_metric["num_correct"] = metric["correctlyAnswered"]
-        total_correct += metric["correctlyAnswered"]
-        qset_metric["num_wrong"] = metric["wronglyAnswered"]
-        total_wrong += metric["wronglyAnswered"]
-        qset_metric["num_partially_correct"] = metric["partiallyAnswered"]
-        total_partially_correct += metric["partiallyAnswered"]
-        qset_metric["attempt_rate"] = round(metric["attemptRate"], 2)
-        qset_metric["accuracy_rate"] = round(metric["accuracyRate"], 2)
-        qset_metrics.append(qset_metric)
+    if metrics is not None:
+        for metric in metrics:
+            qset_metric = {}
+            qset_metric["name"] = metric["name"]
+            qset_metric["marks_scored"] = metric["marksScored"]
+            qset_metric["max_questions_allowed_to_attempt"] = metric[
+                "maxQuestionsAllowedToAttempt"
+            ]
+            total_questions += metric["maxQuestionsAllowedToAttempt"]
+            qset_metric["num_answered"] = metric["numAnswered"]
+            total_answered += metric["numAnswered"]
+            qset_metric["num_skipped"] = (
+                metric["maxQuestionsAllowedToAttempt"] - metric["numAnswered"]
+            )
+            total_skipped += (
+                metric["maxQuestionsAllowedToAttempt"] - metric["numAnswered"]
+            )
+            qset_metric["num_correct"] = metric["correctlyAnswered"]
+            total_correct += metric["correctlyAnswered"]
+            qset_metric["num_wrong"] = metric["wronglyAnswered"]
+            total_wrong += metric["wronglyAnswered"]
+            qset_metric["num_partially_correct"] = metric["partiallyAnswered"]
+            total_partially_correct += metric["partiallyAnswered"]
+            qset_metric["attempt_rate"] = round(metric["attemptRate"], 2)
+            qset_metric["accuracy_rate"] = round(metric["accuracyRate"], 2)
+            qset_metrics.append(qset_metric)
     session_metrics["qset_metrics"] = qset_metrics
     session_metrics["total_questions"] = total_questions
     session_metrics["total_answered"] = total_answered
