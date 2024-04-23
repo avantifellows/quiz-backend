@@ -34,11 +34,13 @@ def reformat_metrics(metrics: List[MetricPayload]) -> SessionMetrics:
     total_correct = 0
     total_wrong = 0
     total_partially_correct = 0
+    total_marks = 0
     if metrics is not None:
         for metric in metrics:
             qset_metric = {}
             qset_metric["name"] = metric["name"]
             qset_metric["marks_scored"] = metric["marksScored"]
+            total_marks += metric["marksScored"]
             qset_metric["max_questions_allowed_to_attempt"] = metric[
                 "maxQuestionsAllowedToAttempt"
             ]
@@ -67,6 +69,7 @@ def reformat_metrics(metrics: List[MetricPayload]) -> SessionMetrics:
     session_metrics["total_correct"] = total_correct
     session_metrics["total_wrong"] = total_wrong
     session_metrics["total_partially_correct"] = total_partially_correct
+    session_metrics["total_marks"] = total_marks
 
     return session_metrics
 
