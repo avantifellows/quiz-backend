@@ -108,6 +108,7 @@ class SessionMetrics(BaseModel):
     total_correct: int
     total_wrong: int
     total_partially_correct: int
+    total_marks: int
 
 
 class QuestionMetadata(BaseModel):
