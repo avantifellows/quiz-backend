@@ -4,7 +4,6 @@ import os
 # test session["_id"] in prod: 633646b0639829dad5a896b4
 
 if __name__ == "__main__":
-
     if "MONGO_AUTH_CREDENTIALS" not in os.environ:
         from dotenv import load_dotenv
 
@@ -16,7 +15,6 @@ if __name__ == "__main__":
     for session in session_collection.find(
         {"events": {"$exists": True}, "$expr": {"$gt": [{"$size": "$events"}, 1000]}}
     ):
-
         print(session["_id"])
 
         if session["events"] is None:
@@ -29,7 +27,6 @@ if __name__ == "__main__":
 
         # Loop through all events in the session
         for event in session["events"]:
-
             # Check if the event is a dummy event
             if event["event_type"] == "dummy-event":
                 # Check if we've already seen a dummy event
