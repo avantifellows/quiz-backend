@@ -117,6 +117,7 @@ async def create_session(session: Session):
         current_session["events"] = last_session.get("events", [])
         current_session["time_remaining"] = last_session.get("time_remaining", None)
         current_session["has_quiz_ended"] = last_session.get("has_quiz_ended", False)
+        current_session["metrics"] = last_session.get("metrics", None)
 
         # restore the answers from the last (previous) sessions
         session_answers_of_the_last_session = last_session["session_answers"]
@@ -161,6 +162,8 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     * resume button is clicked (resume-quiz event)
     * end button is clicked (end-quiz event)
     * dummy event logic added for JNV -- will be removed!
+
+    when end-quiz event is sent, session_updates also contains netrics
     """
     new_event = jsonable_encoder(session_updates)["event"]
     log_message = f"Updating session with id {session_id} and event {new_event}"
@@ -192,7 +195,6 @@ async def update_session(session_id: str, session_updates: UpdateSession):
         else:
             session_update_query["$set"].update({"events": [new_event_obj]})
     else:
-
         if (
             new_event == EventType.dummy_event
             and session["events"][-1]["event_type"] == EventType.dummy_event
@@ -274,10 +276,17 @@ async def update_session(session_id: str, session_updates: UpdateSession):
 
     # update the document in the sessions collection
     if new_event == EventType.end_quiz:
+        session_metrics = jsonable_encoder(session_updates)["metrics"]
+
         if "$set" not in session_update_query:
-            session_update_query["$set"] = {"has_quiz_ended": True}
+            session_update_query["$set"] = {
+                "has_quiz_ended": True,
+                "metrics": session_metrics,
+            }
         else:
-            session_update_query["$set"].update({"has_quiz_ended": True})
+            session_update_query["$set"].update(
+                {"has_quiz_ended": True, "metrics": session_metrics}
+            )
 
     update_result = client.quiz.sessions.update_one(
         {"_id": session_id}, session_update_query

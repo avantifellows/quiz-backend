@@ -73,6 +73,29 @@ class Event(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class QuestionSetMetric(BaseModel):
+    name: str
+    qset_id: str
+    marks_scored: int
+    num_answered: int
+    num_skipped: int
+    num_correct: int
+    num_wrong: int
+    num_partially_correct: int
+    attempt_rate: float
+    accuracy_rate: float
+
+
+class SessionMetrics(BaseModel):
+    qset_metrics: List[QuestionSetMetric]
+    total_answered: int
+    total_skipped: int
+    total_correct: int
+    total_wrong: int
+    total_partially_correct: int
+    total_marks: int
+
+
 class QuestionMetadata(BaseModel):
     grade: Optional[str]
     subject: Optional[str]
@@ -423,6 +446,7 @@ class Session(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     events: List[Event] = []
     has_quiz_ended: bool = False
+    metrics: Optional[SessionMetrics] = None  # gets updated when quiz ends
 
     class Config:
         allow_population_by_field_name = True
@@ -440,6 +464,7 @@ class UpdateSession(BaseModel):
     """Model for the body of the request that updates a session"""
 
     event: EventType
+    metrics: Optional[SessionMetrics]
 
     class Config:
         schema_extra = {"example": {"event": "start-quiz"}}

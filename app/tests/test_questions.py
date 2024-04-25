@@ -38,5 +38,5 @@ class QuestionsTestCase(BaseTestCase):
 
             assert response.status_code == 200
             response = response.json()
-            assert type(response) == list
+            assert isinstance(response, list)
             assert len(response) == settings.subset_size
