@@ -195,7 +195,6 @@ async def update_session(session_id: str, session_updates: UpdateSession):
         else:
             session_update_query["$set"].update({"events": [new_event_obj]})
     else:
-
         if (
             new_event == EventType.dummy_event
             and session["events"][-1]["event_type"] == EventType.dummy_event
