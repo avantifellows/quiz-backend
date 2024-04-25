@@ -160,3 +160,16 @@ static/admin/*
 zappa_settings.json
 
 templates/staging-test.yaml
+
+*.log.*
+deployment/.terraform/*
+deployment/.terraform
+deployment/.terraform.lock.hcl
+deployment/terraform.tfstate.backup
+deployment/terraform.tfstate
+deployment/terraform.tfstate.d
+terraform.tfstate
+deployment/.env.staging
+deployment/.env.production
+
+app/scripts/dump
