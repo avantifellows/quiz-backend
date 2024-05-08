@@ -6,76 +6,17 @@ from models import Quiz, GetQuizResponse, CreateQuizResponse
 from settings import Settings
 from schemas import QuizType
 from logger_config import get_logger
+from cache.cache import cache_data_local, get_cached_data_local
+from cache.cache_keys import CacheKeys
 
 router = APIRouter(prefix="/quiz", tags=["Quiz"])
 settings = Settings()
 logger = get_logger()
 
 
-def update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz):
-    """
-    if given quiz contains question sets that do not have max_questions_allowed_to_attempt key,
-    update the question sets (in-place) with the key and value as len(questions) in that set.
-    Additionally, add a default title and marking scheme for the set.
-    Finally, add quiz to quiz_collection
-    (NOTE: this is a primitive form of versioning)
-    """
-    is_backwards_compatibile = True
-    for question_set_index, question_set in enumerate(quiz["question_sets"]):
-        if "max_questions_allowed_to_attempt" not in question_set:
-            is_backwards_compatibile = False
-            question_set["max_questions_allowed_to_attempt"] = len(
-                question_set["questions"]
-            )
-            question_set["title"] = "Section A"
-
-        if (
-            "marking_scheme" not in question_set
-            or question_set["marking_scheme"] is None
-        ):
-            is_backwards_compatibile = False
-            question_marking_scheme = question_set["questions"][0]["marking_scheme"]
-            if question_marking_scheme is not None:
-                question_set["marking_scheme"] = question_marking_scheme
-            else:
-                question_set["marking_scheme"] = {
-                    "correct": 1,
-                    "wrong": 0,
-                    "skipped": 0,
-                }  # default
-
-    if is_backwards_compatibile:
-        logger.info("Quiz is already backwards compatible")
-        return
-
-    logger.info("Starting update for backwards compatibility")
-    update_result = quiz_collection.update_one({"_id": quiz_id}, {"$set": quiz})
-
-    if not update_result.acknowledged:
-        logger.error("Failed to update quiz for backwards compatibility")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update quiz for backwards compatibility",
-        )
-
-    logger.info("Quiz updated for backwards compatibility")
-
-
 @router.post("/", response_model=CreateQuizResponse)
 async def create_quiz(quiz: Quiz):
     quiz = jsonable_encoder(quiz)
-
-    log_message = "Starting quiz creation"
-    log_with_source = ""
-    log_with_source_id = ""
-    if "metadata" in quiz and "source" in quiz["metadata"]:
-        log_with_source = f" with source {quiz['metadata']['source']}"
-        log_message += log_with_source
-        if "source_id" in quiz["metadata"]:
-            log_with_source_id = f" and source id {quiz['metadata']['source_id']}"
-            log_message += log_with_source_id
-
-    logger.info(log_message)
 
     for question_set_index, question_set in enumerate(quiz["question_sets"]):
         questions = question_set["questions"]
@@ -83,13 +24,8 @@ async def create_quiz(quiz: Quiz):
             questions[question_index]["question_set_id"] = question_set["_id"]
 
         result = client.quiz.questions.insert_many(questions)
-        if result.acknowledged:
-            logger.info(
-                f"Inserted {len(questions)} questions for quiz{log_with_source}{log_with_source_id}"
-            )
-        else:
-            error_message = f"Failed to insert questions for quiz{log_with_source}{log_with_source_id}"
-            logger.error(error_message)
+        if not result.acknowledged:
+            error_message = f"Failed to insert questions for quiz_id: {quiz['_id']}"
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=error_message,
@@ -125,13 +61,11 @@ async def create_quiz(quiz: Quiz):
 
     new_quiz_result = client.quiz.quizzes.insert_one(quiz)
     if not new_quiz_result.acknowledged:
-        error_message = f"Failed to insert quiz{log_with_source}{log_with_source_id}"
-        logger.error(error_message)
+        error_message = f"Failed to insert quiz with id: {quiz['_id']}"
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=error_message,
         )
-    logger.info("Finished creating quiz with id: " + str(new_quiz_result.inserted_id))
 
     return JSONResponse(
         status_code=status.HTTP_201_CREATED, content={"id": new_quiz_result.inserted_id}
@@ -140,8 +74,12 @@ async def create_quiz(quiz: Quiz):
 
 @router.get("/{quiz_id}", response_model=GetQuizResponse)
 async def get_quiz(quiz_id: str):
-    logger.info(f"Starting to get quiz: {quiz_id}")
+    cache_key = CacheKeys.QUIZ_.value + quiz_id
     quiz_collection = client.quiz.quizzes
+
+    cached_data = get_cached_data_local(cache_key)
+    if cached_data:
+        return cached_data
 
     if (quiz := quiz_collection.find_one({"_id": quiz_id})) is None:
         logger.warning(f"Requested quiz {quiz_id} not found")
@@ -149,22 +87,16 @@ async def get_quiz(quiz_id: str):
             status_code=status.HTTP_404_NOT_FOUND, detail=f"quiz {quiz_id} not found"
         )
 
-    update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz)
-
     if (
         "metadata" not in quiz
         or quiz["metadata"] is None
         or "quiz_type" not in quiz["metadata"]
         or quiz["metadata"]["quiz_type"] != QuizType.omr.value
     ):
-        logger.warning(
-            f"Quiz {quiz_id} does not have metadata or is not an OMR quiz, skipping option count calculation"
-        )
-
+        # Quiz does not have metadata or is not an OMR quiz, skipping option count calculation
+        pass
     else:
-        logger.info(
-            f"Quiz is an OMR type, calculating options count for quiz: {quiz_id}"
-        )
+        # Quiz is an OMR type, calculating options count for quiz
         question_set_ids = [
             question_set["_id"] for question_set in quiz["question_sets"]
         ]
@@ -205,7 +137,7 @@ async def get_quiz(quiz_id: str):
                 if question_index < settings.subset_size:
                     continue
 
-                # options_count will be zero for subbjective/numerical questions
+                # options_count will be zero for subjective/numerical questions
                 question["options"] = [
                     {"text": "", "image": None}
                 ] * options_count_per_set[question_index]
@@ -215,5 +147,5 @@ async def get_quiz(quiz_id: str):
                 settings.subset_size :
             ] = updated_subset_without_details
 
-    logger.info(f"Finished getting quiz: {quiz_id}")
+    cache_data_local(cache_key, quiz)
     return quiz
