@@ -25,9 +25,36 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref Api
+      Role: !GetAtt LambdaExecutionRole.Arn
 
   Api:
     Type: AWS::Serverless::HttpApi
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service: 'lambda.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'LambdaExecutionPolicy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: 'arn:aws:logs:*:*:*'
+              - Effect: 'Allow'
+                Action:
+                  - 'sns:Publish'
+                Resource: 'arn:aws:sns:ap-south-1:*:*'
 
 Outputs:
   ApiUrl:
