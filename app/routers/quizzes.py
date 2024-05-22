@@ -2,10 +2,20 @@ from fastapi import APIRouter, status, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from database import client
-from models import Quiz, GetQuizResponse, CreateQuizResponse
+from models import (
+    Quiz,
+    GetQuizResponse,
+    CreateQuizResponse,
+    GenerateReviewQuiz,
+    ReviewQuiz,
+)
 from settings import Settings
-from schemas import QuizType
+from schemas import QuizType, ReviewQuizType
 from logger_config import get_logger
+import json
+import boto3
+
+sns_client = boto3.client("sns")
 
 router = APIRouter(prefix="/quiz", tags=["Quiz"])
 settings = Settings()
@@ -216,4 +226,95 @@ async def get_quiz(quiz_id: str):
             ] = updated_subset_without_details
 
     logger.info(f"Finished getting quiz: {quiz_id}")
+    return quiz
+
+
+@router.get("/generate-review")
+async def generate_review_quiz(review_params: GenerateReviewQuiz):
+    review_params = jsonable_encoder(review_params)
+    quiz_id = review_params["quiz_id"]
+
+    quiz = client.quiz.quizzes.find_one({"_id": quiz_id})
+
+    if quiz is None:
+        print("No quiz exists for given id")
+        return
+
+    if (
+        "is_review_quiz_requested" not in quiz
+        or quiz["is_review_quiz_requested"] is False
+    ):
+        # trigger sns
+        message = {
+            "action": "review_quiz",
+            "review_type": ReviewQuizType.review_quiz.value,
+            "quiz_id": quiz_id,
+            "environment": "staging",
+        }
+        response = sns_client.publish(
+            TargetArn="arn:aws:sns:ap-south-1:111766607077:etl-assessments",
+            Message=json.dumps(message),
+            MessageStructure="string",
+        )
+        if response.status == 200:
+            print(
+                "Requested For Review Quiz Generation. Please wait for a few minutes."
+            )
+            quiz["is_review_quiz_requested"] = True
+            client.quiz.quizzes.update_one({"_id": quiz_id}, {"$set": quiz})
+        else:
+            print("Request failed.")
+    elif (
+        "is_review_quiz_requested" in quiz and quiz["is_review_quiz_requested"] is True
+    ):
+        review_quiz = client.quiz.review_quizzes.find_one(
+            {"review_type": ReviewQuizType.review_session.value, "quiz_id": quiz_id}
+        )
+
+        if review_quiz is not None:
+            return review_quiz["_id"]
+        else:
+            print(f"Review quiz for {quiz_id} is still being generated. Please wait.")
+
+
+@router.post("/review", response_model=CreateQuizResponse)
+async def create_review_quiz(review_quiz: ReviewQuiz):
+    review_quiz = jsonable_encoder(review_quiz)
+
+    for question_set_index, question_set in enumerate(review_quiz["question_sets"]):
+        questions = question_set["questions"]
+        for question_index, _ in enumerate(questions):
+            questions[question_index]["question_set_id"] = question_set["_id"]
+
+        result = client.quiz.questions.insert_many(questions)
+        if not result.acknowledged:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Review Questions Insertion Error",
+            )
+
+        review_quiz["question_sets"][question_set_index]["questions"] = questions
+
+    new_quiz_result = client.quiz.review_quizzes.insert_one(review_quiz)
+    if not new_quiz_result.acknowledged:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Review Quiz Insertion Error",
+        )
+
+    return JSONResponse(
+        status_code=status.HTTP_201_CREATED, content={"id": new_quiz_result.inserted_id}
+    )
+
+
+@router.get("/review/{quiz_id}", response_model=GetQuizResponse)
+async def get_review_quiz(quiz_id: str):
+    review_quiz_collection = client.quiz.review_quizzes
+
+    if (quiz := review_quiz_collection.find_one({"_id": quiz_id})) is None:
+        logger.warning(f"Requested quiz {quiz_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"quiz {quiz_id} not found"
+        )
+
     return quiz

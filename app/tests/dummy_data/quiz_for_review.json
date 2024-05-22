@@ -1,0 +1,260 @@
+{
+    "title": "HP GRADE 9 FOUNDATION FST-1",
+    "question_sets": [
+        {
+            "title": "Physics",
+            "questions": [
+                {
+                    "grade": "9",
+                    "source": "cms",
+                    "text": "<p><font face=\"Kruti Dev\">osx&amp;le; xzkQ dk &lt;yku nsrk gS%</font><br/></p><p>The slope of a velocity-time graph gives :</p>",
+                    "type": "single-choice",
+                    "options": [
+                        {
+                            "text": "<p><font face=\"Kruti Dev\">r; dh x;h nwjh</font><br/></p><p>distance travelled</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p><font face=\"Kruti Dev\">osx</font><br/></p><p>velocity</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p><font face=\"Kruti Dev\">Roj.k</font><br/></p><p>acceleration</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p><font face=\"Kruti Dev\">foLFkkiu</font><br/></p><p>displacement</p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        2
+                    ],
+                    "source_id": "58ca58993562d918f3004ba5",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Physics",
+                        "chapter": "Motion",
+                        "topic": "Teaching Session",
+                        "chapter_id": "5543b8bc69702d67a97b0000",
+                        "topic_id": "57111c2f3562d91f54001100",
+                        "grade": "9",
+                        "difficulty": "2",
+                        "skill": "",
+                        "skill_id": "575a96983562d92638000007",
+                        "concept": "",
+                        "concept_id": "58bd38de3562d918f3001581"
+                    }
+                }
+            ],
+            "max_questions_allowed_to_attempt": 1,
+            "marking_scheme": {
+                "correct": 4,
+                "wrong": -1,
+                "skipped": 0
+            },
+            "description": "<u>MCQs with SINGLE correct option</u><br>Correct: <span style='color: green; font-weight: bold;'>+4</span>,Wrong: <span style='color: red; font-weight: bold;'>-1</span>, Skipped: 0"
+        },
+        {
+            "title": "Chemistry",
+            "questions": [
+                {
+                    "grade": "9",
+                    "source": "cms",
+                    "text": "<p><font face=\"Kruti Dev\">MkYVu dk ijek.kq fl)kar dqN vfHk\u00e8kkj.kkvksa ij vk\u00e8kkfjr gSA muds fl)kar dk dkSu lk vfHk\u00e8kkj.kk \u00e6O;eku laj{k.k ds fu;e ds vuq:i gS\\</font><br/></p><p>Dalton's atomic theory is based on some postulates. Which postulate of his theory is in accordance with the law of conservation of mass?</p>",
+                    "type": "single-choice",
+                    "options": [
+                        {
+                            "text": "<p><font face=\"Kruti Dev\">ijek.kqvksa dks u rks cuk;k tk ldrk gS vkSj u gh u\"V fd;k tk ldrk gS</font><br/></p><p>Atoms can neither be created nor destroyed</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p><font face=\"Kruti Dev\">\u00e7R;sd rRo vR;ar NksVs d.kksa ls cuk gksrk gS ftUgsa ijek.kq dgk tkrk gS</font><br/></p><p>Each element is composed of extremely small particles called atoms</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p><font face=\"Kruti Dev\">fdlh fn, x, rRo ds lHkh ijek.kq leku gSa</font><br/></p><p>All the atoms of a given\u00a0<span style=\"\">element are identical</span></p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p><font face=\"Kruti Dev\">jklk;fud la;kstu ds nkSjku] fofHkUu rRoksa ds ijek.kq ljy vuqikr esa la;ksftr gksrs gSa</font><br/></p><p>During chemical combination, atoms of different elements combine in simple ratios</p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        0
+                    ],
+                    "source_id": "5a13d0703562d9443b001401",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Chemistry",
+                        "chapter": "Atoms and Molecules",
+                        "topic": "Introduction",
+                        "chapter_id": "556b2a8169702d5b91ce0000",
+                        "topic_id": "56ab227d69702d43300001fd",
+                        "grade": "9",
+                        "difficulty": "2",
+                        "skill": "",
+                        "skill_id": "575a96983562d92638000007",
+                        "concept": "",
+                        "concept_id": "584270e53562d97ad60004a6"
+                    }
+                }
+            ],
+            "max_questions_allowed_to_attempt": 1,
+            "marking_scheme": {
+                "correct": 4,
+                "wrong": -1,
+                "skipped": 0
+            },
+            "description": "<u>MCQs with SINGLE correct option</u><br>Correct: <span style='color: green; font-weight: bold;'>+4</span>,Wrong: <span style='color: red; font-weight: bold;'>-1</span>, Skipped: 0"
+        },
+        {
+            "title": "Maths",
+            "questions": [
+                {
+                    "grade": "9",
+                    "source": "cms",
+                    "text": "<p><span style=\"\">\\(A\\)</span><font face=\"Kruti Dev\">\u00a0rhu&amp;pkSFkk\u00c3 le; esa mlls vk\u00e8kk dke djrk gSA ;fn mUgsa feydj dke iwjk djus esa\u00a0</font>\\(18\\)<font face=\"Kruti Dev\">\u00a0fnu yxrs gSa] rks\u00a0</font>\\(B\\)<font face=\"Kruti Dev\">\u00a0dks bls iwjk djus esa fdruk le; yxsxk\\</font><br/></p><p>\\(A\\)  does half as much work as\u00a0\\(B\\) in three-fourth of the time. If together they take \\(18\\)  days to complete the work, how much time shall\u00a0\\(B\\) take to do it?</p>",
+                    "type": "single-choice",
+                    "options": [
+                        {
+                            "text": "<p>30 days</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p><span style=\"\">35 days</span></p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p><span style=\"\">40 days</span></p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>None of these</p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        0
+                    ],
+                    "source_id": "5b6ade653562d9122a002531",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Maths",
+                        "chapter": "Linear Equations in two Variables",
+                        "topic": "Introduction",
+                        "chapter_id": "556b282369702d5b91a90000",
+                        "topic_id": "56ab218569702d43300001d2",
+                        "grade": "9",
+                        "difficulty": "3",
+                        "skill": "",
+                        "skill_id": "575a96b83562d92638000009",
+                        "concept": "",
+                        "concept_id": "585d162f3562d953d0009f51"
+                    }
+                }
+            ],
+            "max_questions_allowed_to_attempt": 1,
+            "marking_scheme": {
+                "correct": 4,
+                "wrong": -1,
+                "skipped": 0
+            },
+            "description": "<u>MCQs with SINGLE correct option</u><br>Correct: <span style='color: green; font-weight: bold;'>+4</span>,Wrong: <span style='color: red; font-weight: bold;'>-1</span>, Skipped: 0"
+        },
+        {
+            "title": "Biology",
+            "questions": [
+                {
+                    "grade": "9",
+                    "source": "cms",
+                    "text": "<p><font face=\"Kruti Dev\">d'ks#d os tkuoj gSa ftuesa d'ks#d LraHk gksrk gS tcfd ftu tkuojksa esa d'ks#d LraHk ug\u00c8 gksrk gS mUgsa vd'ks#dh dgk tkrk gSA vki D;k lksprs gSa] fdlh tkuoj esa es#naM dh ekStwnxh ;k vuqifLFkfr ls D;k QdZ iM+rk gS\\</font></p><ol type=\"I\"><li><font face=\"Kruti Dev\">vkdkj esa varj</font></li><li><font face=\"Kruti Dev\">raf=dk ra= esa varj\u00a0</font></li><li><font face=\"Kruti Dev\">muds xfr esa varj\u00a0</font></li><li><font face=\"Kruti Dev\">i;kZoj.k ds \u00e7fr vuqdwyu</font></li></ol><p>Vertebrates are the animals that possess a vertebral column while the animals lacking a vertebral column are called invertebrates. What difference do you think, the presence or absence of a vertebral column brings about in an animal?</p><ol type=\"I\"><li>Difference in size</li><li>Difference in nervous system</li><li>Difference in their movement</li><li>Adaptation to the environment</li></ol>",
+                    "type": "single-choice",
+                    "options": [
+                        {
+                            "text": "<p>I and II</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>II and III</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>I, II and III</p>",
+                            "image": null
+                        },
+                        {
+                            "text": "<p>I, II, III and IV</p>",
+                            "image": null
+                        }
+                    ],
+                    "correct_answer": [
+                        3
+                    ],
+                    "source_id": "5875d2433562d9223e0017c1",
+                    "solution": [],
+                    "marking_scheme": {
+                        "correct": 4,
+                        "wrong": -1,
+                        "skipped": 0
+                    },
+                    "metadata": {
+                        "subject": "Biology",
+                        "chapter": "Diversity in Living Organisms",
+                        "topic": "Introduction",
+                        "chapter_id": "556b2ad269702d5b91d50000",
+                        "topic_id": "56ab225269702d43300001f4",
+                        "grade": "9",
+                        "difficulty": "2",
+                        "skill": "",
+                        "skill_id": "575a96b83562d92638000009",
+                        "concept": "",
+                        "concept_id": "586259cc3562d9675200085c"
+                    }
+                }
+            ],
+            "max_questions_allowed_to_attempt": 1,
+            "marking_scheme": {
+                "correct": 4,
+                "wrong": -1,
+                "skipped": 0
+            },
+            "description": "<u>MCQs with SINGLE correct option</u><br>Correct: <span style='color: green; font-weight: bold;'>+4</span>,Wrong: <span style='color: red; font-weight: bold;'>-1</span>, Skipped: 0"
+        }
+    ],
+    "max_marks": 16,
+    "num_graded_questions": 4,
+    "time_limit": {
+        "min": 0,
+        "max": 10800
+    },
+    "shuffle": false,
+    "review_immediate": true,
+    "metadata": {
+        "quiz_type": "assessment",
+        "grade": "9",
+        "test_format": "full_syllabus_test",
+        "session_end_time": "2024-02-11T23:45:00",
+        "subject": "Physics, Chemistry, Maths, Biology",
+        "source": "cms",
+        "source_id": "65b0cc5e3562d95128003d3a",
+        "chapter": "",
+        "topic": ""
+    }
+}

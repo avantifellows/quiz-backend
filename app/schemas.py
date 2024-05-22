@@ -59,3 +59,8 @@ class EventType(str, Enum):
     resume_quiz = "resume-quiz"
     end_quiz = "end-quiz"
     dummy_event = "dummy-event"
+
+
+class ReviewQuizType(str, Enum):
+    review_session = "review-session"
+    review_quiz = "review-quiz"

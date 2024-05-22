@@ -1,0 +1,125 @@
+{
+    "_id": "664a7a23539cd237484046ed",
+    "user_id": "test_admin",
+    "quiz_id": "664a79b04435cddf1f0b1f19",
+    "created_at": "2024-05-19T22:16:03.217617",
+    "events": [
+        {
+            "event_type": "start-quiz",
+            "created_at": "2024-05-19T22:15:45.168466",
+            "updated_at": "2024-05-19T22:15:45.168469"
+        },
+        {
+            "event_type": "end-quiz",
+            "created_at": "2024-05-19T22:16:00.039018",
+            "updated_at": "2024-05-19T22:16:00.039021"
+        }
+    ],
+    "has_quiz_ended": true,
+    "metrics": {
+        "qset_metrics": [
+            {
+                "name": "Physics",
+                "qset_id": "664a79b04435cddf1f0b1f1a",
+                "marks_scored": -1,
+                "num_answered": 1,
+                "num_skipped": 0,
+                "num_correct": 0,
+                "num_wrong": 1,
+                "num_partially_correct": 0,
+                "attempt_rate": 1.0,
+                "accuracy_rate": 0.0
+            },
+            {
+                "name": "Chemistry",
+                "qset_id": "664a79b04435cddf1f0b1f1c",
+                "marks_scored": 4,
+                "num_answered": 1,
+                "num_skipped": 0,
+                "num_correct": 1,
+                "num_wrong": 0,
+                "num_partially_correct": 0,
+                "attempt_rate": 1.0,
+                "accuracy_rate": 1.0
+            },
+            {
+                "name": "Maths",
+                "qset_id": "664a79b04435cddf1f0b1f1e",
+                "marks_scored": -1,
+                "num_answered": 1,
+                "num_skipped": 0,
+                "num_correct": 0,
+                "num_wrong": 1,
+                "num_partially_correct": 0,
+                "attempt_rate": 1.0,
+                "accuracy_rate": 0.0
+            },
+            {
+                "name": "Biology",
+                "qset_id": "664a79b04435cddf1f0b1f20",
+                "marks_scored": -1,
+                "num_answered": 1,
+                "num_skipped": 0,
+                "num_correct": 0,
+                "num_wrong": 1,
+                "num_partially_correct": 0,
+                "attempt_rate": 1.0,
+                "accuracy_rate": 0.0
+            }
+        ],
+        "total_answered": 4,
+        "total_skipped": 0,
+        "total_correct": 1,
+        "total_wrong": 3,
+        "total_partially_correct": 0,
+        "total_marks": 1
+    },
+    "is_first": false,
+    "time_remaining": 10786,
+    "session_answers": [
+        {
+            "_id": "664a7a23539cd237484046ee",
+            "question_id": "664a79b04435cddf1f0b1f1b",
+            "answer": [
+                1
+            ],
+            "visited": true,
+            "time_spent": 1,
+            "created_at": "2024-05-19T22:15:41.344250",
+            "updated_at": "2024-05-19T22:15:47.140195"
+        },
+        {
+            "_id": "664a7a23539cd237484046ef",
+            "question_id": "664a79b04435cddf1f0b1f1d",
+            "answer": [
+                0
+            ],
+            "visited": true,
+            "time_spent": 1,
+            "created_at": "2024-05-19T22:15:41.344385",
+            "updated_at": "2024-05-19T22:15:48.963664"
+        },
+        {
+            "_id": "664a7a23539cd237484046f0",
+            "question_id": "664a79b04435cddf1f0b1f1f",
+            "answer": [
+                3
+            ],
+            "visited": true,
+            "time_spent": 1,
+            "created_at": "2024-05-19T22:15:41.344473",
+            "updated_at": "2024-05-19T22:15:50.896094"
+        },
+        {
+            "_id": "664a7a23539cd237484046f1",
+            "question_id": "664a79b04435cddf1f0b1f21",
+            "answer": [
+                1
+            ],
+            "visited": true,
+            "time_spent": null,
+            "created_at": "2024-05-19T22:15:41.344556",
+            "updated_at": "2024-05-19T22:15:53.889260"
+        }
+    ]
+}

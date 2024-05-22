@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 import pymongo
 from database import client
-from schemas import EventType
+from schemas import EventType, ReviewQuizType
 from models import (
     Event,
     Session,
@@ -11,9 +11,14 @@ from models import (
     SessionResponse,
     UpdateSession,
     UpdateSessionResponse,
+    GenerateReviewQuizForSession,
 )
 from datetime import datetime
 from logger_config import get_logger
+import boto3
+import json
+
+sns_client = boto3.client("sns")
 
 
 def str_to_datetime(datetime_str: str) -> datetime:
@@ -31,18 +36,18 @@ async def create_session(session: Session):
         f"Creating new session for user: {session.user_id} and quiz: {session.quiz_id}"
     )
     current_session = jsonable_encoder(session)
-
-    quiz = client.quiz.quizzes.find_one({"_id": current_session["quiz_id"]})
-
-    if quiz is None:
-        error_message = (
-            f"Quiz {current_session['quiz_id']} not found while creating the session"
-        )
-        logger.error(error_message)
-        raise HTTPException(
-            status_code=404,
-            detail=error_message,
-        )
+    if (
+        quiz := client.quiz.quizzes.find_one({"_id": current_session["quiz_id"]})
+    ) is None:
+        if (
+            quiz := client.quiz.review_quizzes.find_one(
+                {"_id": current_session["quiz_id"]}
+            )
+        ) is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"quiz/review {current_session['quiz_id']} not found while creating session",
+            )
 
     # try to get the previous two sessions of a user+quiz pair if they exist
     previous_two_sessions = list(
@@ -315,3 +320,66 @@ async def get_session(session_id: str):
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND, detail=f"session {session_id} not found"
     )
+
+
+@router.get("/generate-review")
+async def generate_review_quiz_for_session(review_params: GenerateReviewQuizForSession):
+    review_params = jsonable_encoder(review_params)
+    user_id = review_params["user_id"]
+    quiz_id = review_params["quiz_id"]
+
+    # find corresponding session
+    session = client.quiz.sessions.find_one({"user_id": user_id, "quiz_id": quiz_id})
+
+    if session is None:
+        print("No session exists for given user+quiz combo")
+        return
+
+    if session["has_quiz_ended"] is True and (
+        "is_review_quiz_requested" not in session
+        or session["is_review_quiz_requested"] is False
+    ):
+        # trigger sns
+        message = {
+            "action": "review_quiz",
+            "review_type": ReviewQuizType.review_session.value,
+            "session_id": session["_id"],
+            "environment": "staging",
+        }
+        response = sns_client.publish(
+            TargetArn="arn:aws:sns:ap-south-1:111766607077:etl-assessments",
+            Message=json.dumps(message),
+            MessageStructure="string",
+        )
+        if response.status == 200:
+            print(
+                "Requested For Review Quiz Generation. Please wait for a few minutes."
+            )
+            session["is_review_quiz_requested"] = True
+            client.quiz.sessions.update_one({"_id": session["_id"]}, {"$set": session})
+            # this could lead to creation of new session when quiz UI opened again. check it
+        else:
+            print("Request failed.")
+
+    elif (
+        session["has_quiz_ended"] is True
+        and session["is_review_quiz_requested"] is True
+    ):
+        # check if review quiz id has been generated
+        review_quiz = client.quiz.review_quizzes.find_one(
+            {
+                "review_type": ReviewQuizType.review_session.value,
+                "quiz_id": quiz_id,
+                "user_id": user_id,
+            }
+        )
+        if review_quiz is not None:
+            review_quiz_id = review_quiz["_id"]
+            return review_quiz_id
+        else:
+            print(
+                f"Review Quiz for {user_id}+{quiz_id} is being generated. Please wait."
+            )
+
+    elif session["has_quiz_ended"] is False:
+        print("Please complete the quiz before requesting for review!")
