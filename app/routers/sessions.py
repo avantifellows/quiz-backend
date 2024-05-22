@@ -339,7 +339,7 @@ async def generate_review_quiz_for_session(review_params: GenerateReviewQuizForS
 
     if session is None:
         print("No session exists for given user+quiz combo")
-        return
+        return None
 
     if session["has_quiz_ended"] is True and (
         "is_review_quiz_requested" not in session
@@ -359,14 +359,14 @@ async def generate_review_quiz_for_session(review_params: GenerateReviewQuizForS
         )
 
         if response["ResponseMetadata"]["HTTPStatusCode"] == 200:
-            print(
-                "Requested For Review Quiz Generation. Please wait for a few minutes."
-            )
             session["is_review_quiz_requested"] = True
             client.quiz.sessions.update_one({"_id": session["_id"]}, {"$set": session})
             # this could lead to creation of new session when quiz UI opened again. check it
+            return (
+                "Requested For Review Quiz Generation. Please wait for a few minutes."
+            )
         else:
-            print("Request failed.")
+            return "Request failed."
 
     elif (
         session["has_quiz_ended"] is True
@@ -384,9 +384,7 @@ async def generate_review_quiz_for_session(review_params: GenerateReviewQuizForS
             review_quiz_id = review_quiz["_id"]
             return review_quiz_id
         else:
-            print(
-                f"Review Quiz for {user_id}+{quiz_id} is being generated. Please wait."
-            )
+            f"Review Quiz for {user_id}+{quiz_id} is being generated. Please wait."
 
     elif session["has_quiz_ended"] is False:
-        print("Please complete the quiz before requesting for review!")
+        return "Please complete the quiz before requesting for review!"

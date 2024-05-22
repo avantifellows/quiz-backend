@@ -244,7 +244,7 @@ async def generate_review_quiz(review_params: GenerateReviewQuiz):
 
     if quiz is None:
         print("No quiz exists for given id")
-        return
+        return None
 
     if (
         "is_review_quiz_requested" not in quiz
@@ -263,11 +263,11 @@ async def generate_review_quiz(review_params: GenerateReviewQuiz):
             MessageStructure="string",
         )
         if response["ResponseMetadata"]["HTTPStatusCode"] == 200:
-            print(
-                "Requested For Review Quiz Generation. Please wait for a few minutes."
-            )
             quiz["is_review_quiz_requested"] = True
             client.quiz.quizzes.update_one({"_id": quiz_id}, {"$set": quiz})
+            return (
+                "Requested For Review Quiz Generation. Please wait for a few minutes."
+            )
         else:
             print("Request failed.")
     elif (
@@ -280,7 +280,7 @@ async def generate_review_quiz(review_params: GenerateReviewQuiz):
         if review_quiz is not None:
             return review_quiz["_id"]
         else:
-            print(f"Review quiz for {quiz_id} is still being generated. Please wait.")
+            return f"Review quiz for {quiz_id} is still being generated. Please wait."
 
 
 @router.post("/review", response_model=CreateQuizResponse)
