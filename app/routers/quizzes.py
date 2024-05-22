@@ -258,7 +258,7 @@ async def generate_review_quiz(review_params: GenerateReviewQuiz):
             "environment": "staging",
         }
         response = sns_client.publish(
-            TargetArn="arn:aws:sns:ap-south-1:111766607077:etl-assessments",
+            TargetArn="arn:aws:sns:ap-south-1:111766607077:session-creator-staging",
             Message=json.dumps(message),
             MessageStructure="string",
         )
