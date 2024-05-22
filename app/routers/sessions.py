@@ -46,7 +46,7 @@ async def create_session(session: Session):
         ) is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"quiz/review {current_session['quiz_id']} not found while creating session",
+                detail=f"Quiz/Review {current_session['quiz_id']} not found while creating the session",
             )
 
     # try to get the previous two sessions of a user+quiz pair if they exist
