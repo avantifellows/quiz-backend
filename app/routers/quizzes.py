@@ -258,7 +258,7 @@ async def generate_review_quiz(review_params: GenerateReviewQuiz):
             "environment": "staging",
         }
         response = sns_client.publish(
-            TargetArn="arn:aws:sns:ap-south-1:111766607077:session-creator-staging",
+            TargetArn="arn:aws:sns:ap-south-1:111766607077:sessionCreator-staging",
             Message=json.dumps(message),
             MessageStructure="string",
         )
@@ -274,7 +274,10 @@ async def generate_review_quiz(review_params: GenerateReviewQuiz):
         "is_review_quiz_requested" in quiz and quiz["is_review_quiz_requested"] is True
     ):
         review_quiz = client.quiz.review_quizzes.find_one(
-            {"review_type": ReviewQuizType.review_session.value, "quiz_id": quiz_id}
+            {
+                "review_type": ReviewQuizType.review_session.value,
+                "parent_quiz_id": quiz_id,
+            }
         )
 
         if review_quiz is not None:

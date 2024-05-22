@@ -542,3 +542,6 @@ class ReviewQuiz(Quiz):
     review_type: ReviewQuizType
     parent_quiz_id: str
     # should i create new collection for questions too?
+
+    class Config:
+        fields = {"is_review_quiz_requested": {"exclude": True}}

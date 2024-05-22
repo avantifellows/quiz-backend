@@ -353,7 +353,7 @@ async def generate_review_quiz_for_session(review_params: GenerateReviewQuizForS
             "environment": "staging",
         }
         response = sns_client.publish(
-            TargetArn="arn:aws:sns:ap-south-1:111766607077:session-creator-staging",
+            TargetArn="arn:aws:sns:ap-south-1:111766607077:sessionCreator-staging",
             Message=json.dumps(message),
             MessageStructure="string",
         )
@@ -376,7 +376,7 @@ async def generate_review_quiz_for_session(review_params: GenerateReviewQuizForS
         review_quiz = client.quiz.review_quizzes.find_one(
             {
                 "review_type": ReviewQuizType.review_session.value,
-                "quiz_id": quiz_id,
+                "parent_quiz_id": quiz_id,
                 "user_id": user_id,
             }
         )
@@ -384,7 +384,9 @@ async def generate_review_quiz_for_session(review_params: GenerateReviewQuizForS
             review_quiz_id = review_quiz["_id"]
             return review_quiz_id
         else:
-            f"Review Quiz for {user_id}+{quiz_id} is being generated. Please wait."
+            return (
+                f"Review Quiz for {user_id}+{quiz_id} is being generated. Please wait."
+            )
 
     elif session["has_quiz_ended"] is False:
         return "Please complete the quiz before requesting for review!"
