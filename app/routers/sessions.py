@@ -15,10 +15,16 @@ from models import (
 )
 from datetime import datetime
 from logger_config import get_logger
+import os
 import boto3
 import json
 
-sns_client = boto3.client("sns")
+sns_client = boto3.client(
+    "sns",
+    region_name="ap-south-1",
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+)
 
 
 def str_to_datetime(datetime_str: str) -> datetime:
@@ -322,7 +328,7 @@ async def get_session(session_id: str):
     )
 
 
-@router.get("/generate-review")
+@router.post("/generate-review")
 async def generate_review_quiz_for_session(review_params: GenerateReviewQuizForSession):
     review_params = jsonable_encoder(review_params)
     user_id = review_params["user_id"]
@@ -351,7 +357,8 @@ async def generate_review_quiz_for_session(review_params: GenerateReviewQuizForS
             Message=json.dumps(message),
             MessageStructure="string",
         )
-        if response.status == 200:
+
+        if response["ResponseMetadata"]["HTTPStatusCode"] == 200:
             print(
                 "Requested For Review Quiz Generation. Please wait for a few minutes."
             )

@@ -14,8 +14,14 @@ from schemas import QuizType, ReviewQuizType
 from logger_config import get_logger
 import json
 import boto3
+import os
 
-sns_client = boto3.client("sns")
+sns_client = boto3.client(
+    "sns",
+    region_name="ap-south-1",
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+)
 
 router = APIRouter(prefix="/quiz", tags=["Quiz"])
 settings = Settings()
@@ -256,7 +262,7 @@ async def generate_review_quiz(review_params: GenerateReviewQuiz):
             Message=json.dumps(message),
             MessageStructure="string",
         )
-        if response.status == 200:
+        if response["ResponseMetadata"]["HTTPStatusCode"] == 200:
             print(
                 "Requested For Review Quiz Generation. Please wait for a few minutes."
             )
