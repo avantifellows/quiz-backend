@@ -338,8 +338,7 @@ async def generate_review_quiz_for_session(review_params: GenerateReviewQuizForS
     session = client.quiz.sessions.find_one({"user_id": user_id, "quiz_id": quiz_id})
 
     if session is None:
-        print("No session exists for given user+quiz combo")
-        return None
+        return "No session exists for given user+quiz combo"
 
     if session["has_quiz_ended"] is True and (
         "is_review_quiz_requested" not in session
