@@ -82,6 +82,7 @@ class QuestionSetMetric(BaseModel):
     num_correct: int
     num_wrong: int
     num_partially_correct: int
+    num_marked_for_review: Optional[int]  # not there for non-assessment
     attempt_rate: float
     accuracy_rate: float
 
@@ -93,6 +94,7 @@ class SessionMetrics(BaseModel):
     total_correct: int
     total_wrong: int
     total_partially_correct: int
+    total_marked_for_review: Optional[int]  # not there for non-assessment
     total_marks: int
 
 
@@ -400,6 +402,7 @@ class SessionAnswer(BaseModel):
     answer: answerType = None
     visited: bool = False
     time_spent: int = None  # in seconds
+    marked_for_review: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -418,6 +421,7 @@ class UpdateSessionAnswer(BaseModel):
     answer: Optional[answerType]
     visited: Optional[bool]
     time_spent: Optional[int]
+    marked_for_review: Optional[bool]
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:
