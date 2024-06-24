@@ -56,6 +56,24 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
         # ensure that `answer` is not affected
         assert session_answer["answer"] == self.session_answer["answer"]
 
+    def test_update_session_answer_with_only_marked_for_review(self):
+        new_marked_for_review = True
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/{self.session_answer_position_index}",
+            json={"marked_for_review": new_marked_for_review},
+        )
+        assert response.status_code == 200
+        response = self.client.get(
+            f"{session_answers.router.prefix}/{self.session_id}/{self.session_answer_position_index}"
+        )
+        session_answer = json.loads(response.content)
+
+        # ensure that `marked_for_review` has been updated
+        assert session_answer["marked_for_review"] == new_marked_for_review
+
+        # ensure that `answer` is not affected
+        assert session_answer["answer"] == self.session_answer["answer"]
+
     def test_update_session_answers_at_specific_positions(self):
         # updating all session answers
 
