@@ -524,7 +524,7 @@ class GenerateReviewQuiz(BaseModel):
     quiz_id: str
 
     class Config:
-        schema_extra = {"example": {"quiz_id": "672"}}
+        schema_extra = {"example": {"quiz_id": "671"}}
 
 
 class GenerateReviewQuizForSession(BaseModel):
