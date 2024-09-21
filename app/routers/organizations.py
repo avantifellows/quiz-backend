@@ -7,6 +7,8 @@ import secrets
 import string
 from fastapi.encoders import jsonable_encoder
 from logger_config import get_logger
+from cache.cache import cache_data_local, get_cached_data_local
+from cache.cache_keys import CacheKeys
 
 router = APIRouter(prefix="/organizations", tags=["Organizations"])
 settings = Settings()
@@ -21,19 +23,18 @@ def generate_random_string(length: int = settings.api_key_length):
 
 @router.post("/", response_model=OrganizationResponse)
 async def create_organization(organization: Organization):
-    logger.info("Creating new organization")
     organization = jsonable_encoder(organization)
 
     # create an API key
     key = generate_random_string()
-    logger.info(f"Generated API key: {key}")
 
     # check if API key exists
     if (client.quiz.organization.find_one({"key": key})) is None:
         organization["key"] = key
         new_organization = client.quiz.organization.insert_one(organization)
         if new_organization.acknowledged:
-            logger.info(f"Inserted new organization with API key: {key}")
+            # Inserted new organization with API key: {key}
+            pass
         else:
             logger.error("Failed to insert new organization")
             raise HTTPException(
@@ -58,13 +59,18 @@ async def create_organization(organization: Organization):
 
 @router.get("/authenticate/{api_key}", response_model=OrganizationResponse)
 async def check_auth_token(api_key: str):
-    logger.info(f"Authenticating API key: {api_key}")
+    cache_key = CacheKeys.ORG_.value + api_key
+
+    cached_data = get_cached_data_local(cache_key)
+    if cached_data:
+        return cached_data
+
     if (
         org := client.quiz.organization.find_one(
             {"key": api_key},
         )
     ) is not None:
-        logger.info(f"Authenticated API key: {api_key}")
+        cache_data_local(cache_key, org)
         return org
 
     logger.error(f"Failed to authenticate API key: {api_key}")
