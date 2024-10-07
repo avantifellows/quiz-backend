@@ -450,6 +450,7 @@ class Session(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     events: List[Event] = []
     has_quiz_ended: bool = False
+    omr_mode: bool = False
     metrics: Optional[SessionMetrics] = None  # gets updated when quiz ends
 
     class Config:
