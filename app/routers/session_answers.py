@@ -91,7 +91,7 @@ async def update_session_answer_in_a_session(
     session_id - the id of the session
     position_index - the position index of the session answer in the session answers array. This corresponds to the position of the question in the quiz
     """
-    log_message = f"Updating session answer for session: {session_id} at position: {position_index}. The answer is {session_answer.answer}. Visited is {session_answer.visited}. Time spent is {session_answer.time_spent} seconds."
+    log_message = f"Updating session answer for session: {session_id} at position: {position_index}. The answer is {session_answer.answer}. Visited is {session_answer.visited}. Time spent is {session_answer.time_spent} seconds. Marked for review status is {session_answer.marked_for_review}."
     session_answer = remove_optional_unset_args(session_answer)
     session_answer = jsonable_encoder(session_answer)
 
