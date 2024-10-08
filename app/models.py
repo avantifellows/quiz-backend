@@ -455,6 +455,7 @@ class Session(BaseModel):
     is_review_quiz_requested: Optional[
         bool
     ] = False  # but this creates extra session when changed to true
+    omr_mode: bool = False
     metrics: Optional[SessionMetrics] = None  # gets updated when quiz ends
 
     class Config:
