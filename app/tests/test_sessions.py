@@ -18,7 +18,7 @@ class SessionsTestCase(SessionsBaseTestCase):
         )
         assert response.status_code == 200
         session = response.json()
-        for key in ["quiz_id", "user_id", "omr_mode"]:
+        for key in ["quiz_id", "user_id"]:
             assert session[key] == self.homework_session[key]
 
     def test_get_session_returns_error_if_id_invalid(self):
@@ -79,20 +79,6 @@ class SessionsTestCase(SessionsBaseTestCase):
 
         assert len(response["events"]) == 0
         assert response["is_first"] is True
-        assert response["omr_mode"] is False
-
-    def test_create_session_with_previous_session_and_change_in_omr_mode(self):
-        # second session with no start-quiz event in first session
-        # but with a different omr_mode value
-        response = self.client.post(
-            sessions.router.prefix + "/",
-            json={"quiz_id": self.timed_quiz["_id"], "user_id": 1, "omr_mode": True},
-        ).json()
-
-        assert len(response["events"]) == 0
-        assert response["is_first"] is True
-        assert response["omr_mode"] is True
-        # despite change in omr_mode, since no event has occurred, same session is returned
 
     def test_create_session_with_previous_session_and_start_event(self):
         session_updates = {"event": EventType.start_quiz.value}
