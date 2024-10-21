@@ -44,6 +44,8 @@ origins = [
     "http://localhost:8080",
     "https://staging-quiz.avantifellows.org",
     "https://quiz.avantifellows.org",
+    "http://localhost:3000",
+    "https://gurukul.avantifellows.org",
 ]
 
 app.add_middleware(
