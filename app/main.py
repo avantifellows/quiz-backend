@@ -45,6 +45,7 @@ origins = [
     "https://staging-quiz.avantifellows.org",
     "https://quiz.avantifellows.org",
     "http://localhost:3000",
+    "https://staging-gurukul.avantifellows.org",
     "https://gurukul.avantifellows.org",
 ]
 
