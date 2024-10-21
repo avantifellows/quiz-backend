@@ -14,6 +14,7 @@ from models import (
 )
 from datetime import datetime
 from logger_config import get_logger
+from typing import Dict
 
 
 def str_to_datetime(datetime_str: str) -> datetime:
@@ -315,3 +316,38 @@ async def get_session(session_id: str):
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND, detail=f"session {session_id} not found"
     )
+
+
+@router.get("/user/{user_id}/quiz-attempts", response_model=Dict[str, bool])
+async def check_all_quiz_status(user_id: str) -> Dict[str, bool]:
+    """
+    Check the end status of all quizzes attempted by the user.
+
+    Args:
+    - user_id (str): The ID of the user.
+
+    Returns:
+    - Dict[str, bool]: A dictionary with quiz IDs as keys and `has_quiz_ended` as boolean values.
+    """
+    logger.info(f"Fetching all quiz attempts for user {user_id}")
+
+    user_latest_sessions = client.quiz.sessions.aggregate(
+        [
+            {"$match": {"user_id": user_id}},
+            {"$sort": {"_id": -1}},
+            {
+                "$group": {
+                    "_id": "$quiz_id",
+                    "has_quiz_ended": {"$first": "$has_quiz_ended"},
+                }
+            },
+        ]
+    )
+
+    # Create a dictionary of quiz end statuses for easy lookup
+    latest_sessions_dict = {
+        session["_id"]: session["has_quiz_ended"] for session in user_latest_sessions
+    }
+
+    logger.info(f"Quiz end statuses for user {user_id}: {latest_sessions_dict}")
+    return latest_sessions_dict

@@ -261,3 +261,16 @@ class SessionsTestCase(SessionsBaseTestCase):
         # the event array should now be [start-quiz, dummy-event]
         # instead of [start-quiz, dummy-event, dummy-event, dummy-event]
         assert len(resumed_session["events"]) == 2
+
+    def test_check_quiz_status_for_user(self):
+        user_id = "1"
+
+        response = self.client.get(
+            f"{sessions.router.prefix}/user/{user_id}/quiz-attempts"
+        )
+
+        # Assert the response is successful
+        assert response.status_code == 200
+
+        # Assert that response is a dict
+        assert isinstance(response.json(), dict)
