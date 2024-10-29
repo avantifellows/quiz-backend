@@ -452,13 +452,10 @@ class Session(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     events: List[Event] = []
     has_quiz_ended: bool = False
-<<<<<<< HEAD
     is_review_quiz_requested: Optional[
         bool
     ] = False  # but this creates extra session when changed to true
     omr_mode: bool = False
-=======
->>>>>>> main
     metrics: Optional[SessionMetrics] = None  # gets updated when quiz ends
 
     class Config:
