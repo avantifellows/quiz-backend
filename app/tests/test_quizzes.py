@@ -52,17 +52,6 @@ class QuizTestCase(BaseTestCase):
             == self.short_homework_quiz_questions_length
         )
 
-    def test_get_quiz_if_id_valid_and_omr_mode_in_params(self):
-        response = self.client.get(
-            f"{quizzes.router.prefix}/{self.multi_qset_quiz_id}",
-            params={"omr_mode": True},
-        )
-        assert response.status_code == 200
-        response = response.json()
-        assert self.multi_qset_quiz_lengths == [
-            len(response["question_sets"][i]["questions"]) for i in range(2)
-        ]
-
     def test_get_quiz_returns_error_if_id_invalid(self):
         response = self.client.get(f"{quizzes.router.prefix}/00")
         assert response.status_code == 404

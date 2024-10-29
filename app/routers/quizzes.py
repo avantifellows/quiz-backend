@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status, HTTPException, Query
+from fastapi import APIRouter, status, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from database import client
@@ -155,8 +155,8 @@ async def create_quiz(quiz: Quiz):
 
 
 @router.get("/{quiz_id}", response_model=GetQuizResponse)
-async def get_quiz(quiz_id: str, omr_mode: bool = Query(False)):
-    logger.info(f"Starting to get quiz: {quiz_id} with omr_mode={omr_mode}")
+async def get_quiz(quiz_id: str):
+    logger.info(f"Starting to get quiz: {quiz_id}")
     quiz_collection = client.quiz.quizzes
 
     if (quiz := quiz_collection.find_one({"_id": quiz_id})) is None:
@@ -167,19 +167,19 @@ async def get_quiz(quiz_id: str, omr_mode: bool = Query(False)):
 
     update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz)
 
-    if omr_mode is False and (
+    if (
         "metadata" not in quiz
         or quiz["metadata"] is None
         or "quiz_type" not in quiz["metadata"]
         or quiz["metadata"]["quiz_type"] != QuizType.omr.value
     ):
         logger.warning(
-            f"omr_mode is False and Quiz {quiz_id} does not have metadata or is not an OMR quiz, skipping option count calculation"
+            f"Quiz {quiz_id} does not have metadata or is not an OMR quiz, skipping option count calculation"
         )
 
     else:
         logger.info(
-            f"Quiz has to be rendered in OMR Mode, calculating options count for quiz: {quiz_id}"
+            f"Quiz is an OMR type, calculating options count for quiz: {quiz_id}"
         )
         question_set_ids = [
             question_set["_id"] for question_set in quiz["question_sets"]
