@@ -116,6 +116,23 @@ async def create_session(session: Session):
             logger.info(
                 f"No meaningful event has occurred in last_session. Returning this session which has id {last_session['_id']}"
             )
+            # copy the omr mode value if changed (changes when toggled in UI)
+            if (
+                "omr_mode" not in last_session
+                or last_session["omr_mode"] != session.omr_mode
+            ):
+                last_session["omr_mode"] = session.omr_mode
+                logger.info("Updating omr_mode value in last_session")
+                update_result = client.quiz.sessions.update_one(
+                    {"_id": last_session["_id"]}, {"$set": last_session}
+                )
+                if not update_result.acknowledged:
+                    logger.error("Failed to update last session's omr_mode value")
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Failed to update last session's omr_mode value",
+                    )
+
             return JSONResponse(
                 status_code=status.HTTP_201_CREATED, content=last_session
             )
@@ -124,7 +141,7 @@ async def create_session(session: Session):
         # so, we HAVE to distinguish between current_session and last_session by creating
         # a new session for current_session
         logger.info(
-            f"Some meaningful event has occurred in last_session, creating new session for user: {session.user_id} and quiz: {session.quiz_id}"
+            f"Some meaningful event has occurred in last_session, creating new session for user: {session.user_id} and quiz: {session.quiz_id} with {session.omr_mode} as omr_mode"
         )
         current_session["is_first"] = False
         current_session["events"] = last_session.get("events", [])
@@ -152,11 +169,11 @@ async def create_session(session: Session):
     result = client.quiz.sessions.insert_one(current_session)
     if result.acknowledged:
         logger.info(
-            f"Created new session with id {result.inserted_id} for user: {session.user_id} and quiz: {session.quiz_id}"
+            f"Created new session with id {result.inserted_id} for user: {session.user_id} and quiz: {session.quiz_id} with {session.omr_mode} as omr_mode"
         )
     else:
         logger.error(
-            f"Failed to insert new session for user: {session.user_id} and quiz: {session.quiz_id}"
+            f"Failed to insert new session for user: {session.user_id} and quiz: {session.quiz_id} and omr_mode: {session.omr_mode}"
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -397,10 +414,8 @@ async def generate_review_quiz_for_session(review_params: GenerateReviewQuizForS
 async def check_all_quiz_status(user_id: str) -> Dict[str, bool]:
     """
     Check the end status of all quizzes attempted by the user.
-
     Args:
     - user_id (str): The ID of the user.
-
     Returns:
     - Dict[str, bool]: A dictionary with quiz IDs as keys and `has_quiz_ended` as boolean values.
     """
