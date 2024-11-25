@@ -9,6 +9,7 @@ from schemas import (
     QuizType,
     EventType,
     TestFormat,
+    ReviewQuizType,
 )
 from datetime import datetime
 
@@ -239,6 +240,7 @@ class Quiz(BaseModel):
     instructions: Optional[str] = None
     language: QuizLanguage = "en"
     metadata: QuizMetadata = None
+    is_review_quiz_requested: Optional[bool] = False
 
     class Config:
         allow_population_by_field_name = True
@@ -451,6 +453,10 @@ class Session(BaseModel):
     events: List[Event] = []
     has_quiz_ended: bool = False
     omr_mode: bool = False
+    is_review_quiz_requested: Optional[
+        bool
+    ] = False  # but this creates extra session when changed to true
+    omr_mode: bool = False
     metrics: Optional[SessionMetrics] = None  # gets updated when quiz ends
 
     class Config:
@@ -516,3 +522,32 @@ class UpdateSessionResponse(BaseModel):
 
     class Config:
         schema_extra = {"example": {"time_remaining": 300}}
+
+
+class GenerateReviewQuiz(BaseModel):
+    """Input model for generating review quiz for a quiz"""
+
+    quiz_id: str
+
+    class Config:
+        schema_extra = {"example": {"quiz_id": "671"}}
+
+
+class GenerateReviewQuizForSession(BaseModel):
+    """Input model for generating review quiz for a user+quiz combination"""
+
+    user_id: str
+    quiz_id: str
+
+    class Config:
+        schema_extra = {"example": {"user_id": "abc", "quiz_id": "672"}}
+
+
+class ReviewQuiz(Quiz):
+    user_id: Optional[str] = ""  # need not always be there
+    review_type: ReviewQuizType
+    parent_quiz_id: str
+    # should i create new collection for questions too?
+
+    class Config:
+        fields = {"is_review_quiz_requested": {"exclude": True}}
