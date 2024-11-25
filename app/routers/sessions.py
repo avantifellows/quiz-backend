@@ -104,7 +104,10 @@ async def create_session(session: Session):
                 f"No meaningful event has occurred in last_session. Returning this session which has id {last_session['_id']}"
             )
             # copy the omr mode value if changed (changes when toggled in UI)
-            if last_session["omr_mode"] != session.omr_mode:
+            if (
+                "omr_mode" not in last_session
+                or last_session["omr_mode"] != session.omr_mode
+            ):
                 last_session["omr_mode"] = session.omr_mode
                 logger.info("Updating omr_mode value in last_session")
                 update_result = client.quiz.sessions.update_one(
