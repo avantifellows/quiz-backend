@@ -235,6 +235,7 @@ class Quiz(BaseModel):
     # review answers immediately after quiz ends
     review_immediate: Optional[bool] = True
     display_solution: Optional[bool] = True
+    show_scores: Optional[bool] = True
     navigation_mode: NavigationMode = "linear"
     instructions: Optional[str] = None
     language: QuizLanguage = "en"
