@@ -1305,6 +1305,7 @@
     },
     "shuffle": false,
     "review_immediate": true,
+    "show_scores": true,
     "metadata": {
         "quiz_type": "assessment",
         "grade": "12",
