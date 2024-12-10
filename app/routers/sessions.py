@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 import pymongo
 from database import client
-from schemas import EventType
+from schemas import EventType, ReviewQuizType
 from models import (
     Event,
     Session,
@@ -11,10 +11,22 @@ from models import (
     SessionResponse,
     UpdateSession,
     UpdateSessionResponse,
+    GenerateReviewQuizForSession,
 )
 from datetime import datetime
 from logger_config import get_logger
 from typing import Dict
+
+import os
+import boto3
+import json
+
+sns_client = boto3.client(
+    "sns",
+    region_name="ap-south-1",
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+)
 
 
 def str_to_datetime(datetime_str: str) -> datetime:
@@ -32,18 +44,18 @@ async def create_session(session: Session):
         f"Creating new session for user: {session.user_id} and quiz: {session.quiz_id}"
     )
     current_session = jsonable_encoder(session)
-
-    quiz = client.quiz.quizzes.find_one({"_id": current_session["quiz_id"]})
-
-    if quiz is None:
-        error_message = (
-            f"Quiz {current_session['quiz_id']} not found while creating the session"
-        )
-        logger.error(error_message)
-        raise HTTPException(
-            status_code=404,
-            detail=error_message,
-        )
+    if (
+        quiz := client.quiz.quizzes.find_one({"_id": current_session["quiz_id"]})
+    ) is None:
+        if (
+            quiz := client.quiz.review_quizzes.find_one(
+                {"_id": current_session["quiz_id"]}
+            )
+        ) is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Quiz/Review {current_session['quiz_id']} not found while creating the session",
+            )
 
     # try to get the previous two sessions of a user+quiz pair if they exist
     previous_two_sessions = list(
@@ -333,6 +345,69 @@ async def get_session(session_id: str):
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND, detail=f"session {session_id} not found"
     )
+
+
+@router.post("/generate-review")
+async def generate_review_quiz_for_session(review_params: GenerateReviewQuizForSession):
+    review_params = jsonable_encoder(review_params)
+    user_id = review_params["user_id"]
+    quiz_id = review_params["quiz_id"]
+
+    # find corresponding session
+    session = client.quiz.sessions.find_one({"user_id": user_id, "quiz_id": quiz_id})
+
+    if session is None:
+        return "No session exists for given user+quiz combo"
+
+    if session["has_quiz_ended"] is True and (
+        "is_review_quiz_requested" not in session
+        or session["is_review_quiz_requested"] is False
+    ):
+        # trigger sns
+        message = {
+            "action": "review_quiz",
+            "review_type": ReviewQuizType.review_session.value,
+            "session_id": session["_id"],
+            "environment": "staging",
+        }
+        response = sns_client.publish(
+            TargetArn="arn:aws:sns:ap-south-1:111766607077:sessionCreator-staging",
+            Message=json.dumps(message),
+            MessageStructure="string",
+        )
+
+        if response["ResponseMetadata"]["HTTPStatusCode"] == 200:
+            session["is_review_quiz_requested"] = True
+            client.quiz.sessions.update_one({"_id": session["_id"]}, {"$set": session})
+            # this could lead to creation of new session when quiz UI opened again. check it
+            return (
+                "Requested For Review Quiz Generation. Please wait for a few minutes."
+            )
+        else:
+            return "Request failed."
+
+    elif (
+        session["has_quiz_ended"] is True
+        and session["is_review_quiz_requested"] is True
+    ):
+        # check if review quiz id has been generated
+        review_quiz = client.quiz.review_quizzes.find_one(
+            {
+                "review_type": ReviewQuizType.review_session.value,
+                "parent_quiz_id": quiz_id,
+                "user_id": user_id,
+            }
+        )
+        if review_quiz is not None:
+            review_quiz_id = review_quiz["_id"]
+            return review_quiz_id
+        else:
+            return (
+                f"Review Quiz for {user_id}+{quiz_id} is being generated. Please wait."
+            )
+
+    elif session["has_quiz_ended"] is False:
+        return "Please complete the quiz before requesting for review!"
 
 
 @router.get("/user/{user_id}/quiz-attempts", response_model=Dict[str, bool])
