@@ -1,4 +1,5 @@
 from fastapi import APIRouter, status, HTTPException
+import random
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 import pymongo
@@ -15,11 +16,52 @@ from models import (
 from datetime import datetime
 from logger_config import get_logger
 from typing import Dict
+from settings import Settings
 
 
 def str_to_datetime(datetime_str: str) -> datetime:
     """converts string to datetime format"""
     return datetime.fromisoformat(datetime_str)
+
+
+def shuffle_question_order(question_sets):
+    # Assuming `state['question_sets']` is a list of question arrays (list of lists) and `state['bucket_size']` is an integer
+    # state = {
+    #     'question_sets': question_sets,  # Replace with your actual question sets
+    #     'bucket_size': bucket_size,  # Replace with the actual bucket size
+    #     'question_order': []  # This will hold the shuffled question order
+    # }
+    question_order = []
+    bucket_size = Settings().subset_size
+
+    global_index = 0  # Track global index across all questions
+    logger.info(question_sets)
+    # Iterate over each question set
+    for question_set in question_sets:
+        total_questions = len(
+            question_set["questions"]
+        )  # Get total number of questions in the current set
+        num_blocks = (
+            total_questions + bucket_size - 1
+        ) // bucket_size  # Equivalent to Math.ceil(total_questions / subset_size)
+
+        # For each block (subset of questions)
+        for block in range(num_blocks):
+            # Get the start and end index for the current block
+            start = block * bucket_size
+            end = min(start + bucket_size, total_questions)
+            block_indices = list(range(global_index, global_index + (end - start)))
+
+            # Shuffle the current block using Fisher-Yates algorithm
+            random.shuffle(block_indices)
+
+            # Append the shuffled indices to question_order
+            question_order.extend(block_indices)
+
+            # Update global index for the next set of questions
+            global_index += len(block_indices)
+
+    return question_order
 
 
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
@@ -29,7 +71,7 @@ logger = get_logger()
 @router.post("/", response_model=SessionResponse)
 async def create_session(session: Session):
     logger.info(
-        f"Creating new session for user: {session.user_id} and quiz: {session.quiz_id}"
+        f"Creating new session for user: {session.user_id} and quiz: {session.quiz_id} and {session.omr_mode}"
     )
     current_session = jsonable_encoder(session)
 
@@ -56,6 +98,8 @@ async def create_session(session: Session):
             limit=2,
         )
     )
+    logger.info(f"Found {(previous_two_sessions)} previous sessions")
+
     last_session, second_last_session = None, None
     # only one session exists
     if len(previous_two_sessions) == 1:
@@ -70,6 +114,9 @@ async def create_session(session: Session):
     if last_session is None:
         logger.info("No previous session exists for this user-quiz combo")
         current_session["is_first"] = True
+        if not session.omr_mode:
+            question_order = shuffle_question_order(quiz["question_sets"])
+            current_session["question_order"] = question_order
         if quiz["time_limit"] is not None:
             current_session["time_remaining"] = quiz["time_limit"][
                 "max"
@@ -84,6 +131,7 @@ async def create_session(session: Session):
                         )
                     )
     else:
+        # due to this condition we are not returning the order as expected!
         condition_to_return_last_session = (
             # checking "events" key for backward compatibility
             "events" in last_session
@@ -102,7 +150,7 @@ async def create_session(session: Session):
 
         if condition_to_return_last_session is True:
             logger.info(
-                f"No meaningful event has occurred in last_session. Returning this session which has id {last_session['_id']}"
+                f"No meaningful event has occurred in last_session. Returning this session which has id {last_session}"
             )
             # copy the omr mode value if changed (changes when toggled in UI)
             if (
@@ -136,6 +184,8 @@ async def create_session(session: Session):
         current_session["time_remaining"] = last_session.get("time_remaining", None)
         current_session["has_quiz_ended"] = last_session.get("has_quiz_ended", False)
         current_session["metrics"] = last_session.get("metrics", None)
+        logger.info(f"last_session['question_order']: {last_session['question_order']}")
+        current_session["question_order"] = last_session["question_order"]
 
         # restore the answers from the last (previous) sessions
         session_answers_of_the_last_session = last_session["session_answers"]
