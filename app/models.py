@@ -473,7 +473,6 @@ class UpdateSession(BaseModel):
 
     event: EventType
     metrics: Optional[SessionMetrics]
-    # questionOrder: Optional[List[int]] = None
 
     class Config:
         schema_extra = {"example": {"event": "start-quiz"}}
@@ -484,7 +483,9 @@ class SessionResponse(Session):
 
     is_first: bool
     session_answers: List[SessionAnswer]
-    question_order: List[int]  # order of question_ids in the session
+    question_order: List[
+        int
+    ]  # random order of questions for each quiz assesment/homework
     time_remaining: Optional[int] = None  # time in seconds
 
     class Config:

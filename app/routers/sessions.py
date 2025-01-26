@@ -25,12 +25,6 @@ def str_to_datetime(datetime_str: str) -> datetime:
 
 
 def shuffle_question_order(question_sets):
-    # Assuming `state['question_sets']` is a list of question arrays (list of lists) and `state['bucket_size']` is an integer
-    # state = {
-    #     'question_sets': question_sets,  # Replace with your actual question sets
-    #     'bucket_size': bucket_size,  # Replace with the actual bucket size
-    #     'question_order': []  # This will hold the shuffled question order
-    # }
     question_order = []
     bucket_size = Settings().subset_size
 
@@ -71,7 +65,7 @@ logger = get_logger()
 @router.post("/", response_model=SessionResponse)
 async def create_session(session: Session):
     logger.info(
-        f"Creating new session for user: {session.user_id} and quiz: {session.quiz_id} and {session.omr_mode}"
+        f"Creating new session for user: {session.user_id} and quiz: {session.quiz_id}"
     )
     current_session = jsonable_encoder(session)
 
@@ -98,8 +92,6 @@ async def create_session(session: Session):
             limit=2,
         )
     )
-    logger.info(f"Found {(previous_two_sessions)} previous sessions")
-
     last_session, second_last_session = None, None
     # only one session exists
     if len(previous_two_sessions) == 1:
@@ -131,7 +123,6 @@ async def create_session(session: Session):
                         )
                     )
     else:
-        # due to this condition we are not returning the order as expected!
         condition_to_return_last_session = (
             # checking "events" key for backward compatibility
             "events" in last_session
@@ -150,7 +141,7 @@ async def create_session(session: Session):
 
         if condition_to_return_last_session is True:
             logger.info(
-                f"No meaningful event has occurred in last_session. Returning this session which has id {last_session}"
+                f"No meaningful event has occurred in last_session. Returning this session which has id {last_session['_id']}"
             )
             # copy the omr mode value if changed (changes when toggled in UI)
             if (
@@ -184,7 +175,6 @@ async def create_session(session: Session):
         current_session["time_remaining"] = last_session.get("time_remaining", None)
         current_session["has_quiz_ended"] = last_session.get("has_quiz_ended", False)
         current_session["metrics"] = last_session.get("metrics", None)
-        logger.info(f"last_session['question_order']: {last_session['question_order']}")
         current_session["question_order"] = last_session["question_order"]
 
         # restore the answers from the last (previous) sessions
