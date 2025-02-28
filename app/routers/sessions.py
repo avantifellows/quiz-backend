@@ -29,7 +29,6 @@ def shuffle_question_order(question_sets):
     bucket_size = Settings().subset_size
 
     global_index = 0  # Track global index across all questions
-    logger.info(question_sets)
     # Iterate over each question set
     for question_set in question_sets:
         total_questions = len(
@@ -54,7 +53,6 @@ def shuffle_question_order(question_sets):
 
             # Update global index for the next set of questions
             global_index += len(block_indices)
-
     return question_order
 
 
@@ -107,8 +105,9 @@ async def create_session(session: Session):
         logger.info("No previous session exists for this user-quiz combo")
         current_session["is_first"] = True
         if not session.omr_mode:
-            question_order = shuffle_question_order(quiz["question_sets"])
-            current_session["question_order"] = question_order
+            current_session["question_order"] = shuffle_question_order(
+                quiz["question_sets"]
+            )
         if quiz["time_limit"] is not None:
             current_session["time_remaining"] = quiz["time_limit"][
                 "max"

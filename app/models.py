@@ -452,7 +452,6 @@ class Session(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     events: List[Event] = []
     has_quiz_ended: bool = False
-    omr_mode: bool = False
     question_order: List[int] = []
     metrics: Optional[SessionMetrics] = None  # gets updated when quiz ends
 
@@ -511,7 +510,7 @@ class SessionResponse(Session):
                         "time_spent": 30,
                     },
                 ],
-                "questionOrder": [0, 1, 2],
+                "question_order": [0, 1, 2, 3],
             }
         }
 
