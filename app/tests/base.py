@@ -126,7 +126,11 @@ class SessionsBaseTestCase(BaseTestCase):
         # omr assessment with multiple question sets
         response = self.client.post(
             sessions.router.prefix + "/",
-            json={"quiz_id": self.multi_qset_omr["_id"], "user_id": 1},
+            json={
+                "quiz_id": self.multi_qset_omr["_id"],
+                "user_id": 1,
+                "omr_mode": True,
+            },
         )
         self.multi_qset_omr_session = json.loads(response.content)
 
