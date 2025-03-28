@@ -1304,7 +1304,8 @@
         "max": 3600
     },
     "shuffle": false,
-    "review_immediate": true,
+    "review_immediate": false,
+    "review_delay":{"days": 0, "hours": 0, "minutes": 5},
     "show_scores": true,
     "metadata": {
         "quiz_type": "assessment",
