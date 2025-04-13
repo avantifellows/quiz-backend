@@ -234,7 +234,9 @@ class Quiz(BaseModel):
     time_limit: Optional[QuizTimeLimit] = None
     # review answers immediately after quiz ends
     review_immediate: Optional[bool] = True
-    review_delay: Optional[Dict[str, int]] = Field(default=None, description="Delay in {days, hours, minutes}")
+    review_delay: Optional[Dict[str, int]] = Field(
+        default=None, description="Delay in {days, hours, minutes}"
+    )
     display_solution: Optional[bool] = True
     show_scores: Optional[bool] = True
     navigation_mode: NavigationMode = "linear"
@@ -300,7 +302,7 @@ class Quiz(BaseModel):
                 "max_marks": 10,
                 "num_graded_questions": 3,
                 "review_immediate": False,
-                "review_delay":{"days": 2, "hours": 4, "minutes": 30},
+                "review_delay": {"days": 2, "hours": 4, "minutes": 30},
                 "metadata": {
                     "quiz_type": "homework",
                     "subject": "Maths",

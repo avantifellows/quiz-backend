@@ -160,42 +160,61 @@ async def get_session_answer_from_a_session(session_id: str, position_index: int
     logger.info(
         f"Getting session answer for session: {session_id}, position: {position_index}"
     )
-    
-    session_data = client["quiz"].sessions.find_one({"_id": session_id}, {"quiz_id": 1, "created_at": 1})
+
+    session_data = client["quiz"].sessions.find_one(
+        {"_id": session_id}, {"quiz_id": 1, "created_at": 1}
+    )
     if not session_data or "quiz_id" not in session_data:
         logger.error(f"Quiz ID not found for session {session_id}")
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quiz ID not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Quiz ID not found"
+        )
 
     quiz_id = session_data["quiz_id"]
-    quiz_data = client["quiz"]["quizzes"].find_one({"_id": quiz_id}, {"review_delay": 1})
+    quiz_data = client["quiz"]["quizzes"].find_one(
+        {"_id": quiz_id}, {"review_delay": 1}
+    )
 
     if not quiz_data or "review_delay" not in quiz_data:
         logger.error(f"Review delay not found for session {session_id}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Review delay not found")
-    
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Review delay not found",
+        )
+
     review_delay = quiz_data.get("review_delay", {})
     delay_days = review_delay.get("days", 0)
     delay_hours = review_delay.get("hours", 0)
     delay_minutes = review_delay.get("minutes", 0)
-    
+
     # Calculate the release time
     created_at = session_data.get("created_at")
     if not created_at:
         logger.error(f"Session {session_id} does not have a creation timestamp")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Session data missing creation time")
-    
-    created_at = datetime.fromisoformat(created_at)  # Ensure this format matches the stored format
-    release_time = created_at + timedelta(days=delay_days, hours=delay_hours, minutes=delay_minutes)
-    
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Session data missing creation time",
+        )
+
+    created_at = datetime.fromisoformat(
+        created_at
+    )  # Ensure this format matches the stored format
+    release_time = created_at + timedelta(
+        days=delay_days, hours=delay_hours, minutes=delay_minutes
+    )
+
     # Check if answer can be released
     current_time = datetime.utcnow()
     if current_time < release_time:
         time_remaining = release_time - current_time
         return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
-            content={"message": "Answer not available yet", "time_remaining": str(time_remaining)}
+            content={
+                "message": "Answer not available yet",
+                "time_remaining": str(time_remaining),
+            },
         )
-    
+
     pipeline = [
         {
             "$match": {  # match the session with the provided session_id
@@ -225,5 +244,6 @@ async def get_session_answer_from_a_session(session_id: str, position_index: int
         f"Retrieved session answer for session: {session_id}, position: {position_index}"
     )
     return JSONResponse(
-        status_code=status.HTTP_200_OK, content=aggregation_result[0]["session_answer"]["answer"]
+        status_code=status.HTTP_200_OK,
+        content=aggregation_result[0]["session_answer"]["answer"],
     )
