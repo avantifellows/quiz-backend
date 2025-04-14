@@ -28,6 +28,24 @@ logger = get_logger()
 
 @router.post("/", response_model=SessionResponse)
 async def create_session(session: Session):
+    current_session = jsonable_encoder(session)
+    active_session = client.quiz.sessions.find_one(
+        {
+            "quiz_id": current_session["quiz_id"],
+            "user_id": current_session["user_id"],
+            "has_quiz_ended": False,
+        }
+    )
+
+    if active_session is not None:
+        logger.warning(
+            f"Active session already exists for user {session.user_id} and quiz {session.quiz_id}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An active session already exists for this quiz on another device or window.",
+        )
+
     logger.info(
         f"Creating new session for user: {session.user_id} and quiz: {session.quiz_id}"
     )
