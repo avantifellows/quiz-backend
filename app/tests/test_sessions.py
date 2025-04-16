@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 from .base import SessionsBaseTestCase
 from ..routers import quizzes, sessions, session_answers
@@ -278,7 +279,6 @@ class SessionsTestCase(SessionsBaseTestCase):
 
     def test_check_quiz_status_for_user(self):
         user_id = "1"
-
         response = self.client.get(
             f"{sessions.router.prefix}/user/{user_id}/quiz-attempts"
         )
@@ -288,3 +288,38 @@ class SessionsTestCase(SessionsBaseTestCase):
 
         # Assert that response is a dict
         assert isinstance(response.json(), dict)
+
+    def test_concurrent_session_creation(self):
+        num_threads = 10
+        responses = []
+
+        # Use the existing quiz_id and user_id from setUp
+        quiz_id = self.homework_session["quiz_id"]
+        user_id = self.homework_session["user_id"]
+
+        def create_session():
+            return self.client.post(
+                sessions.router.prefix + "/",
+                json={"quiz_id": quiz_id, "user_id": user_id},
+            )
+
+        with ThreadPoolExecutor(max_workers=num_threads) as executor:
+            futures = [executor.submit(create_session) for _ in range(num_threads)]
+
+            for future in as_completed(futures):
+                response = future.result()
+                responses.append(response)
+
+        # Check all responses are successful
+        assert all(r.status_code == 201 for r in responses), "Some requests failed"
+
+        # Check session IDs
+        session_ids = [r.json()["_id"] for r in responses]
+        unique_session_ids = set(session_ids)
+
+        print(f"Created session IDs: {session_ids}")
+        print(f"Unique session IDs: {unique_session_ids}")
+
+        assert (
+            len(unique_session_ids) == 1
+        ), "Atomicity failed! Multiple sessions were created"
