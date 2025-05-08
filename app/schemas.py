@@ -52,6 +52,7 @@ class TestFormat(Enum):
     evaluation_test = "evaluation_test"
     homework = "homework"
     mock_test = "mock_test"
+    combined_chapter_test = "combined_chapter_test"
 
 
 class EventType(str, Enum):
