@@ -153,23 +153,49 @@ async def create_session(session: Session):
 
     current_session["session_answers"] = session_answers
 
-    # insert current session into db
-    result = client.quiz.sessions.insert_one(current_session)
-    if result.acknowledged:
-        logger.info(
-            f"Created new session with id {result.inserted_id} for user: {session.user_id} and quiz: {session.quiz_id} with {session.omr_mode} as omr_mode"
+    # Replace the direct insert with an atomic update operation
+    try:
+        # Atomic insert/update: If the session exists, update it; else, insert a new one
+        result = client.quiz.sessions.update_one(
+            {
+                "user_id": current_session["user_id"],
+                "quiz_id": current_session["quiz_id"],
+                # Using timestamps to ensure this is truly a new session
+                "created_at": current_session.get("created_at"),
+            },
+            {"$setOnInsert": current_session},  # Only inserts if no document exists
+            upsert=True,  # Atomically insert or update
         )
-    else:
+
+        if result.matched_count > 0:
+            logger.info(
+                f"Session already exists for user: {session.user_id} and quiz: {session.quiz_id}"
+            )
+        elif result.upserted_id:
+            logger.info(
+                f"Created new session with id {result.upserted_id} for user: {session.user_id} and quiz: {session.quiz_id} with {session.omr_mode} as omr_mode"
+            )
+        else:
+            logger.error(
+                f"Failed to insert new session for user: {session.user_id} and quiz: {session.quiz_id} and omr_mode: {session.omr_mode}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to insert new session",
+            )
+        # Return the created session
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED, content=current_session
+        )
+
+    except Exception as e:
         logger.error(
-            f"Failed to insert new session for user: {session.user_id} and quiz: {session.quiz_id} and omr_mode: {session.omr_mode}"
+            f"Error creating session: {str(e)} for user: {session.user_id} and quiz: {session.quiz_id}"
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to insert new session",
         )
-
-    # return the created session
-    return JSONResponse(status_code=status.HTTP_201_CREATED, content=current_session)
 
 
 @router.patch("/{session_id}", response_model=UpdateSessionResponse)
