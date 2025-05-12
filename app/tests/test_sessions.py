@@ -4,6 +4,10 @@ from ..routers import quizzes, sessions, session_answers
 from ..schemas import EventType
 from datetime import datetime
 import time
+from settings import Settings
+
+
+settings = Settings()
 
 
 class SessionsTestCase(SessionsBaseTestCase):
@@ -288,3 +292,70 @@ class SessionsTestCase(SessionsBaseTestCase):
 
         # Assert that response is a dict
         assert isinstance(response.json(), dict)
+
+    def test_check_question_order_first_session_and_omr_mode(self):
+        data = open("app/tests/dummy_data/multiple_question_set_omr_quiz.json")
+        quiz_data = json.load(data)
+        response = self.client.post(quizzes.router.prefix + "/", json=quiz_data)
+        quiz_id = json.loads(response.content)["id"]
+        quiz = self.client.get(quizzes.router.prefix + f"/{quiz_id}").json()
+        response = self.client.post(
+            sessions.router.prefix + "/",
+            json={"quiz_id": quiz["_id"], "user_id": 1, "omr_mode": True},
+        )
+        assert response.status_code == 201
+        session = json.loads(response.content)
+        assert session["is_first"] is True
+        assert len(session["question_order"]) == 0
+
+    def test_check_question_order_first_session_and_not_omr_mode(self):
+        data = open("app/tests/dummy_data/multiple_question_set_quiz.json")
+        quiz_data = json.load(data)
+        response = self.client.post(quizzes.router.prefix + "/", json=quiz_data)
+        quiz_id = json.loads(response.content)["id"]
+        quiz = self.client.get(quizzes.router.prefix + f"/{quiz_id}").json()
+        response = self.client.post(
+            sessions.router.prefix + "/", json={"quiz_id": quiz["_id"], "user_id": 1}
+        )
+        assert response.status_code == 201
+        session = json.loads(response.content)
+        assert session["is_first"] is True
+
+        question_order = session["question_order"]
+        check_limit = min(settings.subset_size, len(question_order))
+
+        for i in range(check_limit):
+            assert (
+                question_order[i] < check_limit
+            ), f"Value {question_order[i]} exceeds {check_limit}"
+
+    def test_check_question_order_wit_previous_session_and_not_omr_mode(self):
+        self.session_id = self.multi_qset_quiz_session["_id"]
+        self.session_question_order = self.multi_qset_quiz_session["question_order"]
+        # better remove the homework_session_to_large session
+        response = self.client.post(
+            sessions.router.prefix + "/",
+            json={
+                "quiz_id": self.multi_qset_quiz_session["quiz_id"],
+                "user_id": self.multi_qset_quiz_session["user_id"],
+            },
+        )
+        assert response.status_code == 201
+        session = json.loads(response.content)
+        assert session["question_order"] != []
+        assert session["question_order"] == self.session_question_order
+
+    def test_check_question_order_with_previous_session_and_omr_mode(self):
+        self.session_id = self.multi_qset_omr_session["_id"]
+        self.session_question_order = self.multi_qset_omr_session["question_order"]
+        response = self.client.post(
+            sessions.router.prefix + "/",
+            json={
+                "quiz_id": self.multi_qset_omr_session["quiz_id"],
+                "user_id": self.multi_qset_omr_session["user_id"],
+                "omr_mode": True,
+            },
+        )
+        assert response.status_code == 201
+        session = json.loads(response.content)
+        assert session["question_order"] == self.session_question_order == []

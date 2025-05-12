@@ -195,7 +195,6 @@ async def get_quiz(quiz_id: str, omr_mode: bool = Query(False)):
                 ]
             )
         )
-
         for question_set_index, question_set in enumerate(quiz["question_sets"]):
             updated_subset_without_details = []
             options_count_per_set = options_count_across_sets[question_set_index][
