@@ -1,4 +1,4 @@
-from pymongo import MongoClient
+from pymongo import MongoClient, UpdateOne
 import os
 from dotenv import load_dotenv
 
@@ -23,7 +23,7 @@ def update_question_order_in_sessions():
     # Get all sessions that don't have question_order field
     sessions_to_update = db.sessions.find({"question_order": {"$exists": False}})
 
-    update_count = 0
+    operations = []
     for session in sessions_to_update:
         # Get quiz ID for the  respective session
         quiz_id = session.get("quiz_id")
@@ -46,15 +46,16 @@ def update_question_order_in_sessions():
         # Create question_order array [0,1, 2, ..., total_questions-1]
         question_order = list(range(0, total_questions))
 
-        # Update the session with the new question_order
-        result = db.sessions.update_one(
-            {"_id": session["_id"]}, {"$set": {"question_order": question_order}}
+        # Prepare the update operation
+        operations.append(
+            UpdateOne({"_id": session["_id"]}, {"$set": {"question_order": question_order}})
         )
 
-        if result.modified_count:
-            update_count += 1
-
-    print(f"Updated question_order for {update_count} sessions")
+    if operations:
+        result = db.sessions.bulk_write(operations)
+        print(f"Updated question_order for {result.modified_count} sessions")
+    else:
+        print("No sessions needed an update for question_order.")
     client.close()
 
 
