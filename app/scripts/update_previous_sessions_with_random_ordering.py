@@ -48,7 +48,9 @@ def update_question_order_in_sessions():
 
         # Prepare the update operation
         operations.append(
-            UpdateOne({"_id": session["_id"]}, {"$set": {"question_order": question_order}})
+            UpdateOne(
+                {"_id": session["_id"]}, {"$set": {"question_order": question_order}}
+            )
         )
 
     if operations:
