@@ -25,6 +25,7 @@ def str_to_datetime(datetime_str: str) -> datetime:
 
 
 def shuffle_question_order(quiz):
+    """returns shuffled question order for a quiz"""
     question_sets = quiz["question_sets"]
     question_order = []
     bucket_size = Settings().subset_size
