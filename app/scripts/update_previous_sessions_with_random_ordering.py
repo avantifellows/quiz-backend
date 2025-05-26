@@ -16,48 +16,53 @@ def get_db_client():
 def update_question_order_in_sessions():
     """Update question_order in all sessions where needed"""
     client = get_db_client()
-
     db_name = "quiz"
     db = client[db_name]
 
-    # Get all sessions that don't have question_order field
-    sessions_to_update = db.sessions.find({"question_order": {"$exists": False}})
+    # Get all quizzes
+    quizzes = db.quizzes.find({})
+    quiz_count = 0
+    total_sessions_updated = 0
 
-    operations = []
-    for session in sessions_to_update:
-        # Get quiz ID for the  respective session
-        quiz_id = session.get("quiz_id")
-        if not quiz_id:
-            continue
+    for quiz in quizzes:
+        quiz_count += 1
+        quiz_id = quiz["_id"]
 
-        # Find the quiz document
-        quiz = db.quizzes.find_one({"_id": quiz_id})
-        if not quiz:
-            continue
+        print(f"Processing quiz {quiz_count}: {quiz_id}")
 
-        # Get question sets from the quiz to calculate the totalt questions count
+        # Calculate question_order for this quiz
         question_sets = quiz.get("question_sets", [])
-
-        # Calculate total number of questions across all sets
         total_questions = sum(
             len(question_set.get("questions", [])) for question_set in question_sets
         )
-
-        # Create question_order array [0,1, 2, ..., total_questions-1]
         question_order = list(range(0, total_questions))
 
-        # Prepare the update operation
-        operations.append(
-            UpdateOne(
-                {"_id": session["_id"]}, {"$set": {"question_order": question_order}}
-            )
+        # Find all sessions for this quiz that don't have question_order
+        sessions_for_quiz = db.sessions.find(
+            {"quiz_id": quiz_id, "question_order": {"$exists": False}}
         )
 
-    if operations:
-        result = db.sessions.bulk_write(operations)
-        print(f"Updated question_order for {result.modified_count} sessions")
-    else:
-        print("No sessions needed an update for question_order.")
+        operations = []
+        for session in sessions_for_quiz:
+            operations.append(
+                UpdateOne(
+                    {"_id": session["_id"]},
+                    {"$set": {"question_order": question_order}},
+                )
+            )
+
+        # Update all sessions for this quiz
+        if operations:
+            result = db.sessions.bulk_write(operations)
+            print(f"  Updated {result.modified_count} sessions for this quiz")
+            total_sessions_updated += result.modified_count
+        else:
+            print("  No sessions to update for this quiz")
+
+    print(
+        f"Total: Updated {total_sessions_updated} sessions across {quiz_count} quizzes"
+    )
+
     client.close()
 
 
