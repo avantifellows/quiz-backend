@@ -1,4 +1,5 @@
 from fastapi import APIRouter, status, HTTPException
+import random
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 import pymongo
@@ -15,11 +16,48 @@ from models import (
 from datetime import datetime
 from logger_config import get_logger
 from typing import Dict
+from settings import Settings
 
 
 def str_to_datetime(datetime_str: str) -> datetime:
     """converts string to datetime format"""
     return datetime.fromisoformat(datetime_str)
+
+
+def shuffle_question_order(quiz):
+    """returns shuffled question order for a quiz"""
+    question_sets = quiz["question_sets"]
+    question_order = []
+    bucket_size = Settings().subset_size
+
+    global_index = 0  # Track global index across all questions
+    # Iterate over each question set
+    for question_set in question_sets:
+        total_questions = len(
+            question_set["questions"]
+        )  # Get total number of questions in the current set
+        num_blocks = (
+            total_questions + bucket_size - 1
+        ) // bucket_size  # Equivalent to Math.ceil(total_questions / subset_size)
+
+        # For each block (subset of questions)
+        for block in range(num_blocks):
+            # Get the start and end index for the current block
+            start = block * bucket_size
+            end = min(start + bucket_size, total_questions)
+            block_indices = list(range(global_index, global_index + (end - start)))
+
+            # Shuffle the current block using Fisher-Yates algorithm
+            if quiz["shuffle"] is True:
+                # Shuffle the block indices
+                random.shuffle(block_indices)
+
+            # Append the shuffled indices to question_order
+            question_order.extend(block_indices)
+
+            # Update global index for the next set of questions
+            global_index += len(block_indices)
+    return question_order
 
 
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
@@ -70,6 +108,8 @@ async def create_session(session: Session):
     if last_session is None:
         logger.info("No previous session exists for this user-quiz combo")
         current_session["is_first"] = True
+        if not session.omr_mode:
+            current_session["question_order"] = shuffle_question_order(quiz)
         if quiz["time_limit"] is not None:
             current_session["time_remaining"] = quiz["time_limit"][
                 "max"
@@ -136,6 +176,7 @@ async def create_session(session: Session):
         current_session["time_remaining"] = last_session.get("time_remaining", None)
         current_session["has_quiz_ended"] = last_session.get("has_quiz_ended", False)
         current_session["metrics"] = last_session.get("metrics", None)
+        current_session["question_order"] = last_session["question_order"]
 
         # restore the answers from the last (previous) sessions
         session_answers_of_the_last_session = last_session["session_answers"]

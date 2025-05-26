@@ -448,10 +448,13 @@ class Session(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     user_id: str
     quiz_id: str
+    omr_mode: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
     events: List[Event] = []
     has_quiz_ended: bool = False
-    omr_mode: bool = False
+    question_order: List[
+        int
+    ] = []  # random order of questions for each quiz assesment/homework
     metrics: Optional[SessionMetrics] = None  # gets updated when quiz ends
 
     class Config:
@@ -506,6 +509,7 @@ class SessionResponse(Session):
                         "time_spent": 30,
                     },
                 ],
+                "question_order": [0, 1, 2, 3],
             }
         }
 
