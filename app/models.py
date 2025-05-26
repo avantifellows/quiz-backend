@@ -452,7 +452,7 @@ class Session(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     events: List[Event] = []
     has_quiz_ended: bool = False
-    question_order: List[int] = []
+    question_order: List[int] = [] # random order of questions for each quiz assesment/homework
     metrics: Optional[SessionMetrics] = None  # gets updated when quiz ends
 
     class Config:
@@ -482,9 +482,6 @@ class SessionResponse(Session):
 
     is_first: bool
     session_answers: List[SessionAnswer]
-    question_order: List[
-        int
-    ]  # random order of questions for each quiz assesment/homework
     time_remaining: Optional[int] = None  # time in seconds
 
     class Config:
