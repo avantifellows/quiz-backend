@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 def get_db_client():
     """Connect to MongoDB and return the client"""
     if "MONGO_AUTH_CREDENTIALS" not in os.environ:
-        load_dotenv("../.env")  # Adjust path if needed
+        load_dotenv("../../.env")  # Adjust path if needed
 
     client = MongoClient(os.getenv("MONGO_AUTH_CREDENTIALS"))
     return client
@@ -20,12 +20,14 @@ def update_question_order_in_sessions():
     db = client[db_name]
 
     # Get all quizzes
-    quizzes = db.quizzes.find({})
+    # quizzes = db.quizzes.find({})
     quiz_count = 0
     total_sessions_updated = 0
 
-    for quiz in quizzes:
+    quiz_ids = []
+    for quiz_id in quiz_ids:
         quiz_count += 1
+        quiz = db.quizzes.find_one({"_id": quiz_id})
         quiz_id = quiz["_id"]
 
         print(f"Processing quiz {quiz_count}: {quiz_id}")
@@ -39,7 +41,10 @@ def update_question_order_in_sessions():
 
         # Find all sessions for this quiz that don't have question_order
         sessions_for_quiz = db.sessions.find(
-            {"quiz_id": quiz_id, "question_order": {"$exists": False}}
+            {
+                "quiz_id": quiz_id,
+                "$or": [{"question_order": {"$exists": False}}, {"question_order": []}],
+            }
         )
 
         operations = []
@@ -50,6 +55,8 @@ def update_question_order_in_sessions():
                     {"$set": {"question_order": question_order}},
                 )
             )
+
+        print(operations)
 
         # Update all sessions for this quiz
         if operations:
