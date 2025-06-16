@@ -24,8 +24,8 @@ def str_to_datetime(datetime_str: str) -> datetime:
     return datetime.fromisoformat(datetime_str)
 
 
-def shuffle_question_order(quiz):
-    """returns shuffled question order for a quiz"""
+def shuffle_question_order(quiz, shuffle=False):
+    """returns shuffled question order for a quiz if shuffle is True, else returns sequential order"""
     question_sets = quiz["question_sets"]
     question_order = []
     bucket_size = Settings().subset_size
@@ -48,7 +48,7 @@ def shuffle_question_order(quiz):
             block_indices = list(range(global_index, global_index + (end - start)))
 
             # Shuffle the current block using Fisher-Yates algorithm
-            if quiz["shuffle"] is True:
+            if shuffle is True:
                 # Shuffle the block indices
                 random.shuffle(block_indices)
 
@@ -108,8 +108,14 @@ async def create_session(session: Session):
     if last_session is None:
         logger.info("No previous session exists for this user-quiz combo")
         current_session["is_first"] = True
-        if not session.omr_mode:
-            current_session["question_order"] = shuffle_question_order(quiz)
+        if session.omr_mode:
+            current_session["question_order"] = shuffle_question_order(
+                quiz, shuffle=False
+            )
+        else:
+            current_session["question_order"] = shuffle_question_order(
+                quiz, shuffle=quiz["shuffle"]
+            )
         if quiz["time_limit"] is not None:
             current_session["time_remaining"] = quiz["time_limit"][
                 "max"

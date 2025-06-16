@@ -306,7 +306,9 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert response.status_code == 201
         session = json.loads(response.content)
         assert session["is_first"] is True
-        assert len(session["question_order"]) == 0
+        # Expect sequential order for OMR mode
+        assert len(session["question_order"]) > 0
+        assert session["question_order"] == list(range(len(session["question_order"])))
 
     def test_check_question_order_first_session_and_not_omr_mode(self):
         data = open("app/tests/dummy_data/multiple_question_set_quiz.json")
@@ -358,4 +360,6 @@ class SessionsTestCase(SessionsBaseTestCase):
         )
         assert response.status_code == 201
         session = json.loads(response.content)
-        assert session["question_order"] == self.session_question_order == []
+        # Expect sequential order for OMR mode
+        assert len(session["question_order"]) > 0
+        assert session["question_order"] == list(range(len(session["question_order"])))
