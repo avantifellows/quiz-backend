@@ -54,6 +54,7 @@ class TestFormat(Enum):
     homework = "homework"
     mock_test = "mock_test"
     combined_chapter_test = "combined_chapter_test"
+    questionnaire = "questionnaire"
 
 
 class EventType(str, Enum):
