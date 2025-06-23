@@ -41,6 +41,7 @@ class QuizType(Enum):
     assessment = "assessment"
     homework = "homework"
     omr = "omr-assessment"
+    form = "form"
 
 
 class TestFormat(Enum):

@@ -1,0 +1,77 @@
+{
+  "question_sets": [
+    {
+      "title": "Personal Information",
+      "description": "Please provide your basic information",
+      "max_questions_allowed_to_attempt": 5,
+      "questions": [
+        {
+          "text": "What is your name?",
+          "type": "subjective",
+          "max_char_limit": 100,
+          "graded": false
+        },
+        {
+          "text": "What is your age group?",
+          "type": "single-choice",
+          "options": [
+            {"text": "Under 18"},
+            {"text": "18-25"},
+            {"text": "26-35"},
+            {"text": "36-50"},
+            {"text": "Over 50"}
+          ],
+          "graded": false
+        },
+        {
+          "text": "Which of the following apply to you? (Select all that apply)",
+          "type": "multi-choice",
+          "options": [
+            {"text": "Student"},
+            {"text": "Working Professional"},
+            {"text": "Entrepreneur"},
+            {"text": "Retired"},
+            {"text": "Unemployed"}
+          ],
+          "graded": false
+        },
+        {
+          "text": "How did you hear about us?",
+          "type": "single-choice",
+          "options": [
+            {"text": "Social Media"},
+            {"text": "Friends/Family"},
+            {"text": "Search Engine"},
+            {"text": "Advertisement"},
+            {"text": "Other"}
+          ],
+          "graded": false
+        },
+        {
+          "text": "Any additional comments or feedback?",
+          "type": "subjective",
+          "max_char_limit": 500,
+          "graded": false
+        }
+      ]
+    }
+  ],
+  "title": "Customer Feedback Questionnaire",
+  "max_marks": 0,
+  "num_graded_questions": 0,
+  "shuffle": false,
+  "num_attempts_allowed": 1,
+  "review_immediate": true,
+  "display_solution": false,
+  "show_scores": false,
+  "navigation_mode": "non-linear",
+  "instructions": "Please take a moment to fill out this questionnaire. Your responses help us improve our services.",
+  "language": "en",
+  "metadata": {
+    "quiz_type": "form",
+    "subject": "Survey",
+    "grade": "All",
+    "source": "customer_feedback",
+    "test_format": "questionnaire"
+  }
+} 
