@@ -3,7 +3,7 @@
     {
       "title": "Personal Information",
       "description": "Please provide your basic information",
-      "max_questions_allowed_to_attempt": 5,
+      "max_questions_allowed_to_attempt": 7,
       "questions": [
         {
           "text": "What is your name?",
@@ -45,6 +45,25 @@
             {"text": "Advertisement"},
             {"text": "Other"}
           ],
+          "graded": false
+        },
+        {
+          "text": "How difficult or easy do you find the following subjects in your current studies?",
+          "type": "matrix-rating",
+          "matrix_rows": ["Math", "Physics", "Chemistry", "Biology"],
+          "options": [
+            {"text": "1 – Very difficult"},
+            {"text": "2 – A little difficult"},
+            {"text": "3 – Okay / manageable"},
+            {"text": "4 – Easy to understand"},
+            {"text": "5 – Very easy and I enjoy it"}
+          ],
+          "graded": false
+        },
+        {
+          "text": "What is your academic goal for Grade 12? (Enter marks for subjects, percentage for overall)",
+          "type": "matrix-numerical",
+          "matrix_rows": ["Math", "Physics", "Chemistry", "Biology", "Overall"],
           "graded": false
         },
         {
