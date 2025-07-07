@@ -30,11 +30,12 @@ async def get_form(form_id: str):
         or "quiz_type" not in quiz["metadata"]
         or quiz["metadata"]["quiz_type"] != QuizType.form.value
     ):
-        logger.warning(f"Item {form_id} is not a form (quiz_type: {quiz.get('metadata', {}).get('quiz_type', 'unknown')})")
+        logger.warning(
+            f"Item {form_id} is not a form (quiz_type: {quiz.get('metadata', {}).get('quiz_type', 'unknown')})"
+        )
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail=f"form {form_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"form {form_id} not found"
         )
 
     logger.info(f"Finished getting form: {form_id}")
-    return quiz 
+    return quiz
