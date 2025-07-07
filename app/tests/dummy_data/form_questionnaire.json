@@ -92,7 +92,7 @@
   "language": "en",
   "metadata": {
     "quiz_type": "form",
-    "next_step_url": "http://localhost:8080/quiz/686b8e6563e52bbb3f4a511f?userId={userId}&apiKey={apiKey}",
+    "next_step_url": "http://staging-quiz.avantifellows.org/quiz/686b8e6563e52bbb3f4a511f?userId={userId}&apiKey={apiKey}",
     "next_step_text": "Proceed to Quiz",
     "subject": "Baseline Assessment",
     "grade": "11",
