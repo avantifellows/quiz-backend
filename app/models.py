@@ -123,6 +123,8 @@ class QuizMetadata(BaseModel):
     source: Optional[str]
     source_id: Optional[str]
     session_end_time: Optional[str]  # format: %Y-%m-%d %I:%M:%S %p
+    next_step_url: Optional[str]  # URL to redirect to after quiz completion
+    next_step_text: Optional[str]  # Text to display on the next step button
 
 
 class Question(BaseModel):
@@ -251,7 +253,7 @@ class Quiz(BaseModel):
                 "question_sets": [
                     {
                         "title": "Physics set",
-                        "max_questions_allowed_to_attempt": 2,
+                        "max_questions_allowed_to_attempt": 3,
                         "questions": [
                             {
                                 "text": "Which grade are you in?",
