@@ -111,6 +111,7 @@ class QuestionMetadata(BaseModel):
     skill_id: Optional[str]
     concept: Optional[str]
     concept_id: Optional[str]
+    priority: Optional[str]
 
 
 class QuizMetadata(BaseModel):
