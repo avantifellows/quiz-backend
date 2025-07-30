@@ -126,6 +126,7 @@ class QuizMetadata(BaseModel):
     session_end_time: Optional[str]  # format: %Y-%m-%d %I:%M:%S %p
     next_step_url: Optional[str]  # URL to redirect to after quiz completion
     next_step_text: Optional[str]  # Text to display on the next step button
+    next_step_autostart: Optional[bool] = False  # Whether next step should auto-start
 
 
 class Question(BaseModel):
