@@ -149,6 +149,20 @@ async def get_quiz(quiz_id: str, omr_mode: bool = Query(False)):
             status_code=status.HTTP_404_NOT_FOUND, detail=f"quiz {quiz_id} not found"
         )
 
+    # Validate that this is not a form (forms should use /form endpoint)
+    if (
+        "metadata" in quiz
+        and quiz["metadata"] is not None
+        and "quiz_type" in quiz["metadata"]
+        and quiz["metadata"]["quiz_type"] == QuizType.form.value
+    ):
+        logger.warning(
+            f"Item {quiz_id} is a form (quiz_type: {quiz['metadata']['quiz_type']}), should use /form endpoint"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"quiz {quiz_id} not found"
+        )
+
     update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz)
 
     if omr_mode is False and (

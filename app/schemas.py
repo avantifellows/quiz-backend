@@ -25,6 +25,8 @@ class QuestionType(Enum):
     numerical_integer = "numerical-integer"
     numerical_float = "numerical-float"
     matrix_match = "matrix-match"
+    matrix_rating = "matrix-rating"
+    matrix_numerical = "matrix-numerical"
 
 
 class NavigationMode(Enum):
@@ -41,6 +43,7 @@ class QuizType(Enum):
     assessment = "assessment"
     homework = "homework"
     omr = "omr-assessment"
+    form = "form"
 
 
 class TestFormat(Enum):
@@ -53,6 +56,7 @@ class TestFormat(Enum):
     homework = "homework"
     mock_test = "mock_test"
     combined_chapter_test = "combined_chapter_test"
+    questionnaire = "questionnaire"
 
 
 class EventType(str, Enum):

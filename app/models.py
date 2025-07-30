@@ -12,7 +12,7 @@ from schemas import (
 )
 from datetime import datetime
 
-answerType = Union[List[int], List[str], float, int, str, None]
+answerType = Union[List[int], List[str], float, int, str, dict, None]
 
 
 class Organization(BaseModel):
@@ -111,6 +111,7 @@ class QuestionMetadata(BaseModel):
     skill_id: Optional[str]
     concept: Optional[str]
     concept_id: Optional[str]
+    priority: Optional[str]
 
 
 class QuizMetadata(BaseModel):
@@ -123,6 +124,9 @@ class QuizMetadata(BaseModel):
     source: Optional[str]
     source_id: Optional[str]
     session_end_time: Optional[str]  # format: %Y-%m-%d %I:%M:%S %p
+    next_step_url: Optional[str]  # URL to redirect to after quiz completion
+    next_step_text: Optional[str]  # Text to display on the next step button
+    next_step_autostart: Optional[bool] = False  # Whether next step should auto-start
 
 
 class Question(BaseModel):
@@ -136,7 +140,8 @@ class Question(BaseModel):
     options: Optional[List[Option]] = []
     max_char_limit: Optional[int] = None
     matrix_size: Optional[List[int]] = None  # for matrix match question
-    correct_answer: Union[List[int], List[str], float, int, None] = None
+    matrix_rows: Optional[List[str]] = None  # for matrix rating/numerical questions
+    correct_answer: Union[List[int], List[str], float, int, dict, None] = None
     graded: bool = True
     marking_scheme: MarkingScheme = None
     solution: Optional[List[str]] = []
@@ -250,7 +255,7 @@ class Quiz(BaseModel):
                 "question_sets": [
                     {
                         "title": "Physics set",
-                        "max_questions_allowed_to_attempt": 2,
+                        "max_questions_allowed_to_attempt": 3,
                         "questions": [
                             {
                                 "text": "Which grade are you in?",

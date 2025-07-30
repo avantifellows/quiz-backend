@@ -1,0 +1,102 @@
+{
+  "question_sets": [
+    {
+      "title": "Student Baseline Assessment",
+      "description": "Please provide information about your academic background and goals",
+      "max_questions_allowed_to_attempt": 8,
+      "questions": [
+        {
+          "text": "What is your name?",
+          "type": "subjective",
+          "max_char_limit": 100,
+          "graded": false
+        },
+        {
+          "text": "Which subject combination did you choose in 11th grade?",
+          "type": "single-choice",
+          "options": [
+            {"text": "PCM (Physics, Chemistry, Mathematics)"},
+            {"text": "PCB (Physics, Chemistry, Biology)"},
+            {"text": "PCMB (Physics, Chemistry, Mathematics, Biology)"}
+          ],
+          "graded": false
+        },
+        {
+          "text": "Which subject are you good at?",
+          "type": "multi-choice",
+          "options": [
+            {"text": "Maths"},
+            {"text": "English"},
+            {"text": "Science"}
+          ],
+          "graded": false
+        },
+        {
+          "text": "Why did you choose the PCM / PCB / PCMB subject combination?",
+          "type": "single-choice",
+          "options": [
+            {"text": "I enjoy these subjects"},
+            {"text": "I want to prepare for specific exam (NEET/JEE)"},
+            {"text": "Because these subjects have more career options"},
+            {"text": "Parents, teacher or someone else guided/recommended me for this subject combination"},
+            {"text": "My friends were also choosing the same subjects"},
+            {"text": "I was unsure but this seemed like safe choice"},
+            {"text": "Other"}
+          ],
+          "graded": false
+        },
+        {
+          "text": "How difficult or easy do you find the following subjects in your current studies?",
+          "type": "matrix-rating",
+          "matrix_rows": ["Math", "Physics", "Chemistry", "Biology", "English"],
+          "options": [
+            {"text": "1 – Very difficult"},
+            {"text": "2 – A little difficult"},
+            {"text": "3 – Okay / manageable"},
+            {"text": "4 – Easy to understand"},
+            {"text": "5 – Very easy and I enjoy it"}
+          ],
+          "graded": false
+        },
+        {
+          "text": "What is your academic goal for Grade 11? Enter a percentage value out of 100",
+          "type": "matrix-numerical",
+          "matrix_rows": ["Math", "Physics", "Chemistry", "Biology", "English", "Overall"],
+          "graded": false
+        },
+        {
+          "text": "What do you want to become in the future? (Your dream career)",
+          "type": "subjective",
+          "max_char_limit": 200,
+          "graded": false
+        },
+        {
+          "text": "Any additional comments or feedback?",
+          "type": "subjective",
+          "max_char_limit": 500,
+          "graded": false
+        }
+      ]
+    }
+  ],
+  "title": "Student Baseline Form",
+  "max_marks": 0,
+  "num_graded_questions": 0,
+  "shuffle": false,
+  "num_attempts_allowed": 1,
+  "review_immediate": true,
+  "display_solution": false,
+  "show_scores": false,
+  "navigation_mode": "non-linear",
+  "instructions": "Please take a moment to fill out this baseline questionnaire. Your responses help us understand your academic background and goals.",
+  "language": "en",
+  "metadata": {
+    "quiz_type": "form",
+    "next_step_url": "http://staging-quiz.avantifellows.org/quiz/686b8e6563e52bbb3f4a511f?userId={userId}&apiKey={apiKey}",
+    "next_step_text": "Proceed to Quiz",
+    "subject": "Baseline Assessment",
+    "grade": "11",
+    "source": "gsheet",
+    "test_format": "questionnaire"
+  }
+}
