@@ -283,45 +283,34 @@ async def update_session(session_id: str, session_updates: UpdateSession):
             else:
                 session_update_query["$push"].update({"events": new_event_obj})
 
-    # diff between times of last two events
+    # calculate time elapsed in active sessions only
     time_elapsed = 0
     if new_event not in [EventType.start_quiz, EventType.dummy_event]:
-        # time_elapsed = 0 for start-quiz event
-        if len(session["events"]) >= 2:
-            # [sanity check] ensure atleast two events have occured before computing elapsed time
-            # time_elapsed = (
-            #     str_to_datetime(session["events"][-1]["created_at"])
-            #     - str_to_datetime(session["events"][-2]["created_at"])
-            # ).seconds
+        events = session["events"]
 
-            # subtract times of last dummy event and last non dummy event
-            dummy_found = False
-            last_dummy_event, last_non_dummy_event = None, None
-            for ev in session["events"][::-1][1:]:
-                if not dummy_found and ev["event_type"] == EventType.dummy_event:
-                    last_dummy_event = ev
-                    dummy_found = True
-                    continue
+        # iterate through events to sum up active time periods
+        for i in range(len(events) - 1):
+            event = events[i]
+            following_event = events[i + 1]
 
-                if not dummy_found and ev["event_type"] != EventType.dummy_event:
-                    # two quick non-dummy events, ignore
-                    break
-
-                if dummy_found and ev["event_type"] != EventType.dummy_event:
-                    last_non_dummy_event = ev
-                    break
-
-            if dummy_found:
-                time_elapsed = (
-                    str_to_datetime(last_dummy_event["updated_at"])
-                    - str_to_datetime(last_non_dummy_event["created_at"])
-                ).seconds
-            else:
-                # if no dummy event at all!
-                time_elapsed = (
-                    str_to_datetime(session["events"][-1]["created_at"])
-                    - str_to_datetime(session["events"][-2]["created_at"])
-                ).seconds
+            # if event starts activity (start/resume)
+            if event["event_type"] in ["start-quiz", "resume-quiz"]:
+                if following_event["event_type"] == "dummy-event":
+                    # normal case: activity followed by dummy (user was active)
+                    duration = (
+                        str_to_datetime(following_event["updated_at"])
+                        - str_to_datetime(event["created_at"])
+                    ).seconds
+                    time_elapsed += duration
+                elif following_event["event_type"] in ["resume-quiz", "end-quiz"]:
+                    # quick case: activity followed by next action
+                    duration = (
+                        str_to_datetime(following_event["created_at"])
+                        - str_to_datetime(event["created_at"])
+                    ).seconds
+                    # only count if reasonable (user was briefly active, not hours later)
+                    if duration <= 6:
+                        time_elapsed += duration
 
     response_content = {}
     # added check for dummy event; dont update time_remaining for it
