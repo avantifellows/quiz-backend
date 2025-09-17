@@ -318,10 +318,14 @@ async def update_session(session_id: str, session_updates: UpdateSession):
                 ).seconds
             else:
                 # if no dummy event at all!
-                time_elapsed = (
+                duration = (
                     str_to_datetime(session["events"][-1]["created_at"])
                     - str_to_datetime(session["events"][-2]["created_at"])
                 ).seconds
+                # only count if reasonable (user was briefly active, not hours later)
+                # note: dummy_event is sent every 20 seconds
+                if duration <= 20:
+                    time_elapsed = duration
 
     response_content = {}
     # added check for dummy event; dont update time_remaining for it
