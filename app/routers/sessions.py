@@ -323,7 +323,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
                     - str_to_datetime(session["events"][-2]["created_at"])
                 ).seconds
                 # only count if reasonable (user was briefly active, not hours later)
-                if duration <= 6:
+                if duration <= 10:
                     time_elapsed = duration
 
     response_content = {}
