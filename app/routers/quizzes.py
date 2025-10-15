@@ -139,8 +139,8 @@ async def create_quiz(quiz: Quiz):
 
 
 @router.get("/{quiz_id}", response_model=GetQuizResponse)
-async def get_quiz(quiz_id: str, omr_mode: bool = Query(False)):
-    logger.info(f"Starting to get quiz: {quiz_id} with omr_mode={omr_mode}")
+async def get_quiz(quiz_id: str, omr_mode: bool = Query(False), single_page_mode: bool = Query(False)):
+    logger.info(f"Starting to get quiz: {quiz_id} with omr_mode={omr_mode}, single_page_mode={single_page_mode}")
     quiz_collection = client.quiz.quizzes
 
     if (quiz := quiz_collection.find_one({"_id": quiz_id})) is None:
@@ -164,6 +164,20 @@ async def get_quiz(quiz_id: str, omr_mode: bool = Query(False)):
         )
 
     update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz)
+
+    # Handle single page mode with full text (non-OMR)
+    if single_page_mode and not omr_mode:
+        logger.info(f"Single page mode with full text enabled for quiz: {quiz_id}, fetching all questions")
+        # Fetch all questions with full details for each question set
+        for question_set_index, question_set in enumerate(quiz["question_sets"]):
+            all_questions = list(
+                client.quiz.questions.find(
+                    {"question_set_id": question_set["_id"]}
+                ).sort("_id", 1)
+            )
+            quiz["question_sets"][question_set_index]["questions"] = all_questions
+        logger.info(f"Finished fetching all questions for single page mode: {quiz_id}")
+        return quiz
 
     if omr_mode is False and (
         "metadata" not in quiz

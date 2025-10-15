@@ -233,3 +233,23 @@ class QuizTestCase(BaseTestCase):
                     assert isinstance(question["correct_answer"], list)
                     for ans in question["correct_answer"]:
                         assert isinstance(ans, str)
+
+    def test_get_quiz_with_single_page_mode_returns_all_questions_with_full_details(self):
+        """Test that single_page_mode parameter fetches all questions with full details"""
+        response = self.client.get(
+            f"{quizzes.router.prefix}/{self.multi_qset_quiz_id}",
+            params={"single_page_mode": True},
+        )
+        assert response.status_code == 200
+        response = response.json()
+
+        # All questions in all question sets should have full details
+        for question_set in response["question_sets"]:
+            for question in question_set["questions"]:
+                # Check that question has text (not None/empty)
+                assert "text" in question
+                # For single/multi-choice questions, options should have text content
+                if question["type"] in ["single-choice", "multi-choice"]:
+                    assert len(question["options"]) > 0
+                    for option in question["options"]:
+                        assert "text" in option
