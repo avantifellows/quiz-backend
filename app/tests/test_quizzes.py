@@ -234,7 +234,9 @@ class QuizTestCase(BaseTestCase):
                     for ans in question["correct_answer"]:
                         assert isinstance(ans, str)
 
-    def test_get_quiz_with_single_page_mode_returns_all_questions_with_full_details(self):
+    def test_get_quiz_with_single_page_mode_returns_all_questions_with_full_details(
+        self,
+    ):
         """Test that single_page_mode parameter fetches all questions with full details"""
         response = self.client.get(
             f"{quizzes.router.prefix}/{self.multi_qset_quiz_id}",
