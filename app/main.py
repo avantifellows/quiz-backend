@@ -42,6 +42,7 @@ async def log_requests(request: Request, call_next):
 
 origins = [
     "http://localhost:8080",
+    "http://localhost:8081",
     "https://staging-quiz.avantifellows.org",
     "https://quiz.avantifellows.org",
     "http://localhost:3000",
