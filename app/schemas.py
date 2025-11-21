@@ -27,6 +27,7 @@ class QuestionType(Enum):
     matrix_match = "matrix-match"
     matrix_rating = "matrix-rating"
     matrix_numerical = "matrix-numerical"
+    matrix_subjective = "matrix-subjective"
 
 
 class NavigationMode(Enum):
