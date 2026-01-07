@@ -1,0 +1,11 @@
+# Copy this file to terraform.tfvars and fill in values
+# DO NOT commit terraform.tfvars to git (it's in .gitignore)
+
+aws_region             = "ap-south-1"
+environment            = "testing"
+mongo_auth_credentials = "mongodb+srv://USER:PASS@cluster.mongodb.net/quiz-staging?retryWrites=true&w=majority"
+
+# ECS Configuration
+desired_count = 1
+task_cpu      = 512   # 0.5 vCPU
+task_memory   = 1024  # 1 GB

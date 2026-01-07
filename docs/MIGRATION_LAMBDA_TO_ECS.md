@@ -26,7 +26,7 @@ This document outlines a proposed migration of the Quiz Backend from AWS Lambda 
 ### Current Situation
 
 - Quiz Backend runs on **AWS Lambda** with API Gateway
-- Database is **MongoDB Atlas M10** (500 connection limit)
+- Database is **MongoDB Atlas M10** (1500 connection limit)
 - During peak usage (1000-1500 concurrent students taking tests), we hit MongoDB connection limits
 - Current workaround: Manually scale to M40 ($455/month vs $57/month) when we expect high load
 - This is expensive and requires manual intervention 1-2 days before peaks
@@ -44,7 +44,7 @@ Student 500 → Lambda Instance 500 → MongoDB Connection 500
 Student 501 → Lambda Instance 501 → ❌ CONNECTION LIMIT EXCEEDED
 ```
 
-Each Lambda instance creates its own connection(s) to MongoDB. With 500+ concurrent requests, we exceed the M10's 500 connection limit.
+Each Lambda instance creates its own connection(s) to MongoDB. With 1500+ concurrent requests, we exceed the M10's 1500 connection limit.
 
 ---
 
@@ -276,7 +276,7 @@ Each task maintains a pool of 20 MongoDB connections
 | Medium | 300-500 | 8 | 160 |
 | High (peak) | 1000-1500 | 20 | 400 |
 
-All scenarios stay well within M10's 500 connection limit.
+All scenarios stay well within M10's 1500 connection limit.
 
 ### Auto-Scaling Configuration
 
@@ -328,7 +328,7 @@ A student taking a 3-hour test is NOT holding a connection open for 3 hours. The
 │
 └── What this means for infrastructure:
     └── 3-5 ECS tasks can handle 5000 active students easily
-    └── MongoDB connections needed: 60-100 (well within M10's 450 limit)
+    └── MongoDB connections needed: 60-100 (well within M10's 1400 limit)
 ```
 
 **Key insight:** 5000 active students ≠ 5000 concurrent connections. With ECS, you likely need only 3-5 tasks and can stay on M10.
@@ -344,14 +344,14 @@ Lambda behavior:
 ├── 5000 requests arrive in ~1-2 minutes
 ├── Lambda spawns 100-500 instances to absorb burst
 ├── Each instance creates 1-5 MongoDB connections
-├── Total connections: 500-2000+ → ❌ Exceeds M10's 500 limit
+├── Total connections: 500-2000+ → ❌ Can approach or exceed M10's 1500 limit
 └── Result: Connection errors, failed test starts
 
 ECS behavior:
 ├── Same 5000 requests arrive in ~1-2 minutes
 ├── Existing 5 ECS tasks queue and process requests
 ├── Each task has 20 pre-established pooled connections
-├── Total connections: 100 → ✅ Well within M10's 450 limit
+├── Total connections: 100 → ✅ Well within M10's 1400 limit
 └── Result: Slightly higher latency during burst, but no failures
 ```
 
@@ -361,9 +361,10 @@ ECS behavior:
 
 | Tier | Connection Limit | Monthly Cost | Reserved for Admin* | Available for App |
 |------|------------------|--------------|---------------------|-------------------|
-| M10 | 500 | ~$57 | 50 | **450** |
-| M30 | 1000 | ~$228 | 50 | **950** |
-| M40 | 1500 | ~$455 | 100 | **1400** |
+| M10 | 1500 | ~$57 | 100 | **1400** |
+| M20 | 3000 | ~$140 | 100 | **2900** |
+| M30 | 3000 | ~$228 | 100 | **2900** |
+| M40 | 6000 | ~$455 | 100 | **5900** |
 
 *Reserved connections for: Atlas monitoring, database admin tools, data exports, other services accessing the same DB.
 
@@ -394,21 +395,17 @@ These thresholds are based on **active students** (students with tests open), no
 │                                                                                  │
 │  0 - 1,000      5 - 35          3 (min)      M10        60           None       │
 │                                                                                  │
-│  1,000 - 3,000  35 - 100        3 - 5        M10        60 - 100     Auto-scale │
+│  1,000 - 5,000  35 - 170        3 - 6        M10        60 - 120     Auto-scale │
 │                                                                                  │
-│  3,000 - 8,000  100 - 270       5 - 10       M10        100 - 200    Auto-scale │
+│  5,000 - 20,000 170 - 670       6 - 25       M10        120 - 500    Auto-scale │
 │                                                                                  │
-│  8,000 - 15,000 270 - 500       10 - 18      M10        200 - 360    Monitor    │
+│  20,000-50,000  670 - 1700      25 - 55      M10        500 - 1100   Monitor    │
 │                 ─────────────────────────────────────────────────────────────   │
-│  ⚠️  THRESHOLD: Above 15,000 students, consider pre-scaling to M30              │
+│  ⚠️  THRESHOLD: Above 50,000 students, consider pre-scaling to M20              │
 │                                                                                  │
-│  15,000-30,000  500 - 1000      18 - 35      M30 ⬆️     360 - 700    Pre-scale  │
+│  50,000-100,000 1700 - 3400     55 - 110     M20 ⬆️     1100 - 2200  Pre-scale  │
 │                                                                                  │
-│  30,000-50,000  1000 - 1700     35 - 55      M30        700 - 1100   Pre-scale  │
-│                 ─────────────────────────────────────────────────────────────   │
-│  ⚠️  THRESHOLD: Above 40,000 students, consider M40                             │
-│                                                                                  │
-│  50,000+        1700+           55+          M40+ ⬆️    1100+        Contact    │
+│  100,000+       3400+           110+         M30+ ⬆️    2200+        Contact    │
 │                                                                                  │
 └──────────────────────────────────────────────────────────────────────────────────┘
 
@@ -420,20 +417,20 @@ These thresholds are based on **active students** (students with tests open), no
 ```
 Expected active students for upcoming event?
 │
-├── Less than 15,000 students
+├── Less than 50,000 students
 │   └── ✅ Stay on M10, ECS auto-scaling handles everything
-│   └── Example: 5,000 students = ~5 ECS tasks, ~100 connections
+│   └── Example: 20,000 students = ~25 ECS tasks, ~500 connections (within M10's 1400 limit)
 │
-├── 15,000 - 40,000 students
+├── 50,000 - 100,000 students
+│   └── ⚠️  Scale MongoDB to M20 at least 1 hour before event
+│   └── Pre-scale ECS to 55-110 tasks
+│
+├── 100,000 - 150,000 students
 │   └── ⚠️  Scale MongoDB to M30 at least 1 hour before event
-│   └── Pre-scale ECS to 20-40 tasks
+│   └── Pre-scale ECS to 110-150 tasks
 │
-├── 40,000 - 70,000 students
-│   └── ⚠️  Scale MongoDB to M40 at least 1 hour before event
-│   └── Pre-scale ECS to 40-60 tasks
-│
-└── More than 70,000 students
-    └── 🚨 Contact DevOps - need M50+ or architecture review
+└── More than 150,000 students
+    └── 🚨 Contact DevOps - need M40+ or architecture review
 ```
 
 ### Burst Handling: Test Start/End
@@ -525,8 +522,8 @@ aws ecs update-service \
 |-------|-----------|--------|
 | ECS CPU > 80% for 5 min | Warning | Auto-scale should handle, but monitor |
 | ECS CPU > 90% for 2 min | Critical | Manual intervention may be needed |
-| MongoDB connections > 350 (M10) | Warning | Consider scaling to M30 |
-| MongoDB connections > 400 (M10) | Critical | Scale to M30 immediately |
+| MongoDB connections > 1000 (M10) | Warning | Consider scaling to M20 |
+| MongoDB connections > 1200 (M10) | Critical | Scale to M20 immediately |
 | ALB 5xx errors > 10/min | Critical | Check logs, may need more capacity |
 | ALB response time P95 > 2s | Warning | May need more ECS tasks |
 
@@ -556,9 +553,9 @@ mongo "$MONGO_AUTH_CREDENTIALS" --eval "db.serverStatus().connections"
 #### MongoDB Atlas Monitoring
 
 In Atlas Dashboard → Metrics → Connections:
-- **Green zone:** Current connections < 70% of limit
-- **Yellow zone:** 70-85% of limit → Consider scaling up
-- **Red zone:** > 85% of limit → Scale immediately
+- **Green zone:** Current connections < 70% of limit (< 1050 for M10)
+- **Yellow zone:** 70-85% of limit (1050-1275 for M10) → Consider scaling up
+- **Red zone:** > 85% of limit (> 1275 for M10) → Scale immediately
 
 ### Scaling Scenarios: Real Examples
 
@@ -614,7 +611,7 @@ Commands:
   # Optional pre-scale for safety margin
   aws ecs update-service --cluster quiz-cluster --service quiz-backend-prod --desired-count 12
 
-MongoDB: Stay on M10 (20,000 students = ~240 connections, within M10's 450 limit)
+MongoDB: Stay on M10 (20,000 students = ~240 connections, within M10's 1400 limit)
 ```
 
 #### Scenario 4: Major Exam Event (50,000+ students)
@@ -622,22 +619,21 @@ MongoDB: Stay on M10 (20,000 students = ~240 connections, within M10's 450 limit
 ```
 Active students: 50,000 in same time window
 Concurrent requests: ~500-800 steady, ~1500+ during bursts
-ECS Tasks needed: 35-50
-MongoDB connections: 700-1000
+ECS Tasks needed: 35-55
+MongoDB connections: 700-1100
 
 Timeline:
-- 2 hours before: Scale MongoDB M10 → M30 (via Atlas UI)
-- 1.5 hours before: Scale ECS to 45 tasks
-- 1 hour before: Verify both scaling complete
+- 1.5 hours before: Pre-scale ECS to 50 tasks (optional, for safety margin)
+- 1 hour before: Verify scaling complete
 - During exam: Active monitoring
-- 1 hour after: Scale ECS back (auto-scaling will handle)
-- 2 hours after: Scale MongoDB M30 → M10
+- 1 hour after: Let auto-scaling reduce tasks
 
 Commands:
-  # Before
-  aws ecs update-service --cluster quiz-cluster --service quiz-backend-prod --desired-count 45
+  # Optional pre-scale for safety margin
+  aws ecs update-service --cluster quiz-cluster --service quiz-backend-prod --desired-count 50
 
-MongoDB: M30 required (50,000 students = ~800 connections, exceeds M10's 450)
+MongoDB: Stay on M10 (50,000 students = ~1100 connections, within M10's 1400 limit)
+Note: Only scale to M20 if expecting 60,000+ students or want extra headroom
 ```
 
 #### Scenario 5: Unexpected Traffic Spike
@@ -661,7 +657,7 @@ Immediate actions (in order):
      --scalable-dimension ecs:service:DesiredCount \
      --max-capacity 40
 
-4. If MongoDB connections > 350 (check Atlas), scale to M30
+4. If MongoDB connections > 1200 (check Atlas), consider scaling to M20
 
 5. Post-incident: Review logs, adjust auto-scaling thresholds if needed
 ```
@@ -670,19 +666,20 @@ Immediate actions (in order):
 
 | Aspect | Lambda (Current) | ECS (Proposed) |
 |--------|------------------|----------------|
-| **5,000 students scenario** | Need M40 ($455/mo) | M10 is enough ($57/mo) |
-| **20,000 students scenario** | Need M40+ | M10 still works |
+| **5,000 students scenario** | Can hit connection limits with bursts | M10 is enough ($57/mo) |
+| **20,000 students scenario** | Need M20+ for safety | M10 still works |
+| **50,000 students scenario** | Need M30+ | M10 still works (~1100 connections) |
 | **Compute Scaling** | Uncontrolled, causes connection explosion | Controlled, predictable connections |
-| **MongoDB Scaling** | Manual M10→M40 for most peaks | Only needed above 15,000 students |
+| **MongoDB Scaling** | Manual scaling for most peaks | Only needed above 50,000 students |
 | **Intervention frequency** | Every significant exam | Rarely (only very large events) |
 
 ### Key Takeaways
 
 1. **Active students ≠ Concurrent connections** - 5,000 students = ~25-50 concurrent requests
-2. **Below 15,000 students:** M10 + ECS auto-scaling handles everything automatically
+2. **Below 50,000 students:** M10 + ECS auto-scaling handles everything automatically
 3. **Your typical peak (5,000 students):** No manual scaling needed at all with ECS
-4. **15,000-40,000 students:** May need M30, pre-scale ECS for safety
-5. **Above 40,000 students:** Need M30/M40 + pre-scaled ECS
+4. **50,000-100,000 students:** May need M20, pre-scale ECS for safety
+5. **Above 100,000 students:** Need M30+ and pre-scaled ECS
 6. **Always scale MongoDB BEFORE the event** - it takes 10-15 minutes
 7. **ECS scales in ~1 minute** - can be done closer to event time
 8. **When in doubt, scale up** - cost of over-provisioning is lower than cost of failed exams
@@ -724,7 +721,7 @@ client = MongoClient(
 ```
 
 **Why these settings:**
-- `maxPoolSize=20`: Each container uses max 20 connections. With 25 max containers = 500 connections (exactly M10 limit)
+- `maxPoolSize=20`: Each container uses max 20 connections. With 25 max containers = 500 connections (well within M10's 1500 limit)
 - `minPoolSize=5`: Keep connections warm, avoid reconnection delay
 - `maxIdleTimeMS=30000`: Clean up unused connections after 30s
 - `retryWrites/retryReads`: Handle transient network issues gracefully
