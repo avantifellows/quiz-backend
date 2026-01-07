@@ -69,4 +69,10 @@ app.include_router(sessions.router)
 app.include_router(session_answers.router)
 app.include_router(organizations.router)
 
+
+@app.get("/health", tags=["Health"])
+async def health_check():
+    """Lightweight health check endpoint for ALB."""
+    return {"status": "healthy"}
+
 handler = Mangum(app)

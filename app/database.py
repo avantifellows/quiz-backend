@@ -9,4 +9,19 @@ if "MONGO_AUTH_CREDENTIALS" not in os.environ:
 
     load_dotenv("../.env")
 
-client = MongoClient(os.getenv("MONGO_AUTH_CREDENTIALS"))
+# Connection pool configuration for ECS
+# These settings ensure efficient connection reuse while remaining
+# compatible with Lambda (which will just use fewer connections)
+client = MongoClient(
+    os.getenv("MONGO_AUTH_CREDENTIALS"),
+    # Connection Pool Settings
+    maxPoolSize=20,  # Max connections this container will use
+    minPoolSize=5,  # Keep 5 connections always open
+    # Timeout Settings
+    maxIdleTimeMS=30000,  # Close idle connections after 30 seconds
+    connectTimeoutMS=5000,  # Fail fast if can't connect in 5 seconds
+    serverSelectionTimeoutMS=5000,
+    # Reliability Settings
+    retryWrites=True,  # Retry failed writes automatically
+    retryReads=True,  # Retry failed reads automatically
+)
