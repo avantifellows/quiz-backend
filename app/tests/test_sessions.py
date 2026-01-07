@@ -10,6 +10,18 @@ from settings import Settings
 settings = Settings()
 
 
+def _parse_dt(v):
+    """Helper: parse ISO datetime strings (or pass-through datetimes)."""
+    if v is None:
+        return None
+    if isinstance(v, str):
+        # tolerate a trailing Z if it ever appears
+        if v.endswith("Z"):
+            v = v.replace("Z", "+00:00")
+        return datetime.fromisoformat(v)
+    return v
+
+
 class SessionsTestCase(SessionsBaseTestCase):
     def setUp(self):
         super().setUp()
@@ -363,3 +375,89 @@ class SessionsTestCase(SessionsBaseTestCase):
         # Expect sequential order for OMR mode
         assert len(session["question_order"]) > 0
         assert session["question_order"] == list(range(len(session["question_order"])))
+
+    def test_create_session_returns_json_for_existing_and_new_session_paths(self):
+        """
+        Regression test for 'datetime is not JSON serializable' during session creation.
+        Covers:
+        - Returning an existing session (no meaningful event)
+        - Creating a new session (meaningful event exists)
+        """
+        # Existing session returned (no meaningful event)
+        r1 = self.client.post(
+            sessions.router.prefix + "/",
+            json={"quiz_id": self.timed_quiz["_id"], "user_id": 1},
+        )
+        assert r1.status_code == 201
+        assert isinstance(r1.json(), dict)
+
+        # Ensure a meaningful event exists, then a new session should be created
+        self.client.patch(
+            f"{sessions.router.prefix}/{self.timed_quiz_session_id}",
+            json={"event": EventType.start_quiz.value},
+        )
+        r2 = self.client.post(
+            sessions.router.prefix + "/",
+            json={"quiz_id": self.timed_quiz["_id"], "user_id": 1},
+        )
+        assert r2.status_code == 201
+        assert isinstance(r2.json(), dict)
+
+    def test_session_updated_at_bumps_on_answer_update_and_event_update(self):
+        """
+        Ensure updated_at exists and bumps when:
+        - a session answer is updated
+        - a session event is updated
+        """
+        session_id = self.homework_session_id
+
+        s0 = self.client.get(f"{sessions.router.prefix}/{session_id}").json()
+        assert "updated_at" in s0
+        t0 = _parse_dt(s0["updated_at"])
+
+        # Answer update should bump updated_at
+        time.sleep(0.01)
+        r = self.client.patch(
+            f"{session_answers.router.prefix}/{session_id}/0",
+            json={"answer": [0]},
+        )
+        assert r.status_code == 200
+
+        s1 = self.client.get(f"{sessions.router.prefix}/{session_id}").json()
+        t1 = _parse_dt(s1["updated_at"])
+        assert t1 >= t0
+
+        # Event update should bump updated_at again
+        time.sleep(0.01)
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{session_id}",
+            json={"event": EventType.start_quiz.value},
+        )
+        assert r.status_code == 200
+
+        s2 = self.client.get(f"{sessions.router.prefix}/{session_id}").json()
+        t2 = _parse_dt(s2["updated_at"])
+        assert t2 >= t1
+
+    def test_precomputed_timing_fields_written_on_events(self):
+        """Ensure start/end/time fields are written to the session on start/end events."""
+        sid = self.timed_quiz_session_id
+
+        # start-quiz should set start_quiz_time
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        assert r.status_code == 200
+        s1 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        assert s1.get("start_quiz_time") is not None
+
+        # end-quiz should set end_quiz_time and total_time_spent
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.end_quiz.value},
+        )
+        assert r.status_code == 200
+        s2 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        assert s2.get("end_quiz_time") is not None
+        assert s2.get("total_time_spent") is not None
