@@ -15,13 +15,20 @@ from models import (
 )
 from datetime import datetime
 from logger_config import get_logger
-from typing import Dict
+from typing import Dict, Optional
 from settings import Settings
 
 
-def str_to_datetime(datetime_str: str) -> datetime:
-    """converts string to datetime format"""
-    return datetime.fromisoformat(datetime_str)
+def str_to_datetime(value) -> Optional[datetime]:
+    """
+    Convert a datetime-like value to python datetime.
+    - Accepts ISO strings (common via jsonable_encoder) or BSON datetimes from Mongo.
+    """
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    return datetime.fromisoformat(value)
 
 
 def shuffle_question_order(quiz, shuffle=False):
@@ -64,23 +71,11 @@ router = APIRouter(prefix="/sessions", tags=["Sessions"])
 logger = get_logger()
 
 
-def _coerce_dt(v):
-    """
-    Coerce a value into a datetime.
-    - Mongo may store these as ISO strings (via jsonable_encoder) or as BSON datetimes.
-    """
-    if v is None:
-        return None
-    if isinstance(v, datetime):
-        return v
-    return datetime.fromisoformat(v)
-
-
 def _time_elapsed_secs(dt_1, dt_2) -> float:
-    d1 = _coerce_dt(dt_1)
-    d2 = _coerce_dt(dt_2)
+    d1 = str_to_datetime(dt_1)
+    d2 = str_to_datetime(dt_2)
     if d1 is None or d2 is None:
-        return 0.0
+        return 0
     return (d1 - d2).total_seconds()
 
 
@@ -88,7 +83,7 @@ def compute_total_time_spent_like_etl(events, has_quiz_ended: bool):
     """
     Compute total time spent using the same logic as
     etl-data-flow/flows/quizzes/lambda_function.py::fetch_latest_user_sessions().
-    Returns int seconds (rounded) or None.
+    Returns int seconds (floored) or None.
     """
     if not has_quiz_ended or not events:
         return None
@@ -97,15 +92,16 @@ def compute_total_time_spent_like_etl(events, has_quiz_ended: bool):
     if not first_event or first_event.get("event_type") != EventType.start_quiz:
         return None
 
-    total_time_spent = 0.0
+    total_time_spent = 0
     previous_event = first_event
     for event in events[1:]:
         if "created_at" not in event or "updated_at" not in event:
             continue
 
         if event.get("event_type") == EventType.dummy_event:
+            # Dummy window is time since the previous event's *end* (updated_at) plus its own duration.
             total_time_spent += _time_elapsed_secs(
-                event.get("created_at"), previous_event.get("created_at")
+                event.get("created_at"), previous_event.get("updated_at")
             )
             total_time_spent += _time_elapsed_secs(
                 event.get("updated_at"), event.get("created_at")
@@ -116,7 +112,8 @@ def compute_total_time_spent_like_etl(events, has_quiz_ended: bool):
             )
         previous_event = event
 
-    return round(total_time_spent)
+    # Use floor to stay consistent with time_remaining (which floors via timedelta.seconds)
+    return int(total_time_spent)
 
 
 @router.post("/", response_model=SessionResponse)
@@ -328,6 +325,17 @@ async def update_session(session_id: str, session_updates: UpdateSession):
         else:
             session_update_query["$set"].update({"events": [new_event_obj]})
     else:
+
+        def _bump_total_time_spent(delta_seconds: float) -> None:
+            """Increment session.total_time_spent by delta_seconds (rounded to int seconds)."""
+            if delta_seconds <= 0:
+                return
+            base_int = int(session.get("total_time_spent") or 0)
+            session_update_query.setdefault("$set", {}).update(
+                # Use floor to avoid cumulative +1 drift vs time_remaining (which floors)
+                {"total_time_spent": base_int + int(delta_seconds)}
+            )
+
         if (
             new_event == EventType.dummy_event
             and session["events"][-1]["event_type"] == EventType.dummy_event
@@ -352,22 +360,14 @@ async def update_session(session_id: str, session_updates: UpdateSession):
             # Increment total_time_spent by only the newly added dummy window extension:
             # new_updated_at - old_updated_at
             has_started = session.get("start_quiz_time") is not None or (
-                len(session.get("events", [])) > 0
+                session.get("events")
                 and session["events"][0].get("event_type") == EventType.start_quiz
             )
             if has_started and session.get("has_quiz_ended") is not True:
                 delta = _time_elapsed_secs(
                     new_event_obj.get("created_at"), prev_dummy_updated_at
                 )
-                if delta > 0:
-                    base = session.get("total_time_spent")
-                    try:
-                        base_int = int(base) if base is not None else 0
-                    except (TypeError, ValueError):
-                        base_int = 0
-                    session_update_query.setdefault("$set", {}).update(
-                        {"total_time_spent": base_int + int(round(delta))}
-                    )
+                _bump_total_time_spent(delta)
 
         else:
             prev_event_created_at = (
@@ -386,7 +386,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
             # (dummy.created_at - prev_event.created_at) + (dummy.updated_at - dummy.created_at)
             if new_event == EventType.dummy_event:
                 has_started = session.get("start_quiz_time") is not None or (
-                    len(session.get("events", [])) > 0
+                    session.get("events")
                     and session["events"][0].get("event_type") == EventType.start_quiz
                 )
                 if has_started and session.get("has_quiz_ended") is not True:
@@ -396,26 +396,13 @@ async def update_session(session_id: str, session_updates: UpdateSession):
                     delta += _time_elapsed_secs(
                         new_event_obj.get("updated_at"), new_event_obj.get("created_at")
                     )
-                    if delta > 0:
-                        base = session.get("total_time_spent")
-                        try:
-                            base_int = int(base) if base is not None else 0
-                        except (TypeError, ValueError):
-                            base_int = 0
-                        session_update_query.setdefault("$set", {}).update(
-                            {"total_time_spent": base_int + int(round(delta))}
-                        )
-
-    # Always bump session-level updated_at for any session change
-    session_update_query.setdefault("$set", {}).update(
-        {"updated_at": datetime.utcnow()}
-    )
+                    _bump_total_time_spent(delta)
 
     # Precompute and store session-level timing fields
     # - start_quiz_time: set once when start-quiz arrives
     # - end_quiz_time + total_time_spent: set when end-quiz arrives (event-based, matches ETL)
     if new_event == EventType.start_quiz and not session.get("start_quiz_time"):
-        session_update_query["$set"].update(
+        session_update_query.setdefault("$set", {}).update(
             {"start_quiz_time": new_event_obj.get("created_at")}
         )
 
@@ -482,8 +469,15 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     # update the document in the sessions collection
     if new_event == EventType.end_quiz:
         session_metrics = jsonable_encoder(session_updates)["metrics"]
-        total_time_spent = compute_total_time_spent_like_etl(
-            session.get("events", []), has_quiz_ended=True
+        # Prefer the running total if we already accumulated via dummy-events;
+        # otherwise recompute to keep parity with ETL logic.
+        running_total = session_update_query.get("$set", {}).get("total_time_spent")
+        total_time_spent = (
+            running_total
+            if running_total is not None
+            else compute_total_time_spent_like_etl(
+                session.get("events", []), has_quiz_ended=True
+            )
         )
 
         if "$set" not in session_update_query:
@@ -502,6 +496,11 @@ async def update_session(session_id: str, session_updates: UpdateSession):
                     "total_time_spent": total_time_spent,
                 }
             )
+
+    # Always bump session-level updated_at for any session change
+    session_update_query.setdefault("$set", {}).update(
+        {"updated_at": datetime.utcnow()}
+    )
 
     update_result = client.quiz.sessions.update_one(
         {"_id": session_id}, session_update_query

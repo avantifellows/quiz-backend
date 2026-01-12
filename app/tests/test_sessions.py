@@ -461,3 +461,41 @@ class SessionsTestCase(SessionsBaseTestCase):
         s2 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
         assert s2.get("end_quiz_time") is not None
         assert s2.get("total_time_spent") is not None
+
+    def test_total_time_spent_increments_on_dummy_events(self):
+        """
+        Covers incremental total_time_spent updates during dummy-events (in-progress sessions).
+        This prevents total_time_spent from staying null if a student never clicks end-quiz.
+        """
+        sid = self.timed_quiz_session_id
+
+        # start quiz
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        assert r.status_code == 200
+
+        # first dummy event should initialize/increment total_time_spent
+        time.sleep(1.1)  # ensure int(round(delta)) becomes >= 1
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.dummy_event.value},
+        )
+        assert r.status_code == 200
+        s1 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        t1 = s1.get("total_time_spent")
+        assert t1 is not None
+        assert int(t1) >= 1
+
+        # second dummy event should extend the existing dummy window and increase total_time_spent
+        time.sleep(1.1)
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.dummy_event.value},
+        )
+        assert r.status_code == 200
+        s2 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        t2 = s2.get("total_time_spent")
+        assert t2 is not None
+        assert int(t2) > int(t1)
