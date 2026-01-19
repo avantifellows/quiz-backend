@@ -460,6 +460,7 @@ class Session(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     events: List[Event] = []
     has_quiz_ended: bool = False
+    time_limit_max: Optional[int] = None  # store quiz.time_limit.max for derivations
     start_quiz_time: Optional[datetime] = None
     end_quiz_time: Optional[datetime] = None
     total_time_spent: Optional[int] = None  # in seconds

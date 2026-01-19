@@ -79,15 +79,22 @@ def _time_elapsed_secs(dt_1, dt_2) -> float:
     return (d1 - d2).total_seconds()
 
 
-def compute_total_time_spent_like_etl(events, has_quiz_ended: bool):
+def compute_time_spent_from_events(
+    events, has_quiz_ended: bool, allow_incomplete: bool = False
+):
     """
-    Compute total time spent using the same logic as
-    etl-data-flow/flows/quizzes/lambda_function.py::fetch_latest_user_sessions().
-    Returns int seconds (floored) or None.
+    Compute total time spent from the event stream (mirrors ETL logic).
+    - Returns int seconds (floored) or None.
+    - If allow_incomplete=True, will compute for in-progress sessions too.
     """
-    if not has_quiz_ended or not events:
+    if not events:
         return None
 
+    # By default, only return a value for completed sessions unless allow_incomplete is True
+    if not has_quiz_ended and not allow_incomplete:
+        return None
+
+    # Must start with a start-quiz event; otherwise, timing is undefined
     first_event = events[0]
     if not first_event or first_event.get("event_type") != EventType.start_quiz:
         return None
@@ -106,6 +113,12 @@ def compute_total_time_spent_like_etl(events, has_quiz_ended: bool):
             total_time_spent += _time_elapsed_secs(
                 event.get("updated_at"), event.get("created_at")
             )
+        elif event.get("event_type") != EventType.end_quiz:
+            # For non-dummy, non-end events (e.g., resume), count up to 20s since the last event end.
+            gap = _time_elapsed_secs(
+                event.get("created_at"), previous_event.get("updated_at")
+            )
+            total_time_spent += max(0, min(gap, 20))
         elif event.get("event_type") in [EventType.end_quiz]:
             total_time_spent += _time_elapsed_secs(
                 event.get("created_at"), previous_event.get("updated_at")
@@ -169,6 +182,7 @@ async def create_session(session: Session):
                 quiz, shuffle=quiz["shuffle"]
             )
         if quiz["time_limit"] is not None:
+            current_session["time_limit_max"] = quiz["time_limit"]["max"]
             current_session["time_remaining"] = quiz["time_limit"][
                 "max"
             ]  # ignoring min for now
@@ -239,6 +253,7 @@ async def create_session(session: Session):
         current_session["has_quiz_ended"] = last_session.get("has_quiz_ended", False)
         current_session["metrics"] = last_session.get("metrics", None)
         current_session["question_order"] = last_session["question_order"]
+        current_session["time_limit_max"] = last_session.get("time_limit_max", None)
         # Keep precomputed timing fields consistent with copied events.
         current_session["start_quiz_time"] = last_session.get("start_quiz_time", None)
         current_session["end_quiz_time"] = last_session.get("end_quiz_time", None)
@@ -259,6 +274,13 @@ async def create_session(session: Session):
             )
 
     current_session["session_answers"] = session_answers
+
+    # Derive time_remaining from time_limit_max and current total_time_spent
+    if current_session.get("time_limit_max") is not None:
+        base_spent = int(current_session.get("total_time_spent") or 0)
+        current_session["time_remaining"] = max(
+            0, current_session["time_limit_max"] - base_spent
+        )
 
     # Ensure updated_at is present and reflects the insert time
     current_session["updated_at"] = datetime.utcnow()
@@ -406,96 +428,40 @@ async def update_session(session_id: str, session_updates: UpdateSession):
             {"start_quiz_time": new_event_obj.get("created_at")}
         )
 
-    # diff between times of last two events
-    time_elapsed = 0
-    if new_event not in [EventType.start_quiz, EventType.dummy_event]:
-        # time_elapsed = 0 for start-quiz event
-        if len(session["events"]) >= 2:
-            # [sanity check] ensure atleast two events have occured before computing elapsed time
-            # time_elapsed = (
-            #     str_to_datetime(session["events"][-1]["created_at"])
-            #     - str_to_datetime(session["events"][-2]["created_at"])
-            # ).seconds
+    # After mutating events, recompute total_time_spent (allow incomplete sessions)
+    running_total = compute_time_spent_from_events(
+        session.get("events", []), has_quiz_ended=False, allow_incomplete=True
+    )
+    if running_total is not None:
+        session_update_query.setdefault("$set", {}).update(
+            {"total_time_spent": running_total}
+        )
 
-            # subtract times of last dummy event and last non dummy event
-            dummy_found = False
-            last_dummy_event, last_non_dummy_event = None, None
-            for ev in session["events"][::-1][1:]:
-                if not dummy_found and ev["event_type"] == EventType.dummy_event:
-                    last_dummy_event = ev
-                    dummy_found = True
-                    continue
-
-                if not dummy_found and ev["event_type"] != EventType.dummy_event:
-                    # two quick non-dummy events, ignore
-                    break
-
-                if dummy_found and ev["event_type"] != EventType.dummy_event:
-                    last_non_dummy_event = ev
-                    break
-
-            if dummy_found:
-                time_elapsed = (
-                    str_to_datetime(last_dummy_event["updated_at"])
-                    - str_to_datetime(last_non_dummy_event["created_at"])
-                ).seconds
-            else:
-                # if no dummy event at all!
-                duration = (
-                    str_to_datetime(session["events"][-1]["created_at"])
-                    - str_to_datetime(session["events"][-2]["created_at"])
-                ).seconds
-                # only count if reasonable (user was briefly active, not hours later)
-                # note: dummy_event is sent every 20 seconds
-                if duration <= 20:
-                    time_elapsed = duration
-
+    # Derive time_remaining from time_limit_max and total_time_spent
     response_content = {}
-    # added check for dummy event; dont update time_remaining for it
-    if (
-        new_event != EventType.dummy_event
-        and "time_remaining" in session
-        and session["time_remaining"] is not None
-    ):
-        # if `time_remaining` key is not present =>
-        # no time limit is set, no need to respond with time_remaining
-        time_remaining = max(0, session["time_remaining"] - time_elapsed)
-        if "$set" not in session_update_query:
-            session_update_query["$set"] = {"time_remaining": time_remaining}
-        else:
-            session_update_query["$set"].update({"time_remaining": time_remaining})
+    time_limit_max = session.get("time_limit_max")
+    if time_limit_max is not None:
+        time_remaining = max(0, time_limit_max - int(running_total or 0))
+        session_update_query.setdefault("$set", {}).update(
+            {"time_remaining": time_remaining}
+        )
         response_content = {"time_remaining": time_remaining}
 
     # update the document in the sessions collection
     if new_event == EventType.end_quiz:
         session_metrics = jsonable_encoder(session_updates)["metrics"]
-        # Prefer the running total if we already accumulated via dummy-events;
-        # otherwise recompute to keep parity with ETL logic.
-        running_total = session_update_query.get("$set", {}).get("total_time_spent")
-        total_time_spent = (
-            running_total
-            if running_total is not None
-            else compute_total_time_spent_like_etl(
-                session.get("events", []), has_quiz_ended=True
-            )
+        # Ensure final total_time_spent reflects full ETL computation
+        total_time_spent = compute_time_spent_from_events(
+            session.get("events", []), has_quiz_ended=True, allow_incomplete=True
         )
-
-        if "$set" not in session_update_query:
-            session_update_query["$set"] = {
+        session_update_query.setdefault("$set", {}).update(
+            {
                 "has_quiz_ended": True,
                 "metrics": session_metrics,
                 "end_quiz_time": new_event_obj.get("created_at"),
                 "total_time_spent": total_time_spent,
             }
-        else:
-            session_update_query["$set"].update(
-                {
-                    "has_quiz_ended": True,
-                    "metrics": session_metrics,
-                    "end_quiz_time": new_event_obj.get("created_at"),
-                    "total_time_spent": total_time_spent,
-                }
-            )
+        )
 
     # Always bump session-level updated_at for any session change
     session_update_query.setdefault("$set", {}).update(

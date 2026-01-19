@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime, timedelta
 
-from ..routers.sessions import compute_total_time_spent_like_etl
+from ..routers.sessions import compute_time_spent_from_events
 from ..schemas import EventType
 
 
@@ -15,10 +15,10 @@ class SessionTimingUnitTests(unittest.TestCase):
                 "updated_at": t0,
             }
         ]
-        assert compute_total_time_spent_like_etl(events, has_quiz_ended=False) is None
+        assert compute_time_spent_from_events(events, has_quiz_ended=False) is None
 
     def test_compute_total_time_spent_returns_none_if_no_events(self):
-        assert compute_total_time_spent_like_etl([], has_quiz_ended=True) is None
+        assert compute_time_spent_from_events([], has_quiz_ended=True) is None
 
     def test_compute_total_time_spent_basic_dummy_then_end(self):
         """
@@ -39,7 +39,7 @@ class SessionTimingUnitTests(unittest.TestCase):
             {"event_type": EventType.end_quiz, "created_at": t3, "updated_at": t3},
         ]
 
-        assert compute_total_time_spent_like_etl(events, has_quiz_ended=True) == 55
+        assert compute_time_spent_from_events(events, has_quiz_ended=True) == 55
 
     def test_compute_total_time_spent_multiple_dummies(self):
         """
@@ -60,6 +60,36 @@ class SessionTimingUnitTests(unittest.TestCase):
             {"event_type": EventType.end_quiz, "created_at": t5, "updated_at": t5},
         ]
 
-        out = compute_total_time_spent_like_etl(events, has_quiz_ended=True)
+        out = compute_time_spent_from_events(events, has_quiz_ended=True)
         assert isinstance(out, int)
         assert out == 40
+
+    def test_compute_time_spent_non_dummy_gap_allows_incomplete(self):
+        """
+        Non-dummy event should add capped gap when allow_incomplete=True.
+        """
+        t0 = datetime(2026, 1, 1, 12, 0, 0)
+        t1 = t0 + timedelta(seconds=10)
+        events = [
+            {"event_type": EventType.start_quiz, "created_at": t0, "updated_at": t0},
+            {"event_type": EventType.resume_quiz, "created_at": t1, "updated_at": t1},
+        ]
+        out = compute_time_spent_from_events(
+            events, has_quiz_ended=False, allow_incomplete=True
+        )
+        assert out == 10
+
+    def test_compute_time_spent_non_dummy_gap_capped_at_20(self):
+        """
+        Non-dummy gap beyond 20s should be capped at 20.
+        """
+        t0 = datetime(2026, 1, 1, 12, 0, 0)
+        t1 = t0 + timedelta(seconds=50)
+        events = [
+            {"event_type": EventType.start_quiz, "created_at": t0, "updated_at": t0},
+            {"event_type": EventType.resume_quiz, "created_at": t1, "updated_at": t1},
+        ]
+        out = compute_time_spent_from_events(
+            events, has_quiz_ended=False, allow_incomplete=True
+        )
+        assert out == 20
