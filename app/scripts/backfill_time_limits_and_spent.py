@@ -154,7 +154,18 @@ def main():
         if time_limit_max is not None and total_time_spent is not None:
             time_remaining = max(0, int(time_limit_max) - int(total_time_spent))
 
-        set_fields = {"updated_at": datetime.utcnow()}
+        set_fields = {}
+        if doc.get("updated_at") is None:
+            updated_at = None
+            if events:
+                last_event = events[-1]
+                updated_at = last_event.get("updated_at") or last_event.get(
+                    "created_at"
+                )
+            if updated_at is None:
+                updated_at = doc.get("created_at")
+            if updated_at is not None:
+                set_fields["updated_at"] = updated_at
         if time_limit_max is not None:
             set_fields["time_limit_max"] = time_limit_max
         if total_time_spent is not None:
@@ -166,6 +177,8 @@ def main():
         if end_quiz_time is not None:
             set_fields["end_quiz_time"] = end_quiz_time
 
+        if not set_fields:
+            continue
         updates.append(UpdateOne({"_id": sid}, {"$set": set_fields}))
 
         if len(updates) >= batch_size:
