@@ -349,6 +349,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
                     should_update_total_time_spent = True
 
         else:
+            # Not a consecutive dummy; record the new event in the timeline.
             session["events"].append(new_event_obj)
             if "$push" not in session_update_query:
                 session_update_query["$push"] = {"events": new_event_obj}
@@ -374,10 +375,14 @@ async def update_session(session_id: str, session_updates: UpdateSession):
                         running_total += int(delta)
                         should_update_total_time_spent = True
             elif new_event == EventType.end_quiz:
+                # End-quiz always counts the final gap since the last event ended.
                 if has_started and not has_ended and gap_since_prev_event_end > 0:
                     running_total += int(gap_since_prev_event_end)
                     should_update_total_time_spent = True
-            elif new_event not in [EventType.start_quiz]:
+            elif new_event == EventType.resume_quiz:
+                # Resume updates: if there was no dummy window in between, cap the gap at 20s.
+                # - previous event is dummy: dummy already captured elapsed time, so add 0 here
+                # - previous event is start/resume: add up to 20s to avoid counting long idle gaps
                 if (
                     has_started
                     and not has_ended
