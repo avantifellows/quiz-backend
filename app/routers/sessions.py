@@ -419,6 +419,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     response_content = {}
     time_limit_max = session.get("time_limit_max")
     if time_limit_max is None:
+        # lazy backfilling on-demand
         quiz = client.quiz.quizzes.find_one({"_id": quiz_id})
         if (
             quiz
