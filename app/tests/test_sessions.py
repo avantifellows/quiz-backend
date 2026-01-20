@@ -536,6 +536,39 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert int(t2) == int(t1)
         assert tr2 == tr1
 
+    def test_end_after_dummy_adds_gap(self):
+        """
+        End-quiz after a dummy should add the final gap since last dummy update.
+        """
+        sid = self.timed_quiz_session_id
+
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        assert r.status_code == 200
+
+        time.sleep(1.1)
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.dummy_event.value},
+        )
+        assert r.status_code == 200
+        s1 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        t1 = s1.get("total_time_spent")
+        assert t1 is not None
+
+        time.sleep(1.1)
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.end_quiz.value},
+        )
+        assert r.status_code == 200
+        s2 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        t2 = s2.get("total_time_spent")
+        assert t2 is not None
+        assert int(t2) > int(t1)
+
     def test_resume_gap_capped_without_dummy(self):
         """
         When two non-dummy events occur back-to-back, the gap should be capped at 20s.
