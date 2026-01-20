@@ -79,56 +79,6 @@ def _time_elapsed_secs(dt_1, dt_2) -> float:
     return (d1 - d2).total_seconds()
 
 
-def compute_time_spent_from_events(
-    events, has_quiz_ended: bool, allow_incomplete: bool = False
-):
-    """
-    Compute total time spent from the event stream (mirrors ETL logic).
-    - Returns int seconds (floored) or None.
-    - If allow_incomplete=True, will compute for in-progress sessions too.
-    """
-    if not events:
-        return None
-
-    # By default, only return a value for completed sessions unless allow_incomplete is True
-    if not has_quiz_ended and not allow_incomplete:
-        return None
-
-    # Must start with a start-quiz event; otherwise, timing is undefined
-    first_event = events[0]
-    if not first_event or first_event.get("event_type") != EventType.start_quiz:
-        return None
-
-    total_time_spent = 0
-    previous_event = first_event
-    for event in events[1:]:
-        if "created_at" not in event or "updated_at" not in event:
-            continue
-
-        if event.get("event_type") == EventType.dummy_event:
-            # Dummy window is time since the previous event's *end* (updated_at) plus its own duration.
-            total_time_spent += _time_elapsed_secs(
-                event.get("created_at"), previous_event.get("updated_at")
-            )
-            total_time_spent += _time_elapsed_secs(
-                event.get("updated_at"), event.get("created_at")
-            )
-        elif event.get("event_type") != EventType.end_quiz:
-            # For non-dummy, non-end events (e.g., resume), count up to 20s since the last event end.
-            gap = _time_elapsed_secs(
-                event.get("created_at"), previous_event.get("updated_at")
-            )
-            total_time_spent += max(0, min(gap, 20))
-        elif event.get("event_type") in [EventType.end_quiz]:
-            total_time_spent += _time_elapsed_secs(
-                event.get("created_at"), previous_event.get("updated_at")
-            )
-        previous_event = event
-
-    # Use floor to stay consistent with time_remaining (which floors via timedelta.seconds)
-    return int(total_time_spent)
-
-
 def derive_time_remaining(time_limit_max: int, total_time_spent: int) -> int:
     """Clamp to avoid negative time_remaining due to polling/latency gaps."""
     return max(0, int(time_limit_max) - int(total_time_spent))
