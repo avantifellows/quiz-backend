@@ -79,54 +79,9 @@ def _time_elapsed_secs(dt_1, dt_2) -> float:
     return (d1 - d2).total_seconds()
 
 
-def compute_time_spent_from_events(
-    events, has_quiz_ended: bool, allow_incomplete: bool = False
-):
-    """
-    Compute total time spent from the event stream (mirrors ETL logic).
-    - Returns int seconds (floored) or None.
-    - If allow_incomplete=True, will compute for in-progress sessions too.
-    """
-    if not events:
-        return None
-
-    # By default, only return a value for completed sessions unless allow_incomplete is True
-    if not has_quiz_ended and not allow_incomplete:
-        return None
-
-    # Must start with a start-quiz event; otherwise, timing is undefined
-    first_event = events[0]
-    if not first_event or first_event.get("event_type") != EventType.start_quiz:
-        return None
-
-    total_time_spent = 0
-    previous_event = first_event
-    for event in events[1:]:
-        if "created_at" not in event or "updated_at" not in event:
-            continue
-
-        if event.get("event_type") == EventType.dummy_event:
-            # Dummy window is time since the previous event's *end* (updated_at) plus its own duration.
-            total_time_spent += _time_elapsed_secs(
-                event.get("created_at"), previous_event.get("updated_at")
-            )
-            total_time_spent += _time_elapsed_secs(
-                event.get("updated_at"), event.get("created_at")
-            )
-        elif event.get("event_type") != EventType.end_quiz:
-            # For non-dummy, non-end events (e.g., resume), count up to 20s since the last event end.
-            gap = _time_elapsed_secs(
-                event.get("created_at"), previous_event.get("updated_at")
-            )
-            total_time_spent += max(0, min(gap, 20))
-        elif event.get("event_type") in [EventType.end_quiz]:
-            total_time_spent += _time_elapsed_secs(
-                event.get("created_at"), previous_event.get("updated_at")
-            )
-        previous_event = event
-
-    # Use floor to stay consistent with time_remaining (which floors via timedelta.seconds)
-    return int(total_time_spent)
+def derive_time_remaining(time_limit_max: int, total_time_spent: int) -> int:
+    """Clamp to avoid negative time_remaining due to polling/latency gaps."""
+    return max(0, int(time_limit_max) - int(total_time_spent))
 
 
 @router.post("/", response_model=SessionResponse)
@@ -183,9 +138,6 @@ async def create_session(session: Session):
             )
         if quiz["time_limit"] is not None:
             current_session["time_limit_max"] = quiz["time_limit"]["max"]
-            current_session["time_remaining"] = quiz["time_limit"][
-                "max"
-            ]  # ignoring min for now
 
         if "question_sets" in quiz and quiz["question_sets"]:
             for question_set_index, question_set in enumerate(quiz["question_sets"]):
@@ -275,12 +227,15 @@ async def create_session(session: Session):
 
     current_session["session_answers"] = session_answers
 
-    # Derive time_remaining from time_limit_max and current total_time_spent
+    # Derive time_remaining from time_limit_max and total_time_spent (if known).
     if current_session.get("time_limit_max") is not None:
-        base_spent = int(current_session.get("total_time_spent") or 0)
-        current_session["time_remaining"] = max(
-            0, current_session["time_limit_max"] - base_spent
-        )
+        base_spent = current_session.get("total_time_spent")
+        if base_spent is not None:
+            current_session["time_remaining"] = derive_time_remaining(
+                current_session["time_limit_max"], base_spent
+            )
+        elif current_session.get("time_remaining") is None:
+            current_session["time_remaining"] = current_session["time_limit_max"]
 
     # Ensure updated_at is present and reflects the insert time
     current_session["updated_at"] = datetime.utcnow()
@@ -321,11 +276,6 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     log_message = f"Updating session with id {session_id} and event {new_event}"
     session_update_query = {}
 
-    # if new_event == EventType.dummy_event:
-    #     return JSONResponse(
-    #         status_code=status.HTTP_200_OK, content={"time_remaining": None}
-    #     )
-
     session = client.quiz.sessions.find_one({"_id": session_id})
     if session is None:
         logger.error(
@@ -340,6 +290,17 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     logger.info(log_message)
 
     new_event_obj = jsonable_encoder(Event.parse_obj({"event_type": new_event}))
+    total_time_spent = session.get("total_time_spent")
+    running_total = int(total_time_spent or 0)
+    should_update_total_time_spent = total_time_spent is None
+    has_started = session.get("start_quiz_time") is not None or (
+        session.get("events")
+        and session["events"][0].get("event_type") == EventType.start_quiz
+    )
+    if new_event == EventType.start_quiz:
+        has_started = True
+    has_ended = session.get("has_quiz_ended") is True
+
     if session["events"] is None:
         session["events"] = [new_event_obj]
         if "$set" not in session_update_query:
@@ -347,24 +308,22 @@ async def update_session(session_id: str, session_updates: UpdateSession):
         else:
             session_update_query["$set"].update({"events": [new_event_obj]})
     else:
+        last_event = session["events"][-1] if session.get("events") else None
+        last_event_type = last_event.get("event_type") if last_event else None
+        last_event_created_at = last_event.get("created_at") if last_event else None
+        last_event_updated_at = last_event.get("updated_at") if last_event else None
 
-        def _bump_total_time_spent(delta_seconds: float) -> None:
-            """Increment session.total_time_spent by delta_seconds (rounded to int seconds)."""
-            if delta_seconds <= 0:
-                return
-            base_int = int(session.get("total_time_spent") or 0)
-            session_update_query.setdefault("$set", {}).update(
-                # Use floor to avoid cumulative +1 drift vs time_remaining (which floors)
-                {"total_time_spent": base_int + int(delta_seconds)}
-            )
-
+        # Timing rules:
+        # - Dummy events define active windows (count full duration).
+        # - Resume events without a dummy in between get a capped gap (<= 20s).
+        # - End always counts the final gap after the last event.
         if (
             new_event == EventType.dummy_event
-            and session["events"][-1]["event_type"] == EventType.dummy_event
+            and last_event_type == EventType.dummy_event
         ):
             # We'll extend the previous dummy-event window by updating its updated_at.
             # We also use this to incrementally update session.total_time_spent without double-counting.
-            prev_dummy_updated_at = session["events"][-1].get("updated_at")
+            prev_dummy_updated_at = last_event_updated_at
             # if previous event is dummy, just change the updated_at time of previous event
             last_event_index = len(session["events"]) - 1
             last_event_update_query = {
@@ -381,44 +340,58 @@ async def update_session(session_id: str, session_updates: UpdateSession):
 
             # Increment total_time_spent by only the newly added dummy window extension:
             # new_updated_at - old_updated_at
-            has_started = session.get("start_quiz_time") is not None or (
-                session.get("events")
-                and session["events"][0].get("event_type") == EventType.start_quiz
-            )
-            if has_started and session.get("has_quiz_ended") is not True:
+            if has_started and not has_ended:
                 delta = _time_elapsed_secs(
                     new_event_obj.get("created_at"), prev_dummy_updated_at
                 )
-                _bump_total_time_spent(delta)
+                if delta > 0:
+                    running_total += int(delta)
+                    should_update_total_time_spent = True
 
         else:
-            prev_event_created_at = (
-                session["events"][-1].get("created_at")
-                if session.get("events")
-                else None
-            )
+            # Not a consecutive dummy; record the new event in the timeline.
             session["events"].append(new_event_obj)
             if "$push" not in session_update_query:
                 session_update_query["$push"] = {"events": new_event_obj}
             else:
                 session_update_query["$push"].update({"events": new_event_obj})
 
+            # elapsed time since the previous event "ended" (updated_at if present, else created_at)
+            gap_since_prev_event_end = _time_elapsed_secs(
+                new_event_obj.get("created_at"),
+                last_event_updated_at or last_event_created_at,
+            )
+
             # If this is the first dummy-event after some non-dummy event, we can increment
             # total_time_spent by:
-            # (dummy.created_at - prev_event.created_at) + (dummy.updated_at - dummy.created_at)
+            # (dummy.created_at - prev_event.end) + (dummy.updated_at - dummy.created_at)
             if new_event == EventType.dummy_event:
-                has_started = session.get("start_quiz_time") is not None or (
-                    session.get("events")
-                    and session["events"][0].get("event_type") == EventType.start_quiz
-                )
-                if has_started and session.get("has_quiz_ended") is not True:
-                    delta = _time_elapsed_secs(
-                        new_event_obj.get("created_at"), prev_event_created_at
-                    )
+                if has_started and not has_ended:
+                    delta = gap_since_prev_event_end
                     delta += _time_elapsed_secs(
                         new_event_obj.get("updated_at"), new_event_obj.get("created_at")
                     )
-                    _bump_total_time_spent(delta)
+                    if delta > 0:
+                        running_total += int(delta)
+                        should_update_total_time_spent = True
+            elif new_event == EventType.end_quiz:
+                # End-quiz always counts the final gap since the last event ended.
+                if has_started and not has_ended and gap_since_prev_event_end > 0:
+                    running_total += int(gap_since_prev_event_end)
+                    should_update_total_time_spent = True
+            elif new_event == EventType.resume_quiz:
+                # Resume updates: if there was no dummy window in between, cap the gap at 20s.
+                # - previous event is dummy: dummy already captured elapsed time, so add 0 here
+                # - previous event is start/resume: add up to 20s to avoid counting long idle gaps
+                if (
+                    has_started
+                    and not has_ended
+                    and last_event_type != EventType.dummy_event
+                ):
+                    delta = max(0, min(gap_since_prev_event_end, 20))
+                    if delta > 0:
+                        running_total += int(delta)
+                        should_update_total_time_spent = True
 
     # Precompute and store session-level timing fields
     # - start_quiz_time: set once when start-quiz arrives
@@ -428,11 +401,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
             {"start_quiz_time": new_event_obj.get("created_at")}
         )
 
-    # After mutating events, recompute total_time_spent (allow incomplete sessions)
-    running_total = compute_time_spent_from_events(
-        session.get("events", []), has_quiz_ended=False, allow_incomplete=True
-    )
-    if running_total is not None:
+    if should_update_total_time_spent:
         session_update_query.setdefault("$set", {}).update(
             {"total_time_spent": running_total}
         )
@@ -440,8 +409,21 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     # Derive time_remaining from time_limit_max and total_time_spent
     response_content = {}
     time_limit_max = session.get("time_limit_max")
+    if time_limit_max is None:
+        # lazy backfilling on-demand
+        quiz = client.quiz.quizzes.find_one({"_id": quiz_id})
+        if (
+            quiz
+            and quiz.get("time_limit")
+            and quiz["time_limit"].get("max") is not None
+        ):
+            time_limit_max = quiz["time_limit"]["max"]
+            session_update_query.setdefault("$set", {}).update(
+                {"time_limit_max": time_limit_max}
+            )
     if time_limit_max is not None:
-        time_remaining = max(0, time_limit_max - int(running_total or 0))
+        # running_total may still be None if we haven't accumulated any timing yet.
+        time_remaining = derive_time_remaining(time_limit_max, running_total or 0)
         session_update_query.setdefault("$set", {}).update(
             {"time_remaining": time_remaining}
         )
@@ -450,16 +432,12 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     # update the document in the sessions collection
     if new_event == EventType.end_quiz:
         session_metrics = jsonable_encoder(session_updates)["metrics"]
-        # Ensure final total_time_spent reflects full ETL computation
-        total_time_spent = compute_time_spent_from_events(
-            session.get("events", []), has_quiz_ended=True, allow_incomplete=True
-        )
         session_update_query.setdefault("$set", {}).update(
             {
                 "has_quiz_ended": True,
                 "metrics": session_metrics,
                 "end_quiz_time": new_event_obj.get("created_at"),
-                "total_time_spent": total_time_spent,
+                "total_time_spent": running_total,
             }
         )
 

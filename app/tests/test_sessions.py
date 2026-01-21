@@ -2,9 +2,10 @@ import json
 from .base import SessionsBaseTestCase
 from ..routers import quizzes, sessions, session_answers
 from ..schemas import EventType
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 from settings import Settings
+from ..database import client as mongo_client
 
 
 settings = Settings()
@@ -499,3 +500,97 @@ class SessionsTestCase(SessionsBaseTestCase):
         t2 = s2.get("total_time_spent")
         assert t2 is not None
         assert int(t2) > int(t1)
+
+    def test_resume_after_dummy_does_not_add_gap(self):
+        """
+        If the last event is a dummy, a subsequent resume should not add extra time.
+        """
+        sid = self.timed_quiz_session_id
+
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        assert r.status_code == 200
+
+        time.sleep(1.1)
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.dummy_event.value},
+        )
+        assert r.status_code == 200
+        s1 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        t1 = s1.get("total_time_spent")
+        tr1 = s1.get("time_remaining")
+
+        time.sleep(1.1)
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.resume_quiz.value},
+        )
+        assert r.status_code == 200
+        s2 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        t2 = s2.get("total_time_spent")
+        tr2 = s2.get("time_remaining")
+
+        assert int(t2) == int(t1)
+        assert tr2 == tr1
+
+    def test_end_after_dummy_adds_gap(self):
+        """
+        End-quiz after a dummy should add the final gap since last dummy update.
+        """
+        sid = self.timed_quiz_session_id
+
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        assert r.status_code == 200
+
+        time.sleep(1.1)
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.dummy_event.value},
+        )
+        assert r.status_code == 200
+        s1 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        t1 = s1.get("total_time_spent")
+        assert t1 is not None
+
+        time.sleep(1.1)
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.end_quiz.value},
+        )
+        assert r.status_code == 200
+        s2 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        t2 = s2.get("total_time_spent")
+        assert t2 is not None
+        assert int(t2) > int(t1)
+
+    def test_resume_gap_capped_without_dummy(self):
+        """
+        When two non-dummy events occur back-to-back, the gap should be capped at 20s.
+        """
+        sid = self.timed_quiz_session_id
+
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        assert r.status_code == 200
+
+        past = datetime.utcnow() - timedelta(seconds=100)
+        mongo_client.quiz.sessions.update_one(
+            {"_id": sid},
+            {"$set": {"events.0.created_at": past, "events.0.updated_at": past}},
+        )
+
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.resume_quiz.value},
+        )
+        assert r.status_code == 200
+        s = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        assert int(s.get("total_time_spent")) == 20
