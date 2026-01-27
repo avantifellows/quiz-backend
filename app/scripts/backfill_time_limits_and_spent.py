@@ -1,21 +1,24 @@
 #!/usr/bin/env python
 """
-Backfill script to populate session timing fields:
+Backfill script to populate session timing fields for a targeted set of sessions:
 - time_limit_max (from quiz.time_limit.max)
 - start_quiz_time (from the first start-quiz event)
 - end_quiz_time (from the last end-quiz event)
-- total_time_spent (computed from events; allows incomplete sessions)
+- total_time_spent (computed from events; float, allows incomplete sessions)
 - time_remaining (derived: time_limit_max - total_time_spent for timed quizzes)
-- updated_at (set to now if missing)
+- updated_at (last event timestamp if present, else created_at)
 
 Key behavior:
-- Safe to run multiple times; updates only documents missing these fields.
+- Scope: latest session per (user_id, quiz_id) where:
+  - has_quiz_ended == False, OR
+  - created_at is within the last 2 months
+- Safe to run multiple times; only sets fields when values are available.
 - For untimed quizzes (no time_limit_max), time_remaining is left untouched.
 - Uses the same time computation semantics as backend/ETL, including capped gaps for non-dummy events.
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 from pymongo import UpdateOne
@@ -48,10 +51,10 @@ def _time_elapsed_secs(dt_1, dt_2) -> float:
 
 def compute_time_spent_from_events(
     events, allow_incomplete: bool = False
-) -> Optional[int]:
+) -> Optional[float]:
     """
     Compute total time spent from events (same as backend logic).
-    Returns int seconds (floored) or None.
+    Returns seconds as a float (rounded to 2 decimals) or None.
 
     Rules:
     - Requires a start-quiz as the first event.
@@ -65,7 +68,7 @@ def compute_time_spent_from_events(
     first_event = events[0]
     if not first_event or first_event.get("event_type") != EventType.start_quiz:
         return None
-    total_time_spent = 0
+    total_time_spent = 0.0
     previous_event = first_event
     for event in events[1:]:
         if "created_at" not in event or "updated_at" not in event:
@@ -91,7 +94,7 @@ def compute_time_spent_from_events(
         previous_event = event
     if total_time_spent == 0 and not allow_incomplete:
         return None
-    return int(total_time_spent)
+    return round(float(total_time_spent), 2)
 
 
 def main():
@@ -99,27 +102,39 @@ def main():
     sessions = db.sessions
     quizzes = db.quizzes
 
-    query = {
+    cutoff = datetime.utcnow() - timedelta(days=60)
+    # Backfill scope:
+    # - all sessions with has_quiz_ended == False
+    # - all sessions from the last 2 months
+    # But only the latest session per (user_id, quiz_id)
+    candidate_match = {
         "$or": [
-            {"time_limit_max": {"$exists": False}},
-            {"total_time_spent": {"$exists": False}},
-            {"time_remaining": {"$exists": False}},
-            {"start_quiz_time": {"$exists": False}},
-            {"end_quiz_time": {"$exists": False}},
-            {"updated_at": {"$exists": False}},
+            {"has_quiz_ended": False},
+            {"created_at": {"$gte": cutoff}},
         ]
     }
+    pipeline = [
+        {"$match": candidate_match},
+        {"$sort": {"user_id": 1, "quiz_id": 1, "_id": -1}},
+        {
+            "$group": {
+                "_id": {"user_id": "$user_id", "quiz_id": "$quiz_id"},
+                "doc": {"$first": "$$ROOT"},
+            }
+        },
+        {"$replaceRoot": {"newRoot": "$doc"}},
+    ]
 
     updates = []
     batch_size = 500
     count = 0
 
-    for doc in sessions.find(query):
+    for doc in sessions.aggregate(pipeline):
         sid = doc["_id"]
         quiz_id = doc.get("quiz_id")
-        events = doc.get("events") or []
+        events = doc.get("events")
 
-        # fetch quiz time_limit.max if available
+        # Fetch quiz time_limit.max if missing on the session
         time_limit_max = doc.get("time_limit_max")
         if time_limit_max is None and quiz_id:
             quiz = quizzes.find_one({"_id": quiz_id})
@@ -130,12 +145,14 @@ def main():
             ):
                 time_limit_max = quiz["time_limit"]["max"]
 
+        # Compute total_time_spent only if it's missing
         total_time_spent = doc.get("total_time_spent")
-        if total_time_spent is None:
+        if total_time_spent is None and events:
             total_time_spent = compute_time_spent_from_events(
                 events, allow_incomplete=True
             )
 
+        # Derive start/end times from events if missing
         start_quiz_time = doc.get("start_quiz_time")
         end_quiz_time = doc.get("end_quiz_time")
         if start_quiz_time is None and events:
@@ -150,11 +167,17 @@ def main():
                     end_quiz_time = e.get("created_at")
                     break
 
+        # Derive time_remaining only for timed quizzes
         time_remaining = doc.get("time_remaining")
-        if time_limit_max is not None and total_time_spent is not None:
+        if (
+            time_remaining is None
+            and time_limit_max is not None
+            and total_time_spent is not None
+        ):
             time_remaining = max(0, int(time_limit_max) - int(total_time_spent))
 
         set_fields = {}
+        # Preserve activity ordering: updated_at = last event timestamp if present
         if doc.get("updated_at") is None:
             updated_at = None
             if events:
@@ -169,7 +192,7 @@ def main():
         if time_limit_max is not None:
             set_fields["time_limit_max"] = time_limit_max
         if total_time_spent is not None:
-            set_fields["total_time_spent"] = int(total_time_spent)
+            set_fields["total_time_spent"] = round(float(total_time_spent), 2)
         if time_remaining is not None:
             set_fields["time_remaining"] = int(time_remaining)
         if start_quiz_time is not None:

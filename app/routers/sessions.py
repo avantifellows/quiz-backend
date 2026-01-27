@@ -290,7 +290,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     logger.info(log_message)
 
     new_event_obj = jsonable_encoder(Event.parse_obj({"event_type": new_event}))
-    total_time_spent = session.get("total_time_spent")
+    total_time_spent = session.get("total_time_spent", None)
     running_total = float(total_time_spent or 0)
     should_update_total_time_spent = total_time_spent is None
     has_started = session.get("start_quiz_time") is not None or (
@@ -301,6 +301,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
         has_started = True
     has_ended = session.get("has_quiz_ended") is True
 
+    gap_since_prev_event_end = 0.0
     if session["events"] is None:
         session["events"] = [new_event_obj]
         if "$set" not in session_update_query:
@@ -403,24 +404,15 @@ async def update_session(session_id: str, session_updates: UpdateSession):
 
     if should_update_total_time_spent:
         session_update_query.setdefault("$set", {}).update(
-            {"total_time_spent": int(running_total)}
+            {"total_time_spent": round(running_total, 2)}
         )
 
     # Derive time_remaining from time_limit_max and total_time_spent
     response_content = {}
     time_limit_max = session.get("time_limit_max")
     if time_limit_max is None:
-        # lazy backfilling on-demand
-        quiz = client.quiz.quizzes.find_one({"_id": quiz_id})
-        if (
-            quiz
-            and quiz.get("time_limit")
-            and quiz["time_limit"].get("max") is not None
-        ):
-            time_limit_max = quiz["time_limit"]["max"]
-            session_update_query.setdefault("$set", {}).update(
-                {"time_limit_max": time_limit_max}
-            )
+        # no meaning of time remaining, we send time_remaining as None
+        response_content = {"time_remaining": None}
     if time_limit_max is not None:
         # running_total may still be None if we haven't accumulated any timing yet.
         time_remaining = derive_time_remaining(time_limit_max, running_total or 0)
@@ -437,7 +429,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
                 "has_quiz_ended": True,
                 "metrics": session_metrics,
                 "end_quiz_time": new_event_obj.get("created_at"),
-                "total_time_spent": int(running_total),
+                "total_time_spent": round(running_total, 2),
             }
         )
 

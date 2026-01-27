@@ -1,4 +1,5 @@
 import json
+import pytest
 from .base import SessionsBaseTestCase
 from ..routers import quizzes, sessions, session_answers
 from ..schemas import EventType
@@ -478,7 +479,7 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert r.status_code == 200
 
         # first dummy event should initialize/increment total_time_spent
-        time.sleep(1.1)  # ensure int(round(delta)) becomes >= 1
+        time.sleep(1.1)  # ensure elapsed time is at least ~1s
         r = self.client.patch(
             f"{sessions.router.prefix}/{sid}",
             json={"event": EventType.dummy_event.value},
@@ -487,7 +488,7 @@ class SessionsTestCase(SessionsBaseTestCase):
         s1 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
         t1 = s1.get("total_time_spent")
         assert t1 is not None
-        assert int(t1) >= 1
+        assert float(t1) >= 1.0
 
         # second dummy event should extend the existing dummy window and increase total_time_spent
         time.sleep(1.1)
@@ -499,7 +500,7 @@ class SessionsTestCase(SessionsBaseTestCase):
         s2 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
         t2 = s2.get("total_time_spent")
         assert t2 is not None
-        assert int(t2) > int(t1)
+        assert float(t2) > float(t1)
 
     def test_resume_after_dummy_does_not_add_gap(self):
         """
@@ -533,7 +534,7 @@ class SessionsTestCase(SessionsBaseTestCase):
         t2 = s2.get("total_time_spent")
         tr2 = s2.get("time_remaining")
 
-        assert int(t2) == int(t1)
+        assert float(t2) == pytest.approx(float(t1), abs=0.01)
         assert tr2 == tr1
 
     def test_end_after_dummy_adds_gap(self):
@@ -567,7 +568,7 @@ class SessionsTestCase(SessionsBaseTestCase):
         s2 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
         t2 = s2.get("total_time_spent")
         assert t2 is not None
-        assert int(t2) > int(t1)
+        assert float(t2) > float(t1)
 
     def test_resume_gap_capped_without_dummy(self):
         """
@@ -593,4 +594,4 @@ class SessionsTestCase(SessionsBaseTestCase):
         )
         assert r.status_code == 200
         s = self.client.get(f"{sessions.router.prefix}/{sid}").json()
-        assert int(s.get("total_time_spent")) == 20
+        assert float(s.get("total_time_spent")) == pytest.approx(20.0, abs=0.01)

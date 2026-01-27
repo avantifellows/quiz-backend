@@ -465,7 +465,9 @@ class Session(BaseModel):
     ] = None  # store quiz.time_limit.max in seconds for derivation
     start_quiz_time: Optional[datetime] = None
     end_quiz_time: Optional[datetime] = None
-    total_time_spent: Optional[int] = None  # in seconds
+    total_time_spent: Optional[
+        float
+    ] = None  # in seconds (float for sub-second precision)
     question_order: List[
         int
     ] = []  # random order of questions for each quiz assesment/homework
