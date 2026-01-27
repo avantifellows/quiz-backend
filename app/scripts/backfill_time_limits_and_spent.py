@@ -59,7 +59,8 @@ def compute_time_spent_from_events(
     Rules:
     - Requires a start-quiz as the first event.
     - Dummy events add (gap since previous event end) + (dummy duration).
-    - Non-dummy, non-end events (e.g., resume) add a capped gap: min(gap, 20s).
+      If a dummy follows a dummy, only add the gap since the previous dummy ended.
+    - Resume events add a capped gap (<= 20s) only if the previous event wasn't a dummy.
     - End-quiz adds the full gap since previous event end.
     - If allow_incomplete is False and the session looks in-progress, returns None.
     """
@@ -71,26 +72,30 @@ def compute_time_spent_from_events(
     total_time_spent = 0.0
     previous_event = first_event
     for event in events[1:]:
-        if "created_at" not in event or "updated_at" not in event:
+        if "created_at" not in event:
             continue
         etype = event.get("event_type")
+        prev_type = previous_event.get("event_type")
+        prev_end = previous_event.get("updated_at") or previous_event.get("created_at")
         if etype == EventType.dummy_event:
-            total_time_spent += _time_elapsed_secs(
-                event.get("created_at"), previous_event.get("updated_at")
-            )
-            total_time_spent += _time_elapsed_secs(
-                event.get("updated_at"), event.get("created_at")
-            )
-        elif etype != EventType.end_quiz:
-            # Non-dummy, non-end: add a capped gap to avoid over-counting long idle periods.
-            gap = _time_elapsed_secs(
-                event.get("created_at"), previous_event.get("updated_at")
-            )
-            total_time_spent += max(0, min(gap, 20))
+            if prev_type == EventType.dummy_event:
+                delta = _time_elapsed_secs(event.get("created_at"), prev_end)
+            else:
+                delta = _time_elapsed_secs(event.get("created_at"), prev_end)
+                delta += _time_elapsed_secs(
+                    event.get("updated_at"), event.get("created_at")
+                )
+            if delta > 0:
+                total_time_spent += float(delta)
         elif etype == EventType.end_quiz:
-            total_time_spent += _time_elapsed_secs(
-                event.get("created_at"), previous_event.get("updated_at")
-            )
+            delta = _time_elapsed_secs(event.get("created_at"), prev_end)
+            if delta > 0:
+                total_time_spent += float(delta)
+        elif etype == EventType.resume_quiz:
+            # Resume adds a capped gap only if the previous event wasn't a dummy window.
+            if prev_type != EventType.dummy_event:
+                gap = _time_elapsed_secs(event.get("created_at"), prev_end)
+                total_time_spent += max(0, min(gap, 20))
         previous_event = event
     if total_time_spent == 0 and not allow_incomplete:
         return None
