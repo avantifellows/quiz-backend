@@ -128,6 +128,7 @@ def main():
     updates = []
     batch_size = 500
     count = 0
+    quiz_time_limit_cache = {}
 
     for doc in sessions.aggregate(pipeline):
         sid = doc["_id"]
@@ -137,13 +138,17 @@ def main():
         # Fetch quiz time_limit.max if missing on the session
         time_limit_max = doc.get("time_limit_max")
         if time_limit_max is None and quiz_id:
-            quiz = quizzes.find_one({"_id": quiz_id})
-            if (
-                quiz
-                and quiz.get("time_limit")
-                and quiz["time_limit"].get("max") is not None
-            ):
-                time_limit_max = quiz["time_limit"]["max"]
+            if quiz_id in quiz_time_limit_cache:
+                time_limit_max = quiz_time_limit_cache[quiz_id]
+            else:
+                quiz = quizzes.find_one({"_id": quiz_id})
+                if (
+                    quiz
+                    and quiz.get("time_limit")
+                    and quiz["time_limit"].get("max") is not None
+                ):
+                    time_limit_max = quiz["time_limit"]["max"]
+                quiz_time_limit_cache[quiz_id] = time_limit_max
 
         # Compute total_time_spent only if it's missing
         total_time_spent = doc.get("total_time_spent")
