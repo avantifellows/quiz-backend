@@ -18,6 +18,7 @@ Key behavior:
 """
 
 import os
+import time
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -32,6 +33,12 @@ if ROOT not in sys.path:
 
 from database import client  # noqa: E402
 from schemas import EventType  # noqa: E402
+
+
+RECENT_SESSION_DAYS = 120  # backfill sessions from past 60 days -- to avoid etl errors
+OPEN_SESSION_DAYS = (
+    400  # backfill "open" sessions from past one year -- in case students resume
+)
 
 
 def str_to_datetime(value) -> Optional[datetime]:
@@ -108,22 +115,48 @@ def main():
     sessions = db.sessions
     quizzes = db.quizzes
 
-    cutoff = datetime.utcnow() - timedelta(days=60)
+    cutoff = datetime.utcnow() - timedelta(days=RECENT_SESSION_DAYS)
     start_object_id = ObjectId.from_datetime(cutoff)
+    open_match = {"has_quiz_ended": False}
+    if OPEN_SESSION_DAYS > 0:
+        open_cutoff = datetime.utcnow() - timedelta(days=OPEN_SESSION_DAYS)
+        open_object_id = ObjectId.from_datetime(open_cutoff)
+        open_match["_id"] = {"$gte": f"{open_object_id}"}
+    print(
+        "Starting backfill "
+        f"(RECENT_SESSION_DAYS={RECENT_SESSION_DAYS}, "
+        f"OPEN_SESSION_DAYS={OPEN_SESSION_DAYS})"
+    )
     # Backfill scope:
     # - all sessions with has_quiz_ended == False
     # - all sessions from the last 2 months
     # But only the latest session per (user_id, quiz_id)
     candidate_match = {
         "$or": [
-            {"has_quiz_ended": False},
+            open_match,
             {"_id": {"$gte": f"{start_object_id}"}},
         ]
     }
 
     pipeline = [
         {"$match": candidate_match},
-        {"$sort": {"user_id": 1, "quiz_id": 1, "_id": -1}},
+        {
+            "$project": {
+                "_id": 1,
+                "user_id": 1,
+                "quiz_id": 1,
+                "events": 1,
+                "created_at": 1,
+                "updated_at": 1,
+                "has_quiz_ended": 1,
+                "time_limit_max": 1,
+                "start_quiz_time": 1,
+                "end_quiz_time": 1,
+                "total_time_spent": 1,
+                "time_remaining": 1,
+            }
+        },
+        {"$sort": {"quiz_id": 1, "user_id": 1, "_id": -1}},
         {
             "$group": {
                 "_id": {"user_id": "$user_id", "quiz_id": "$quiz_id"},
@@ -136,9 +169,16 @@ def main():
     updates = []
     batch_size = 500
     count = 0
+    processed = 0
+    start_time = time.time()
     quiz_time_limit_cache = {}
 
-    for doc in sessions.aggregate(pipeline):
+    print("Running aggregation...")
+    for doc in sessions.aggregate(pipeline, allowDiskUse=True):
+        processed += 1
+        if processed % 500 == 0:
+            elapsed = time.time() - start_time
+            print(f"Processed {processed} sessions in {elapsed:.1f}s...")
         sid = doc["_id"]
         quiz_id = doc.get("quiz_id")
         events = doc.get("events")
