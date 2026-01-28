@@ -9,9 +9,7 @@ Backfill script to populate session timing fields for a targeted set of sessions
 - updated_at (last event timestamp if present, else created_at)
 
 Key behavior:
-- Scope: latest session per (user_id, quiz_id) where:
-  - has_quiz_ended == False, OR
-  - created_at is within the last 2 months
+- Scope: latest session per (user_id, quiz_id) within the last 700 days.
 - Safe to run multiple times; only sets fields when values are available.
 - For untimed quizzes (no time_limit_max), time_remaining is left untouched.
 - Uses the same time computation semantics as backend/ETL, including capped gaps for non-dummy events.
@@ -35,10 +33,7 @@ from database import client  # noqa: E402
 from schemas import EventType  # noqa: E402
 
 
-RECENT_SESSION_DAYS = 120  # backfill sessions from past 60 days -- to avoid etl errors
-OPEN_SESSION_DAYS = (
-    400  # backfill "open" sessions from past one year -- in case students resume
-)
+BACKFILL_DAYS = 700
 
 
 def str_to_datetime(value) -> Optional[datetime]:
@@ -115,28 +110,12 @@ def main():
     sessions = db.sessions
     quizzes = db.quizzes
 
-    cutoff = datetime.utcnow() - timedelta(days=RECENT_SESSION_DAYS)
+    cutoff = datetime.utcnow() - timedelta(days=BACKFILL_DAYS)
     start_object_id = ObjectId.from_datetime(cutoff)
-    open_match = {"has_quiz_ended": False}
-    if OPEN_SESSION_DAYS > 0:
-        open_cutoff = datetime.utcnow() - timedelta(days=OPEN_SESSION_DAYS)
-        open_object_id = ObjectId.from_datetime(open_cutoff)
-        open_match["_id"] = {"$gte": f"{open_object_id}"}
-    print(
-        "Starting backfill "
-        f"(RECENT_SESSION_DAYS={RECENT_SESSION_DAYS}, "
-        f"OPEN_SESSION_DAYS={OPEN_SESSION_DAYS})"
-    )
+    print("Starting backfill " f"(BACKFILL_DAYS={BACKFILL_DAYS})")
     # Backfill scope:
-    # - all sessions with has_quiz_ended == False
-    # - all sessions from the last 2 months
     # But only the latest session per (user_id, quiz_id)
-    candidate_match = {
-        "$or": [
-            open_match,
-            {"_id": {"$gte": f"{start_object_id}"}},
-        ]
-    }
+    candidate_match = {"_id": {"$gte": f"{start_object_id}"}}
 
     pipeline = [
         {"$match": candidate_match},
