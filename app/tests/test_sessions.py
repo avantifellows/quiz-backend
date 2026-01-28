@@ -1,13 +1,27 @@
 import json
+import pytest
 from .base import SessionsBaseTestCase
 from ..routers import quizzes, sessions, session_answers
 from ..schemas import EventType
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 from settings import Settings
+from ..database import client as mongo_client
 
 
 settings = Settings()
+
+
+def _parse_dt(v):
+    """Helper: parse ISO datetime strings (or pass-through datetimes)."""
+    if v is None:
+        return None
+    if isinstance(v, str):
+        # tolerate a trailing Z if it ever appears
+        if v.endswith("Z"):
+            v = v.replace("Z", "+00:00")
+        return datetime.fromisoformat(v)
+    return v
 
 
 class SessionsTestCase(SessionsBaseTestCase):
@@ -363,3 +377,221 @@ class SessionsTestCase(SessionsBaseTestCase):
         # Expect sequential order for OMR mode
         assert len(session["question_order"]) > 0
         assert session["question_order"] == list(range(len(session["question_order"])))
+
+    def test_create_session_returns_json_for_existing_and_new_session_paths(self):
+        """
+        Regression test for 'datetime is not JSON serializable' during session creation.
+        Covers:
+        - Returning an existing session (no meaningful event)
+        - Creating a new session (meaningful event exists)
+        """
+        # Existing session returned (no meaningful event)
+        r1 = self.client.post(
+            sessions.router.prefix + "/",
+            json={"quiz_id": self.timed_quiz["_id"], "user_id": 1},
+        )
+        assert r1.status_code == 201
+        assert isinstance(r1.json(), dict)
+
+        # Ensure a meaningful event exists, then a new session should be created
+        self.client.patch(
+            f"{sessions.router.prefix}/{self.timed_quiz_session_id}",
+            json={"event": EventType.start_quiz.value},
+        )
+        r2 = self.client.post(
+            sessions.router.prefix + "/",
+            json={"quiz_id": self.timed_quiz["_id"], "user_id": 1},
+        )
+        assert r2.status_code == 201
+        assert isinstance(r2.json(), dict)
+
+    def test_session_updated_at_bumps_on_answer_update_and_event_update(self):
+        """
+        Ensure updated_at exists and bumps when:
+        - a session answer is updated
+        - a session event is updated
+        """
+        session_id = self.homework_session_id
+
+        s0 = self.client.get(f"{sessions.router.prefix}/{session_id}").json()
+        assert "updated_at" in s0
+        t0 = _parse_dt(s0["updated_at"])
+
+        # Answer update should bump updated_at
+        time.sleep(0.01)
+        r = self.client.patch(
+            f"{session_answers.router.prefix}/{session_id}/0",
+            json={"answer": [0]},
+        )
+        assert r.status_code == 200
+
+        s1 = self.client.get(f"{sessions.router.prefix}/{session_id}").json()
+        t1 = _parse_dt(s1["updated_at"])
+        assert t1 >= t0
+
+        # Event update should bump updated_at again
+        time.sleep(0.01)
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{session_id}",
+            json={"event": EventType.start_quiz.value},
+        )
+        assert r.status_code == 200
+
+        s2 = self.client.get(f"{sessions.router.prefix}/{session_id}").json()
+        t2 = _parse_dt(s2["updated_at"])
+        assert t2 >= t1
+
+    def test_precomputed_timing_fields_written_on_events(self):
+        """Ensure start/end/time fields are written to the session on start/end events."""
+        sid = self.timed_quiz_session_id
+
+        # start-quiz should set start_quiz_time
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        assert r.status_code == 200
+        s1 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        assert s1.get("start_quiz_time") is not None
+
+        # end-quiz should set end_quiz_time and total_time_spent
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.end_quiz.value},
+        )
+        assert r.status_code == 200
+        s2 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        assert s2.get("end_quiz_time") is not None
+        assert s2.get("total_time_spent") is not None
+
+    def test_total_time_spent_increments_on_dummy_events(self):
+        """
+        Covers incremental total_time_spent updates during dummy-events (in-progress sessions).
+        This prevents total_time_spent from staying null if a student never clicks end-quiz.
+        """
+        sid = self.timed_quiz_session_id
+
+        # start quiz
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        assert r.status_code == 200
+
+        # first dummy event should initialize/increment total_time_spent
+        time.sleep(1.1)  # ensure elapsed time is at least ~1s
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.dummy_event.value},
+        )
+        assert r.status_code == 200
+        s1 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        t1 = s1.get("total_time_spent")
+        assert t1 is not None
+        assert float(t1) >= 1.0
+
+        # second dummy event should extend the existing dummy window and increase total_time_spent
+        time.sleep(1.1)
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.dummy_event.value},
+        )
+        assert r.status_code == 200
+        s2 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        t2 = s2.get("total_time_spent")
+        assert t2 is not None
+        assert float(t2) > float(t1)
+
+    def test_resume_after_dummy_does_not_add_gap(self):
+        """
+        If the last event is a dummy, a subsequent resume should not add extra time.
+        """
+        sid = self.timed_quiz_session_id
+
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        assert r.status_code == 200
+
+        time.sleep(1.1)
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.dummy_event.value},
+        )
+        assert r.status_code == 200
+        s1 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        t1 = s1.get("total_time_spent")
+        tr1 = s1.get("time_remaining")
+
+        time.sleep(1.1)
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.resume_quiz.value},
+        )
+        assert r.status_code == 200
+        s2 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        t2 = s2.get("total_time_spent")
+        tr2 = s2.get("time_remaining")
+
+        assert float(t2) == pytest.approx(float(t1), abs=0.01)
+        assert tr2 == tr1
+
+    def test_end_after_dummy_adds_gap(self):
+        """
+        End-quiz after a dummy should add the final gap since last dummy update.
+        """
+        sid = self.timed_quiz_session_id
+
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        assert r.status_code == 200
+
+        time.sleep(1.1)
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.dummy_event.value},
+        )
+        assert r.status_code == 200
+        s1 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        t1 = s1.get("total_time_spent")
+        assert t1 is not None
+
+        time.sleep(1.1)
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.end_quiz.value},
+        )
+        assert r.status_code == 200
+        s2 = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        t2 = s2.get("total_time_spent")
+        assert t2 is not None
+        assert float(t2) > float(t1)
+
+    def test_resume_gap_capped_without_dummy(self):
+        """
+        When two non-dummy events occur back-to-back, the gap should be capped at 20s.
+        """
+        sid = self.timed_quiz_session_id
+
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        assert r.status_code == 200
+
+        past = datetime.utcnow() - timedelta(seconds=100)
+        mongo_client.quiz.sessions.update_one(
+            {"_id": sid},
+            {"$set": {"events.0.created_at": past, "events.0.updated_at": past}},
+        )
+
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.resume_quiz.value},
+        )
+        assert r.status_code == 200
+        s = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        assert float(s.get("total_time_spent")) == pytest.approx(20.0, abs=0.01)

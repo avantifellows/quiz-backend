@@ -6,6 +6,7 @@ from models import UpdateSessionAnswer
 from utils import remove_optional_unset_args
 from logger_config import get_logger
 from typing import List, Tuple
+from datetime import datetime
 
 router = APIRouter(prefix="/session_answers", tags=["Session Answers"])
 logger = get_logger()
@@ -66,6 +67,8 @@ async def update_session_answers_at_specific_positions(
         for key, value in session_answer.items()
     }
 
+    # bump session-level updated_at whenever any answer changes
+    setQuery["updated_at"] = datetime.utcnow()
     result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
     if result.modified_count == 0:
         error_message = f"Failed to update multiple session answers for session: {session_id} (user: {user_id} and quiz: {quiz_id})"
@@ -138,6 +141,8 @@ async def update_session_answer_in_a_session(
         setQuery[f"session_answers.{position_index}.{key}"] = value
 
     # update the document in the session_answers collection
+    # bump session-level updated_at whenever any answer changes
+    setQuery["updated_at"] = datetime.utcnow()
     result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
     if result.modified_count == 0:
         logger.error(
