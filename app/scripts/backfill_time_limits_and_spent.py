@@ -22,6 +22,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from pymongo import UpdateOne
+from bson import ObjectId
 
 import sys
 
@@ -108,6 +109,7 @@ def main():
     quizzes = db.quizzes
 
     cutoff = datetime.utcnow() - timedelta(days=60)
+    start_object_id = ObjectId.from_datetime(cutoff)
     # Backfill scope:
     # - all sessions with has_quiz_ended == False
     # - all sessions from the last 2 months
@@ -115,9 +117,10 @@ def main():
     candidate_match = {
         "$or": [
             {"has_quiz_ended": False},
-            {"created_at": {"$gte": cutoff}},
+            {"_id": {"$gte": f"{start_object_id}"}},
         ]
     }
+
     pipeline = [
         {"$match": candidate_match},
         {"$sort": {"user_id": 1, "quiz_id": 1, "_id": -1}},
