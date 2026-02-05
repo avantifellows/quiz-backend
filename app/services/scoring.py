@@ -145,7 +145,8 @@ def _evaluate_answer(
             if (
                 question_type == "numerical-float"
                 and isinstance(correct_answer, (int, float))
-                and abs(user_answer - correct_answer) < 0.05 # 0.05 tolerance for float comparison
+                and abs(user_answer - correct_answer)
+                < 0.05  # 0.05 tolerance for float comparison
             ):
                 result["is_correct"] = True
             elif (
