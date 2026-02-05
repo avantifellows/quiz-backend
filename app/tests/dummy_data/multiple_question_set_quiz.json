@@ -2,6 +2,7 @@
   "title": "Multiple Question Sets Quiz",
   "question_sets": [
     {
+      "title": "Section A",
       "questions": [
         {
           "text": "Q1. Which grade are you in?",
@@ -539,6 +540,7 @@
       "max_questions_allowed_to_attempt": 32
     },
     {
+      "title": "Section B",
       "questions": [
         {
           "text": "Q33. Which grade are you in?",

@@ -1,0 +1,92 @@
+{
+  "title": "Scoring Small Assessment",
+  "max_marks": 12,
+  "num_graded_questions": 3,
+  "shuffle": false,
+  "num_attempts_allowed": 1,
+  "metadata": {
+    "quiz_type": "assessment",
+    "test_format": "chapter_test",
+    "grade": "8",
+    "subject": "Maths"
+  },
+  "question_sets": [
+    {
+      "title": "Section A",
+      "max_questions_allowed_to_attempt": 4,
+      "marking_scheme": {
+        "correct": 4,
+        "wrong": -1,
+        "skipped": 0,
+        "partial": [
+          {
+            "conditions": [
+              {
+                "num_correct_selected": 1
+              },
+              {
+                "num_correct_selected": 2
+              }
+            ],
+            "marks": 2
+          }
+        ]
+      },
+      "questions": [
+        {
+          "text": "Q1",
+          "type": "multi-choice",
+          "options": [
+            {
+              "text": "A"
+            },
+            {
+              "text": "B"
+            },
+            {
+              "text": "C"
+            }
+          ],
+          "correct_answer": [
+            0,
+            2
+          ],
+          "graded": true
+        },
+        {
+          "text": "Q2",
+          "type": "multi-choice",
+          "options": [
+            {
+              "text": "A"
+            },
+            {
+              "text": "B"
+            },
+            {
+              "text": "C"
+            }
+          ],
+          "correct_answer": [
+            0,
+            1,
+            2
+          ],
+          "graded": true
+        },
+        {
+          "text": "Q3",
+          "type": "numerical-integer",
+          "correct_answer": 4,
+          "graded": true
+        },
+        {
+          "text": "Q4",
+          "type": "subjective",
+          "correct_answer": "",
+          "graded": false
+        }
+      ]
+    }
+  ]
+}

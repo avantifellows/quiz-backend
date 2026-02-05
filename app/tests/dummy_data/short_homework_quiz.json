@@ -1,6 +1,7 @@
 {
   "question_sets": [
     {
+      "title": "Section A",
       "max_questions_allowed_to_attempt": 2,
       "questions": [
         {
