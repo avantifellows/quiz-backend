@@ -5,6 +5,10 @@
 *.tfstate
 *.tfstate.*
 
+# Exception: bootstrap state-backend state is committed to git
+!shared/state-backend/terraform.tfstate
+!shared/state-backend/terraform.tfstate.backup
+
 # Crash log files
 crash.log
 crash.*.log

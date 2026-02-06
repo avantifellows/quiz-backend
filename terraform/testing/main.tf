@@ -8,14 +8,14 @@ terraform {
     }
   }
 
-  # TODO: Add S3 backend later for team collaboration
-  # backend "s3" {
-  #   bucket         = "quiz-terraform-state"
-  #   key            = "testing/terraform.tfstate"
-  #   region         = "ap-south-1"
-  #   dynamodb_table = "terraform-locks"
-  #   encrypt        = true
-  # }
+  backend "s3" {
+    bucket         = "quiz-terraform-state-111766607077"
+    key            = "testing/terraform.tfstate"
+    region         = "ap-south-1"
+    dynamodb_table = "terraform-locks"
+    encrypt        = true
+    profile        = "deepansh-af"
+  }
 }
 
 provider "aws" {
