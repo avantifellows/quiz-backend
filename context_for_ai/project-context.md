@@ -1,6 +1,6 @@
 # Quiz Backend - Project Context
 
-> **Last Updated:** January 4, 2026
+> **Last Updated:** February 7, 2026
 >
 > This document provides comprehensive context for AI coding agents and human engineers working on this project.
 
@@ -23,7 +23,7 @@
 13. [Deployment](#deployment)
 14. [Configuration](#configuration)
 15. [Logging](#logging)
-16. [Future Considerations](#future-considerations)
+16. [ECS Migration](#ecs-migration)
 
 ---
 
@@ -112,6 +112,7 @@ The system is designed to handle:
 | **ASGI Server** | Uvicorn 0.17.6 (4 workers) |
 | **Cloud Hosting** | AWS Lambda (staging/prod) / ECS Fargate (testing) |
 | **Infrastructure** | AWS SAM (Lambda) / Terraform (ECS) |
+| **DNS/HTTPS** | Cloudflare (proxy mode, domain: `avantifellows.org`) |
 | **Container** | Docker (ARM64/Graviton) |
 | **Testing** | Pytest + mongomock |
 | **Code Quality** | Pre-commit hooks (Black, Flake8) |
@@ -151,15 +152,17 @@ quiz-backend/
 │   ├── quiz-prod-m10_Schema_Documentation.md
 │   └── MIGRATION_LAMBDA_TO_ECS.md
 ├── terraform/                    # ECS Fargate infrastructure
+│   ├── shared/state-backend/     # S3 + DynamoDB backend bootstrap
 │   └── testing/                  # Testing environment
 │       ├── main.tf, variables.tf, outputs.tf
-│       ├── ecr.tf, ecs.tf, alb.tf
+│       ├── ecr.tf, ecs.tf, alb.tf, dns.tf
 │       ├── iam.tf, security.tf, data.tf
 │       └── terraform.tfvars      # (gitignored)
 ├── .github/workflows/            # CI/CD pipelines
 │   ├── ci.yml                    # Tests and pre-commit
-│   ├── deploy_to_staging.yml
-│   └── deploy_to_prod.yml
+│   ├── deploy_ecs_testing.yml    # ECS testing deploy (on CI success)
+│   ├── deploy_to_staging.yml     # Lambda staging deploy
+│   └── deploy_to_prod.yml        # Lambda production deploy
 ├── Dockerfile                    # Container image definition
 ├── .dockerignore                 # Docker build exclusions
 ├── startServerMac.sh             # Local dev server (macOS)
@@ -539,37 +542,30 @@ Located in `app/tests/dummy_data/`:
 
 | Resource | Value |
 |----------|-------|
-| **API Endpoint** | `http://quiz-backend-testing-1700268315.ap-south-1.elb.amazonaws.com` |
+| **API Endpoint** | `https://quiz-backend-testing.avantifellows.org` |
 | **ECR Repository** | `111766607077.dkr.ecr.ap-south-1.amazonaws.com/quiz-backend-testing` |
 | **ECS Cluster** | `quiz-backend-testing` |
 | **Architecture** | ARM64 (Graviton) |
 | **Task Size** | 1 vCPU, 2GB RAM |
 | **Workers** | 4 Uvicorn workers |
 | **Health Check** | `/health` endpoint |
+| **HTTPS** | Cloudflare proxy (flexible SSL) — terminates TLS at Cloudflare edge, proxies to ALB over HTTP |
+| **DNS** | Cloudflare CNAME `quiz-backend-testing.avantifellows.org` → ALB |
 
-#### ECS Deployment Commands
+#### ECS Deployment (CI/CD)
+
+Automated via `.github/workflows/deploy_ecs_testing.yml`:
+
+1. Triggers after `CI` workflow succeeds on `main` (`workflow_run`)
+2. Builds ARM64 Docker image via QEMU/Buildx with GHA layer caching
+3. Pushes to ECR with dual tags: git SHA (immutable) + `latest`
+4. Fetches live task definition from ECS (preserves env vars set by Terraform)
+5. Renders the new image into the task definition
+6. Deploys to ECS and waits for service stability
+7. Verifies deployment and runs smoke test against `https://quiz-backend-testing.avantifellows.org/health`
 
 ```bash
-# Navigate to terraform directory
-cd terraform/testing
-
-# Build Docker image for ARM64
-docker build --platform linux/arm64 -t quiz-backend-testing .
-
-# Login to ECR
-aws ecr get-login-password --region ap-south-1 | \
-  docker login --username AWS --password-stdin \
-  111766607077.dkr.ecr.ap-south-1.amazonaws.com
-
-# Tag and push
-docker tag quiz-backend-testing:latest \
-  111766607077.dkr.ecr.ap-south-1.amazonaws.com/quiz-backend-testing:latest
-docker push 111766607077.dkr.ecr.ap-south-1.amazonaws.com/quiz-backend-testing:latest
-
-# Apply terraform changes
-terraform apply
-
-# Force ECS to pull new image
+# Manual rollback (if needed)
 aws ecs update-service \
   --cluster quiz-backend-testing \
   --service quiz-backend-testing \
@@ -610,14 +606,15 @@ aws ecs describe-tasks --cluster quiz-backend-testing \
 #### GitHub Actions Workflows
 
 1. **ci.yml**: Pre-commit checks and pytest
-2. **deploy_to_staging.yml**: Deploy to staging
-3. **deploy_to_prod.yml**: Deploy to production
+2. **deploy_ecs_testing.yml**: Build ARM64 image, push to ECR, update ECS testing service
+3. **deploy_to_staging.yml**: SAM deploy to Lambda staging
+4. **deploy_to_prod.yml**: SAM deploy to Lambda production
 
-#### Required Secrets (GitHub Environments)
+#### Required Secrets (GitHub)
 
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `MONGO_AUTH_CREDENTIALS`
+- `AWS_ACCESS_KEY_ID` — used by all deploy workflows (IAM user: `quiz-backend`)
+- `AWS_SECRET_ACCESS_KEY` — used by all deploy workflows
+- `MONGO_AUTH_CREDENTIALS` — used by Lambda SAM deploys only (ECS gets it from the live task definition)
 
 #### Lambda Deployment Commands (Manual)
 
@@ -702,34 +699,19 @@ Logs are shipped to Loki via Lambda Promtail for centralized logging and Grafana
 
 ---
 
-## Future Considerations
+## ECS Migration
 
-### ECS Migration Progress
+The testing environment runs on ECS Fargate. Staging and production run on Lambda. See `docs/MIGRATION_LAMBDA_TO_ECS.md` for the proposal and `.planning/ecs-migration-status-and-next-steps.md` for detailed status.
 
-A migration from Lambda to ECS Fargate is underway to solve MongoDB connection limit issues during peak load. See `docs/MIGRATION_LAMBDA_TO_ECS.md` for the proposal and `context_for_ai/plans/ecs-migration-implementation-plan.md` for implementation details.
-
-**Key Benefits:**
+**ECS advantages over Lambda:**
 - Connection pooling (20 connections per container vs 1 per Lambda)
 - Stay on M10 tier for most scenarios (vs manual M40 scaling)
 - Lower latency (no cold starts)
 - Cost savings (~$75-130/month)
 
-**Migration Status:**
+**Testing environment has:** Terraform IaC, S3 remote state, CI/CD pipeline, custom domain (`quiz-backend-testing.avantifellows.org`), HTTPS via Cloudflare proxy.
 
-| Environment | Status |
-|-------------|--------|
-| Testing | Deployed (ECS Fargate, ARM64) |
-| Staging | Planned |
-| Production | Planned |
-
-### Next Steps for ECS Migration
-
-1. **Add HTTPS**: Create ACM certificate and HTTPS listener on ALB
-2. **Add Auto-scaling**: Configure target tracking scaling policy
-3. **Create Staging Environment**: Copy testing terraform config with staging values
-4. **CI/CD Pipeline**: Add GitHub Actions workflow for automated ECS deployments
-5. **Custom Domain**: Set up Route53 record pointing to ALB
-6. **Load Testing**: Verify connection pooling works under peak load
+**Outstanding work:** Auto-scaling, staging & production environments, load testing.
 
 ---
 

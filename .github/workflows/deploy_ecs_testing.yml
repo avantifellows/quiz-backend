@@ -136,9 +136,9 @@ jobs:
           echo "Waiting 15s for ALB target registration..."
           sleep 15
 
-          echo "Hitting ALB health endpoint..."
+          echo "Hitting health endpoint..."
           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
-            http://quiz-backend-testing-1700268315.ap-south-1.elb.amazonaws.com/health)
+            https://quiz-backend-testing.avantifellows.org/health)
           echo "Health check returned: $HTTP_STATUS"
           if [ "$HTTP_STATUS" != "200" ]; then
             echo "Smoke test failed! Expected 200, got $HTTP_STATUS"

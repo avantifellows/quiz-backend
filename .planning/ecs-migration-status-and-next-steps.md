@@ -1,6 +1,6 @@
 # ECS Migration — Status & Next Steps
 
-> **Last reviewed:** February 6, 2026
+> **Last reviewed:** February 7, 2026
 > **Branch:** `docs/migration-lambda-to-ecs` (merged with main)
 > **Reference:** `context_for_ai/plans/ecs-migration-implementation-plan.md`
 
@@ -14,7 +14,7 @@ A **testing-only** ECS Fargate environment was stood up on January 3, 2026. Prod
 
 | Resource | Value |
 |----------|-------|
-| API Endpoint | `http://quiz-backend-testing-1700268315.ap-south-1.elb.amazonaws.com` |
+| API Endpoint | `https://quiz-backend-testing.avantifellows.org` |
 | ECR Repository | `111766607077.dkr.ecr.ap-south-1.amazonaws.com/quiz-backend-testing` |
 | ECS Cluster | `quiz-backend-testing` |
 | Architecture | ARM64 (Graviton) |
@@ -26,7 +26,7 @@ A **testing-only** ECS Fargate environment was stood up on January 3, 2026. Prod
 
 | Artifact | Status | Location |
 |----------|--------|----------|
-| Terraform IaC (all 10 files) | Complete | `terraform/testing/` |
+| Terraform IaC (12 files) | Complete | `terraform/testing/` |
 | Terraform state | S3 backend | `s3://quiz-terraform-state-111766607077/testing/terraform.tfstate` |
 | State backend bootstrap IaC | Complete | `terraform/shared/state-backend/` |
 | Dockerfile | Complete | repo root |
@@ -34,6 +34,7 @@ A **testing-only** ECS Fargate environment was stood up on January 3, 2026. Prod
 | database.py connection pooling | Complete | `app/database.py` |
 | Migration proposal doc | Complete | `docs/MIGRATION_LAMBDA_TO_ECS.md` |
 | Implementation plan | Complete | `context_for_ai/plans/ecs-migration-implementation-plan.md` |
+| ECS deploy workflow | Complete | `.github/workflows/deploy_ecs_testing.yml` |
 
 ### What's still running (Lambda — Production/Staging)
 
@@ -56,9 +57,9 @@ A **testing-only** ECS Fargate environment was stood up on January 3, 2026. Prod
 ### Known risks
 
 1. ~~**Terraform state is local** — if lost, infrastructure management breaks.~~ Resolved — migrated to S3 with DynamoDB locking (Feb 6, 2026).
-2. **No HTTPS** — ALB serves plain HTTP on port 80.
+2. ~~**No HTTPS** — ALB serves plain HTTP on port 80.~~ Resolved — HTTPS via Cloudflare proxy (Feb 7, 2026).
 3. **Real MongoDB credentials** sit in `terraform.tfvars` locally (excluded from git by `.gitignore`).
-4. **No CI/CD for ECS** — deploys are manual `docker build` + `terraform apply`.
+4. ~~**No CI/CD for ECS** — deploys are manual `docker build` + `terraform apply`.~~ Resolved — GitHub Actions workflow deploys on push (Feb 6, 2026).
 5. **No auto-scaling** — fixed task count of 1.
 
 ---
@@ -79,21 +80,20 @@ These are the outstanding items from the original migration plan, prioritized fo
 
 ---
 
-### Step 2: HTTPS (ACM Certificate + HTTPS Listener)
+### ~~Steps 2 & 5: Custom Domain + HTTPS~~ — Done (Feb 7, 2026)
 
-**Why:** The API is currently served over plain HTTP. Any environment beyond testing must have TLS.
-
-**Scope:**
-- Request an ACM certificate (or use an existing one) for the desired domain
-- Add an HTTPS listener (port 443) to the ALB
-- Redirect HTTP (port 80) to HTTPS
-- Update `terraform/testing/alb.tf`
-
-**Files to change:**
-- `terraform/testing/alb.tf` (add HTTPS listener, redirect rule)
-- Possibly new `acm.tf` if creating a certificate via Terraform
-
-**Prerequisite:** A custom domain must be decided (Step 5) for ACM validation, unless using the raw ALB DNS with a wildcard.
+**What was done:**
+- Domain: `quiz-backend-testing.avantifellows.org`
+- DNS managed via Cloudflare (not Route53) — CNAME record pointing to ALB
+- Cloudflare proxy (orange cloud) enabled — terminates TLS and proxies to ALB over HTTP
+- Page rule sets SSL to "Flexible" for this hostname (ALB only has an HTTP listener; zone-level SSL is "Full")
+- No ACM certificate needed — Cloudflare handles HTTPS automatically
+- Added Cloudflare provider (`cloudflare/cloudflare ~> 4.0`) to `terraform/testing/main.tf`
+- Added variables: `cloudflare_api_key` (sensitive), `cloudflare_email`, `cloudflare_zone_name`
+- New file: `terraform/testing/dns.tf` (data source for zone lookup, CNAME record, page rule)
+- New output: `app_url` = `https://quiz-backend-testing.avantifellows.org`
+- Smoke test in CI/CD updated to use `https://quiz-backend-testing.avantifellows.org/health`
+- Verified: `curl` returns `{"status":"healthy"}` with Cloudflare headers
 
 ---
 
@@ -112,33 +112,18 @@ These are the outstanding items from the original migration plan, prioritized fo
 
 ---
 
-### Step 4: CI/CD Pipeline for ECS Deployments
+### ~~Step 4: CI/CD Pipeline for ECS Deployments~~ — Done (Feb 6, 2026)
 
-**Why:** Manual `docker build` + `push` + `terraform apply` is error-prone and unsustainable.
-
-**Scope:**
-- Create a GitHub Actions workflow for ECS deployment
-- On push to `main`: build Docker image, push to ECR, update ECS service
-- Use `aws-actions/amazon-ecr-login` and `aws-actions/amazon-ecs-deploy-task-definition`
-- Keep the existing Lambda CI/CD workflows until full migration is done
-
-**Files to create:**
-- `.github/workflows/deploy_ecs_testing.yml`
-- Later: `deploy_ecs_staging.yml`, `deploy_ecs_prod.yml`
-
----
-
-### Step 5: Custom Domain (Route53)
-
-**Why:** Raw ALB DNS names are not user-friendly and change if the ALB is recreated.
-
-**Scope:**
-- Decide on domain/subdomain (e.g., `api-testing.yourdomain.com`)
-- Create Route53 hosted zone (if not existing) and A/AAAA alias record pointing to ALB
-- This unblocks ACM DNS validation for HTTPS (Step 2)
-
-**Files to change:**
-- New `terraform/testing/dns.tf` or `route53.tf`
+**What was done:**
+- Created `.github/workflows/deploy_ecs_testing.yml` — full build-and-deploy pipeline
+- Triggers: `workflow_run` after CI succeeds on `main` (primary), plus temporary `push` trigger on `docs/migration-lambda-to-ecs` (remove after merge)
+- Builds ARM64 image via QEMU/Buildx with GHA layer caching (~2 min cached builds)
+- Dual-tags images: git SHA (immutable) + `latest` (keeps Terraform reference valid)
+- Fetches live task definition from ECS (preserves Terraform-managed env vars like `MONGO_AUTH_CREDENTIALS`)
+- Registers new task def revision, updates ECS service, waits for stability
+- Includes deployment verification and ALB smoke test (skips gracefully if service is scaled to 0)
+- Added `ecs-deploy` inline IAM policy to `quiz-backend` IAM user (via CLI) with ECR, ECS, and `iam:PassRole` permissions
+- Successfully tested: all 12 steps pass, new task def revision deployed and healthy
 
 ---
 
@@ -177,9 +162,8 @@ These are the outstanding items from the original migration plan, prioritized fo
 | Priority | Step | Reason |
 |----------|------|--------|
 | ~~1~~ | ~~S3 Backend~~ | ~~Done (Feb 6, 2026)~~ |
-| 2 | CI/CD Pipeline | Unblock iterative deploys for all subsequent steps |
-| 3 | Custom Domain | Required for ACM cert validation |
-| 4 | HTTPS | Security requirement, depends on domain |
-| 5 | Auto-Scaling | Production-readiness |
-| 6 | Staging & Prod Environments | Duplicate tested infra to higher environments |
-| 7 | Load Testing | Final validation before traffic cutover |
+| ~~2~~ | ~~CI/CD Pipeline~~ | ~~Done (Feb 6, 2026)~~ |
+| ~~3~~ | ~~Custom Domain + HTTPS~~ | ~~Done (Feb 7, 2026) — Cloudflare proxy~~ |
+| 4 | Auto-Scaling | Production-readiness |
+| 5 | Staging & Prod Environments | Duplicate tested infra to higher environments |
+| 6 | Load Testing | Final validation before traffic cutover |

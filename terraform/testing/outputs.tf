@@ -22,3 +22,8 @@ output "cloudwatch_log_group" {
   description = "CloudWatch log group name"
   value       = aws_cloudwatch_log_group.quiz_backend.name
 }
+
+output "app_url" {
+  description = "Application URL (HTTPS via Cloudflare)"
+  value       = "https://${cloudflare_record.quiz_backend.hostname}"
+}

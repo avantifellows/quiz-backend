@@ -39,3 +39,19 @@ variable "desired_count" {
   type        = number
   default     = 1
 }
+
+variable "cloudflare_api_key" {
+  description = "Cloudflare Global API key"
+  type        = string
+  sensitive   = true
+}
+
+variable "cloudflare_email" {
+  description = "Cloudflare account email"
+  type        = string
+}
+
+variable "cloudflare_zone_name" {
+  description = "Cloudflare zone name (e.g. avantifellows.org)"
+  type        = string
+}
