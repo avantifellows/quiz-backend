@@ -11,7 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-python@v3
+      - name: Set up Python 3.11 for pre-commit
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.11'
+      - name: Show Python version (debug)
+        run: python --version
       - uses: pre-commit/action@v3.0.0
 
   unit-tests:

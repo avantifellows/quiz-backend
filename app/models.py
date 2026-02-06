@@ -456,8 +456,18 @@ class Session(BaseModel):
     quiz_id: str
     omr_mode: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    # Session-level "last modified" timestamp. This is used for incremental ETL sync.
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
     events: List[Event] = []
     has_quiz_ended: bool = False
+    time_limit_max: Optional[
+        int
+    ] = None  # store quiz.time_limit.max in seconds for derivation
+    start_quiz_time: Optional[datetime] = None
+    end_quiz_time: Optional[datetime] = None
+    total_time_spent: Optional[
+        float
+    ] = None  # in seconds (float for sub-second precision)
     question_order: List[
         int
     ] = []  # random order of questions for each quiz assesment/homework
