@@ -1,6 +1,8 @@
 from typing import Any, Dict, List, Optional
 
 
+NUMERICAL_FLOAT_TOLERANCE = 0.05
+
 DEFAULT_MARKING_SCHEME_ASSESSMENT = {
     "correct": 4.0,
     "wrong": -1.0,
@@ -146,7 +148,7 @@ def _evaluate_answer(
                 question_type == "numerical-float"
                 and isinstance(correct_answer, (int, float))
                 and abs(user_answer - correct_answer)
-                < 0.05  # 0.05 tolerance for float comparison
+                < NUMERICAL_FLOAT_TOLERANCE  # tolerance for float comparison
             ):
                 result["is_correct"] = True
             elif (
