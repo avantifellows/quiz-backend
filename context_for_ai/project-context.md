@@ -110,7 +110,7 @@ The system is designed to handle:
 | **Database** | MongoDB (via PyMongo 4.0.2) |
 | **Data Validation** | Pydantic 1.9.0 |
 | **ASGI Server** | Uvicorn 0.17.6 (4 workers) |
-| **Cloud Hosting** | AWS Lambda (staging/prod) / ECS Fargate (testing) |
+| **Cloud Hosting** | AWS Lambda (staging/prod) / ECS Fargate (testing/prod) |
 | **Infrastructure** | AWS SAM (Lambda) / Terraform (ECS) |
 | **DNS/HTTPS** | Cloudflare (proxy mode, domain: `avantifellows.org`) |
 | **Container** | Docker (ARM64/Graviton) |
@@ -153,7 +153,12 @@ quiz-backend/
 │   └── MIGRATION_LAMBDA_TO_ECS.md
 ├── terraform/                    # ECS Fargate infrastructure
 │   ├── shared/state-backend/     # S3 + DynamoDB backend bootstrap
-│   └── testing/                  # Testing environment
+│   ├── testing/                  # Testing environment
+│   │   ├── main.tf, variables.tf, outputs.tf
+│   │   ├── ecr.tf, ecs.tf, alb.tf, dns.tf, autoscaling.tf
+│   │   ├── iam.tf, security.tf, data.tf
+│   │   └── terraform.tfvars      # (gitignored)
+│   └── prod/                     # Production environment
 │       ├── main.tf, variables.tf, outputs.tf
 │       ├── ecr.tf, ecs.tf, alb.tf, dns.tf, autoscaling.tf
 │       ├── iam.tf, security.tf, data.tf
@@ -161,6 +166,7 @@ quiz-backend/
 ├── .github/workflows/            # CI/CD pipelines
 │   ├── ci.yml                    # Tests and pre-commit
 │   ├── deploy_ecs_testing.yml    # ECS testing deploy (on CI success)
+│   ├── deploy_ecs_prod.yml       # ECS prod deploy (on CI success for release)
 │   ├── deploy_to_staging.yml     # Lambda staging deploy
 │   └── deploy_to_prod.yml        # Lambda production deploy
 ├── Dockerfile                    # Container image definition
@@ -535,8 +541,9 @@ Located in `app/tests/dummy_data/`:
 | Environment | Compute | Infrastructure | Status |
 |-------------|---------|----------------|--------|
 | **Testing** | ECS Fargate (ARM64) | Terraform | Active |
+| **Production (ECS)** | ECS Fargate (ARM64) | Terraform | Provisioning |
 | **Staging** | AWS Lambda | AWS SAM | Active |
-| **Production** | AWS Lambda | AWS SAM | Active |
+| **Production (Lambda)** | AWS Lambda | AWS SAM | Active (to be replaced by ECS) |
 
 ### ECS Fargate (Testing Environment)
 
@@ -570,6 +577,43 @@ Automated via `.github/workflows/deploy_ecs_testing.yml`:
 aws ecs update-service \
   --cluster quiz-backend-testing \
   --service quiz-backend-testing \
+  --force-new-deployment
+```
+
+### ECS Fargate (Production Environment)
+
+| Resource | Value |
+|----------|-------|
+| **API Endpoint** | `https://quiz-backend.avantifellows.org` |
+| **ECR Repository** | `111766607077.dkr.ecr.ap-south-1.amazonaws.com/quiz-backend-prod` |
+| **ECS Cluster** | `quiz-backend-prod` |
+| **Architecture** | ARM64 (Graviton) |
+| **Task Size** | 1 vCPU, 2GB RAM |
+| **Auto-scaling** | 1–10 tasks, target-tracking on CPU at 50% |
+| **Workers** | 4 Uvicorn workers |
+| **Health Check** | `/health` endpoint |
+| **HTTPS** | Cloudflare proxy (flexible SSL) |
+| **DNS** | Cloudflare CNAME `quiz-backend.avantifellows.org` → ALB |
+| **Log Retention** | 30 days |
+| **ALB Deletion Protection** | Enabled |
+
+#### ECS Prod Deployment (CI/CD)
+
+Automated via `.github/workflows/deploy_ecs_prod.yml`:
+
+1. Triggers after `CI` workflow succeeds on `release` (`workflow_run`)
+2. Builds ARM64 Docker image via QEMU/Buildx with GHA layer caching
+3. Pushes to ECR with dual tags: git SHA (immutable) + `latest`
+4. Fetches live task definition from ECS (preserves env vars set by Terraform)
+5. Renders the new image into the task definition
+6. Deploys to ECS and waits for service stability
+7. Verifies deployment and runs smoke test against `https://quiz-backend.avantifellows.org/health`
+
+```bash
+# Manual rollback (if needed)
+aws ecs update-service \
+  --cluster quiz-backend-prod \
+  --service quiz-backend-prod \
   --force-new-deployment
 ```
 
@@ -608,8 +652,9 @@ aws ecs describe-tasks --cluster quiz-backend-testing \
 
 1. **ci.yml**: Pre-commit checks and pytest
 2. **deploy_ecs_testing.yml**: Build ARM64 image, push to ECR, update ECS testing service
-3. **deploy_to_staging.yml**: SAM deploy to Lambda staging
-4. **deploy_to_prod.yml**: SAM deploy to Lambda production
+3. **deploy_ecs_prod.yml**: Build ARM64 image, push to ECR, update ECS prod service
+4. **deploy_to_staging.yml**: SAM deploy to Lambda staging
+5. **deploy_to_prod.yml**: SAM deploy to Lambda production
 
 #### Required Secrets (GitHub)
 
@@ -712,7 +757,9 @@ The testing environment runs on ECS Fargate. Staging and production run on Lambd
 
 **Testing environment has:** Terraform IaC, S3 remote state, CI/CD pipeline, custom domain (`quiz-backend-testing.avantifellows.org`), HTTPS via Cloudflare proxy, auto-scaling (1–10 tasks on CPU).
 
-**Outstanding work:** Staging & production environments, load testing.
+**Production ECS environment has:** Terraform IaC (at `terraform/prod/`), S3 remote state, CI/CD pipeline triggered on `release` branch, custom domain (`quiz-backend.avantifellows.org`), HTTPS via Cloudflare proxy, auto-scaling (1–10 tasks on CPU), 30-day log retention, ALB deletion protection enabled.
+
+**Outstanding work:** `terraform apply` for prod, IAM policy update for prod resources, load testing.
 
 ---
 
@@ -748,7 +795,7 @@ pre-commit run --all-files
 | Database config | `app/database.py` |
 | Add test | `app/tests/test_*.py` |
 | Add test fixture | `app/tests/dummy_data/*.json` |
-| ECS infrastructure | `terraform/testing/*.tf` |
+| ECS infrastructure | `terraform/testing/*.tf`, `terraform/prod/*.tf` |
 | Container config | `Dockerfile` |
 
 ### Key Contacts

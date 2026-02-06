@@ -34,7 +34,9 @@ A **testing-only** ECS Fargate environment was stood up on January 3, 2026. Prod
 | database.py connection pooling | Complete | `app/database.py` |
 | Migration proposal doc | Complete | `docs/MIGRATION_LAMBDA_TO_ECS.md` |
 | Implementation plan | Complete | `context_for_ai/plans/ecs-migration-implementation-plan.md` |
-| ECS deploy workflow | Complete | `.github/workflows/deploy_ecs_testing.yml` |
+| ECS deploy workflow (testing) | Complete | `.github/workflows/deploy_ecs_testing.yml` |
+| Terraform IaC (prod) | Complete | `terraform/prod/` |
+| ECS deploy workflow (prod) | Complete | `.github/workflows/deploy_ecs_prod.yml` |
 
 ### What's still running (Lambda — Production/Staging)
 
@@ -123,19 +125,18 @@ These are the outstanding items from the original migration plan, prioritized fo
 
 ---
 
-### Step 6: Create Staging & Production ECS Environments
+### ~~Step 6: Create Production ECS Environment~~ — Done (Feb 7, 2026)
 
-**Why:** Testing is a proof-of-concept. Staging and production need their own isolated infrastructure.
-
-**Scope:**
-- Copy `terraform/testing/` to `terraform/staging/` and `terraform/prod/`
-- Adjust `terraform.tfvars` per environment (task size, desired count, MongoDB URI)
-- Consider extracting shared config into Terraform modules to reduce duplication
-
-**Files to create:**
-- `terraform/staging/` (full set)
-- `terraform/prod/` (full set)
-- Optionally `terraform/modules/ecs-service/` for shared logic
+**What was done:**
+- Copied `terraform/testing/` to `terraform/prod/` (11 .tf files + lock file)
+- Production-specific changes: S3 state key `prod/terraform.tfstate`, log retention 30 days, ALB deletion protection enabled
+- Domain: `quiz-backend.avantifellows.org` (dns.tf hardcodes `quiz-backend` instead of `quiz-backend-${var.environment}`)
+- Created `terraform/prod/terraform.tfvars` with prod values and `REPLACE_ME` placeholders for secrets
+- Created `terraform/prod/terraform.tfvars.example` as template
+- Created `.github/workflows/deploy_ecs_prod.yml` — triggers on `release` branch (via `workflow_run` after CI) + temporary `docs/migration-lambda-to-ecs` push trigger
+- ECS resources named `quiz-backend-prod` (ECR, cluster, service, task definition)
+- Smoke test hits `https://quiz-backend.avantifellows.org/health`
+- **Remaining manual step:** Update IAM `ecs-deploy` inline policy on `quiz-backend` user to cover `quiz-backend-prod` resources (ECR, ECS, task definitions, PassRole)
 
 ---
 
@@ -161,5 +162,5 @@ These are the outstanding items from the original migration plan, prioritized fo
 | ~~2~~ | ~~CI/CD Pipeline~~ | ~~Done (Feb 6, 2026)~~ |
 | ~~3~~ | ~~Custom Domain + HTTPS~~ | ~~Done (Feb 7, 2026) — Cloudflare proxy~~ |
 | ~~4~~ | ~~Auto-Scaling~~ | ~~Done (Feb 7, 2026) — CPU target-tracking~~ |
-| 5 | Staging & Prod Environments | Duplicate tested infra to higher environments |
+| ~~5~~ | ~~Production Environment~~ | ~~Done (Feb 7, 2026) — IaC + CI/CD ready, needs `terraform apply` + IAM policy update~~ |
 | 6 | Load Testing | Final validation before traffic cutover |
