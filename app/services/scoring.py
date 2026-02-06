@@ -38,16 +38,9 @@ def _get_marking_scheme(question_set: Dict[str, Any], quiz_type: Optional[str]):
     return marking_scheme
 
 
-def _sorted_list(values: List[Any]) -> List[Any]:
-    try:
-        return sorted(values, key=lambda v: str(v))
-    except TypeError:
-        return values
-
-
 def _answers_equal(user_answer: Any, correct_answer: Any) -> bool:
     if isinstance(user_answer, list) and isinstance(correct_answer, list):
-        return _sorted_list(user_answer) == _sorted_list(correct_answer)
+        return sorted(user_answer) == sorted(correct_answer)
     return user_answer == correct_answer
 
 
