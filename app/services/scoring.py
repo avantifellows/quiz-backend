@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 
 NUMERICAL_FLOAT_TOLERANCE = 0.05
