@@ -76,7 +76,7 @@ class Event(BaseModel):
 class QuestionSetMetric(BaseModel):
     name: str
     qset_id: str
-    marks_scored: int
+    marks_scored: float
     num_answered: int
     num_skipped: int
     num_correct: int
@@ -95,7 +95,7 @@ class SessionMetrics(BaseModel):
     total_wrong: int
     total_partially_correct: int
     total_marked_for_review: Optional[int]  # not there for non-assessment
-    total_marks: int
+    total_marks: float
 
 
 class QuestionMetadata(BaseModel):
@@ -534,6 +534,7 @@ class UpdateSessionResponse(BaseModel):
     """Model for the response of request that updates a session"""
 
     time_remaining: Optional[int]  # time in seconds
+    metrics: Optional[SessionMetrics] = None
 
     class Config:
         schema_extra = {"example": {"time_remaining": 300}}
