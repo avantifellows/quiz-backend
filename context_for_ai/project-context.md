@@ -155,7 +155,7 @@ quiz-backend/
 │   ├── shared/state-backend/     # S3 + DynamoDB backend bootstrap
 │   └── testing/                  # Testing environment
 │       ├── main.tf, variables.tf, outputs.tf
-│       ├── ecr.tf, ecs.tf, alb.tf, dns.tf
+│       ├── ecr.tf, ecs.tf, alb.tf, dns.tf, autoscaling.tf
 │       ├── iam.tf, security.tf, data.tf
 │       └── terraform.tfvars      # (gitignored)
 ├── .github/workflows/            # CI/CD pipelines
@@ -547,6 +547,7 @@ Located in `app/tests/dummy_data/`:
 | **ECS Cluster** | `quiz-backend-testing` |
 | **Architecture** | ARM64 (Graviton) |
 | **Task Size** | 1 vCPU, 2GB RAM |
+| **Auto-scaling** | 1–10 tasks, target-tracking on CPU at 50% |
 | **Workers** | 4 Uvicorn workers |
 | **Health Check** | `/health` endpoint |
 | **HTTPS** | Cloudflare proxy (flexible SSL) — terminates TLS at Cloudflare edge, proxies to ALB over HTTP |
@@ -709,9 +710,9 @@ The testing environment runs on ECS Fargate. Staging and production run on Lambd
 - Lower latency (no cold starts)
 - Cost savings (~$75-130/month)
 
-**Testing environment has:** Terraform IaC, S3 remote state, CI/CD pipeline, custom domain (`quiz-backend-testing.avantifellows.org`), HTTPS via Cloudflare proxy.
+**Testing environment has:** Terraform IaC, S3 remote state, CI/CD pipeline, custom domain (`quiz-backend-testing.avantifellows.org`), HTTPS via Cloudflare proxy, auto-scaling (1–10 tasks on CPU).
 
-**Outstanding work:** Auto-scaling, staging & production environments, load testing.
+**Outstanding work:** Staging & production environments, load testing.
 
 ---
 

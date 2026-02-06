@@ -19,14 +19,14 @@ A **testing-only** ECS Fargate environment was stood up on January 3, 2026. Prod
 | ECS Cluster | `quiz-backend-testing` |
 | Architecture | ARM64 (Graviton) |
 | Task Size | 1 vCPU, 2 GB RAM |
-| Desired Count | 1 |
+| Desired Count | 1 (auto-scales 1–10 on CPU) |
 | CloudWatch Logs | `/ecs/quiz-backend-testing` |
 
 ### What exists in the codebase
 
 | Artifact | Status | Location |
 |----------|--------|----------|
-| Terraform IaC (12 files) | Complete | `terraform/testing/` |
+| Terraform IaC (13 files) | Complete | `terraform/testing/` |
 | Terraform state | S3 backend | `s3://quiz-terraform-state-111766607077/testing/terraform.tfstate` |
 | State backend bootstrap IaC | Complete | `terraform/shared/state-backend/` |
 | Dockerfile | Complete | repo root |
@@ -60,7 +60,7 @@ A **testing-only** ECS Fargate environment was stood up on January 3, 2026. Prod
 2. ~~**No HTTPS** — ALB serves plain HTTP on port 80.~~ Resolved — HTTPS via Cloudflare proxy (Feb 7, 2026).
 3. **Real MongoDB credentials** sit in `terraform.tfvars` locally (excluded from git by `.gitignore`).
 4. ~~**No CI/CD for ECS** — deploys are manual `docker build` + `terraform apply`.~~ Resolved — GitHub Actions workflow deploys on push (Feb 6, 2026).
-5. **No auto-scaling** — fixed task count of 1.
+5. ~~**No auto-scaling** — fixed task count of 1.~~ Resolved — target-tracking on CPU at 50%, min=1 max=10 (Feb 7, 2026).
 
 ---
 
@@ -97,18 +97,14 @@ These are the outstanding items from the original migration plan, prioritized fo
 
 ---
 
-### Step 3: Auto-Scaling
+### ~~Step 3: Auto-Scaling~~ — Done (Feb 7, 2026)
 
-**Why:** Fixed count of 1 won't handle traffic spikes (the whole reason for migrating off Lambda).
-
-**Scope:**
-- Add `aws_appautoscaling_target` and `aws_appautoscaling_policy` resources
-- Use target-tracking on CPU utilization (e.g., target 70%)
-- Set min=1, max=4 for testing (adjust for prod)
-- Update `terraform/testing/ecs.tf` or create a new `autoscaling.tf`
-
-**Files to change:**
-- New `terraform/testing/autoscaling.tf` or additions to `ecs.tf`
+**What was done:**
+- Created `terraform/testing/autoscaling.tf` with target-tracking scaling policy
+- `aws_appautoscaling_target`: min=1, max=10 tasks
+- `aws_appautoscaling_policy`: tracks `ECSServiceAverageCPUUtilization` at 50% target
+- When average CPU exceeds 50%, ECS spins up additional tasks; scales back in when load drops
+- `ecs.tf` already had `lifecycle { ignore_changes = [desired_count] }` — no conflict with autoscaler
 
 ---
 
@@ -164,6 +160,6 @@ These are the outstanding items from the original migration plan, prioritized fo
 | ~~1~~ | ~~S3 Backend~~ | ~~Done (Feb 6, 2026)~~ |
 | ~~2~~ | ~~CI/CD Pipeline~~ | ~~Done (Feb 6, 2026)~~ |
 | ~~3~~ | ~~Custom Domain + HTTPS~~ | ~~Done (Feb 7, 2026) — Cloudflare proxy~~ |
-| 4 | Auto-Scaling | Production-readiness |
+| ~~4~~ | ~~Auto-Scaling~~ | ~~Done (Feb 7, 2026) — CPU target-tracking~~ |
 | 5 | Staging & Prod Environments | Duplicate tested infra to higher environments |
 | 6 | Load Testing | Final validation before traffic cutover |
