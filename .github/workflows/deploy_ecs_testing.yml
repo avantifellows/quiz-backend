@@ -123,8 +123,21 @@ jobs:
 
       - name: Smoke test
         run: |
+          # Skip smoke test if service is scaled to 0
+          DESIRED=$(aws ecs describe-services \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_SERVICE }} \
+            --query 'services[0].desiredCount' --output text)
+          if [ "$DESIRED" = "0" ]; then
+            echo "Service scaled to 0 — skipping smoke test."
+            exit 0
+          fi
+
+          echo "Waiting 15s for ALB target registration..."
+          sleep 15
+
           echo "Hitting ALB health endpoint..."
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
             http://quiz-backend-testing-1700268315.ap-south-1.elb.amazonaws.com/health)
           echo "Health check returned: $HTTP_STATUS"
           if [ "$HTTP_STATUS" != "200" ]; then
