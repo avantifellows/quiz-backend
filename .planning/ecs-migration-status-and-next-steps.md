@@ -10,24 +10,29 @@
 
 ### What's deployed
 
-A **testing-only** ECS Fargate environment was stood up on January 3, 2026. Production and staging still run on Lambda via SAM.
+**Testing** and **production** ECS Fargate environments are both live. Staging still runs on Lambda via SAM. Production Lambda remains active until traffic cutover.
 
-| Resource | Value |
-|----------|-------|
-| API Endpoint | `https://quiz-backend-testing.avantifellows.org` |
-| ECR Repository | `111766607077.dkr.ecr.ap-south-1.amazonaws.com/quiz-backend-testing` |
-| ECS Cluster | `quiz-backend-testing` |
-| Architecture | ARM64 (Graviton) |
-| Task Size | 1 vCPU, 2 GB RAM |
-| Desired Count | 1 (auto-scales 1–10 on CPU) |
-| CloudWatch Logs | `/ecs/quiz-backend-testing` |
+| Resource | Testing | Production |
+|----------|---------|------------|
+| API Endpoint | `https://quiz-backend-testing.avantifellows.org` | `https://quiz-backend.avantifellows.org` |
+| ECR Repository | `quiz-backend-testing` | `quiz-backend-prod` |
+| ECS Cluster | `quiz-backend-testing` | `quiz-backend-prod` |
+| Architecture | ARM64 (Graviton) | ARM64 (Graviton) |
+| Task Size | 1 vCPU, 2 GB RAM | 1 vCPU, 2 GB RAM |
+| Auto-scaling | 1–10 tasks, CPU 50% | 1–10 tasks, CPU 50% |
+| Log Retention | 7 days | 30 days |
+| ALB Deletion Protection | No | Yes |
+| CloudWatch Logs | `/ecs/quiz-backend-testing` | `/ecs/quiz-backend-prod` |
+| Terraform State | `s3://…/testing/terraform.tfstate` | `s3://…/prod/terraform.tfstate` |
+| Deploy Trigger | Push to `main` (after CI) | Push to `release` (after CI) |
 
 ### What exists in the codebase
 
 | Artifact | Status | Location |
 |----------|--------|----------|
 | Terraform IaC (13 files) | Complete | `terraform/testing/` |
-| Terraform state | S3 backend | `s3://quiz-terraform-state-111766607077/testing/terraform.tfstate` |
+| Terraform state (testing) | S3 backend | `s3://quiz-terraform-state-111766607077/testing/terraform.tfstate` |
+| Terraform state (prod) | S3 backend | `s3://quiz-terraform-state-111766607077/prod/terraform.tfstate` |
 | State backend bootstrap IaC | Complete | `terraform/shared/state-backend/` |
 | Dockerfile | Complete | repo root |
 | .dockerignore | Complete | repo root |
@@ -38,13 +43,15 @@ A **testing-only** ECS Fargate environment was stood up on January 3, 2026. Prod
 | Terraform IaC (prod) | Complete | `terraform/prod/` |
 | ECS deploy workflow (prod) | Complete | `.github/workflows/deploy_ecs_prod.yml` |
 
-### What's still running (Lambda — Production/Staging)
+### What's still running (Lambda — Staging + Production legacy)
 
 | Pipeline | Trigger | Template |
 |----------|---------|----------|
-| Staging deploy | Push/PR to `main` | `templates/staging.yaml` (1024 MB Lambda) |
-| Production deploy | Push to `release` | `templates/prod.yaml` (2048 MB Lambda) |
+| Staging deploy (Lambda) | Push/PR to `main` | `templates/staging.yaml` (1024 MB Lambda) |
+| Production deploy (Lambda) | Push to `release` | `templates/prod.yaml` (2048 MB Lambda) |
 | CI | Push/PR to `main` | `.github/workflows/ci.yml` |
+
+> **Note:** Production Lambda and ECS prod both deploy on push to `release`. Both will run in parallel until Lambda is decommissioned.
 
 ### Config differences: plan vs. actual
 
@@ -131,26 +138,38 @@ These are the outstanding items from the original migration plan, prioritized fo
 - Copied `terraform/testing/` to `terraform/prod/` (11 .tf files + lock file)
 - Production-specific changes: S3 state key `prod/terraform.tfstate`, log retention 30 days, ALB deletion protection enabled
 - Domain: `quiz-backend.avantifellows.org` (dns.tf hardcodes `quiz-backend` instead of `quiz-backend-${var.environment}`)
-- Created `terraform/prod/terraform.tfvars` with prod values and `REPLACE_ME` placeholders for secrets
-- Created `terraform/prod/terraform.tfvars.example` as template
+- Created `terraform/prod/terraform.tfvars` with prod values, `terraform/prod/terraform.tfvars.example` as template
+- `terraform apply` — 19 resources created (ECR, ECS cluster/service/task def, ALB, target group, listener, security groups, IAM roles, CloudWatch log group, Cloudflare CNAME + page rule, autoscaling target + policy)
 - Created `.github/workflows/deploy_ecs_prod.yml` — triggers on `release` branch (via `workflow_run` after CI) + temporary `docs/migration-lambda-to-ecs` push trigger
-- ECS resources named `quiz-backend-prod` (ECR, cluster, service, task definition)
-- Smoke test hits `https://quiz-backend.avantifellows.org/health`
-- **Remaining manual step:** Update IAM `ecs-deploy` inline policy on `quiz-backend` user to cover `quiz-backend-prod` resources (ECR, ECS, task definitions, PassRole)
+- Updated IAM `ecs-deploy` inline policy on `quiz-backend` user (via CLI) — added `quiz-backend-prod` ECR repo and both prod ECS roles to the existing testing permissions
+- First CI/CD deploy triggered and succeeded — all 12 workflow steps passed including smoke test
+- Verified: `curl https://quiz-backend.avantifellows.org/health` → `{"status":"healthy"}`
 
 ---
 
-### Step 7: Load Testing
+### ~~Step 7: Load Testing~~ — Done (Feb 7, 2026)
 
-**Why:** The migration's core promise is better connection handling. This needs to be validated before cutting over production traffic.
+**What was done:**
+- Updated existing Locust load test suite (`load-testing/quiz-http-api/`) to match recent backend changes (session timing fields, matrix question types, SinglePageQuizUser class)
+- Updated backend URL from direct ALB to `https://quiz-backend-testing.avantifellows.org` (Cloudflare)
+- Local smoke test passed (1 user, 8 requests, 0 failures)
+- Deployed Locust to EC2 (c5.9xlarge, 32 workers) via `run_on_server.sh`
+- Created `deployment/monitor_ecs.sh` — terminal-based ECS monitoring script (service status, CloudWatch CPU/Memory, ALB metrics, auto-scaling state, health check)
 
-**Scope:**
-- Run load tests against the ECS testing endpoint
-- Verify MongoDB connection pooling holds under concurrent load
-- Monitor CloudWatch metrics (CPU, memory, connection count)
-- Compare latency and error rates vs. Lambda
+**Load test: 5,000 concurrent users, 50 u/s ramp-up, 10 pre-scaled ECS tasks**
+- **133,244 requests**, **474 RPS** avg, **5 failures** (0.004% — all on session end)
+- p50 **60ms**, p95 **400ms** (inflated by ramp-up thundering herd; steady-state p95 ~100ms)
+- CPU peaked ~65% across 10 tasks, memory stable at ~11%
+- MongoDB connections: 100 → 350 during test (M10 staging tier)
+- Zero ALB 5xx errors, health check stayed at 200 OK throughout
+- Session end remains the slowest endpoint (p50 3,400ms) — known pattern, metrics calculation is heavy
 
-**Tools:** k6, Locust, or Artillery
+**Auto-scaling observations:**
+- Target tracking alarm took ~5 min to trigger after CPU exceeded 50% (3 consecutive 60s evaluation periods + CloudWatch lag)
+- For planned load events (exam start), pre-scaling with `aws ecs update-service --desired-count N` is recommended
+- Each task comfortably handles ~500-700 concurrent users at sub-110ms p95
+
+**Full report:** `load-testing/quiz-http-api/reports/07-02-2026/report_2026-02-07.md`
 
 ---
 
@@ -162,5 +181,72 @@ These are the outstanding items from the original migration plan, prioritized fo
 | ~~2~~ | ~~CI/CD Pipeline~~ | ~~Done (Feb 6, 2026)~~ |
 | ~~3~~ | ~~Custom Domain + HTTPS~~ | ~~Done (Feb 7, 2026) — Cloudflare proxy~~ |
 | ~~4~~ | ~~Auto-Scaling~~ | ~~Done (Feb 7, 2026) — CPU target-tracking~~ |
-| ~~5~~ | ~~Production Environment~~ | ~~Done (Feb 7, 2026) — IaC + CI/CD ready, needs `terraform apply` + IAM policy update~~ |
-| 6 | Load Testing | Final validation before traffic cutover |
+| ~~5~~ | ~~Production Environment~~ | ~~Done (Feb 7, 2026) — fully deployed, CI/CD verified, health check passing~~ |
+| ~~6~~ | ~~Load Testing~~ | ~~Done (Feb 7, 2026) — 5k users, 474 RPS, 0.004% failure rate~~ |
+| ~~7~~ | ~~Infra parity audit~~ | ~~Done (Feb 7, 2026) — all 11 .tf files verified, 6 identical, 5 with expected env-specific diffs only~~ |
+| ~~8~~ | ~~Workflow audit~~ | ~~Done (Feb 7, 2026) — workflows identical except 5 env-specific values, triggers correct~~ |
+| ~~9~~ | ~~PRs with full descriptions~~ | ~~Done (Feb 7, 2026) — quiz-backend#130 + load-testing#5, cross-linked~~ |
+| 10 | Frontend backend switcher | Add `?new_backend=true` URL query param to quiz-frontend so staging/prod can hit the ECS backend for testing; separate PR on frontend repo |
+| 11 | Scheduled scaling from sheet | Set up a flow (separate repo) that reads from a Google Sheet and sets min/desired/max for ECS clusters on a schedule |
+
+---
+
+### ~~Step 8: Infra Parity Audit~~ — Done (Feb 7, 2026)
+
+**What was done:**
+- Diffed all 11 `.tf` files between `terraform/testing/` and `terraform/prod/`
+- **6 files identical:** `autoscaling.tf`, `data.tf`, `ecr.tf`, `iam.tf`, `outputs.tf`, `security.tf`, `variables.tf` — IAM roles/policies, auto-scaling targets/policies, and security group rules all match
+- **5 files with expected env-specific differences only:**
+  - `main.tf` — state key path (`testing/` vs `prod/`)
+  - `ecs.tf` — log retention (7 vs 30 days)
+  - `alb.tf` — deletion protection (false vs true)
+  - `dns.tf` — domain name (`quiz-backend-${var.environment}` vs hardcoded `quiz-backend`) — intentional, prod domain is `quiz-backend.avantifellows.org`
+  - `terraform.tfvars.example` — env name, mongo URI, task size
+- **Fix applied:** Updated `terraform/testing/terraform.tfvars.example` task size from 512/1024 to 1024/2048 to match actual deployment
+
+---
+
+### ~~Step 9: Workflow Audit~~ — Done (Feb 7, 2026)
+
+**What was done:**
+- Diffed `deploy_ecs_testing.yml` vs `deploy_ecs_prod.yml` — structurally identical
+- **5 env-specific differences only:**
+  - Workflow name (`Deploy to ECS Testing` vs `Deploy to ECS Prod`)
+  - Trigger branch (`main` vs `release`)
+  - 4 env vars (`ECR_REPOSITORY`, `ECS_CLUSTER`, `ECS_SERVICE`, `TASK_DEFINITION_FAMILY` — all `quiz-backend-testing` vs `quiz-backend-prod`)
+  - Smoke test URL (`quiz-backend-testing.avantifellows.org` vs `quiz-backend.avantifellows.org`)
+- Triggers confirmed correct: testing fires on CI success for `main`, prod fires on CI success for `release`
+- Lambda workflows (`deploy_to_staging.yml`, `deploy_to_prod.yml`) remain active — do not remove until cutover
+
+---
+
+### ~~Step 10: PRs with Full Descriptions~~ — Done (Feb 7, 2026)
+
+**What was done:**
+- **quiz-backend PR:** [avantifellows/quiz-backend#130](https://github.com/avantifellows/quiz-backend/pull/130) — updated title and description covering all Terraform, Dockerfile, CI/CD, app code changes, architecture diagram, load test results, and test plan
+- **load-testing PR:** [avantifellows/load-testing#5](https://github.com/avantifellows/load-testing/pull/5) — new branch `feature/quiz-http-api-load-testing` with full description of quiz-http-api module, quiz-mongo updates, deployment scripts, and load test reports
+- Both PRs cross-link each other
+
+---
+
+### Step 11: Frontend Backend Switcher
+
+**Why:** Before cutting over production traffic, need a way to test the ECS backend with real frontend behavior. A URL query param lets QA/devs opt into the new backend without affecting other users.
+
+**Scope:**
+- Add `?new_backend=true` query param support to quiz-frontend
+- When present, frontend hits the ECS backend URL instead of the Lambda/current URL
+- Must work on both staging and production frontends
+- Separate PR on the quiz-frontend repo
+- This is a standalone task — plan and implement separately
+
+---
+
+### Step 12: Scheduled Scaling from Sheet
+
+**Why:** For planned exam events, ECS tasks should be pre-scaled ahead of time rather than relying on reactive auto-scaling (which has ~5 min delay). A Google Sheet-driven flow allows non-engineers to schedule scaling.
+
+**Scope:**
+- A flow (in a separate repo) reads scaling schedules from a Google Sheet
+- Sets min, desired, and max capacity for testing or production ECS clusters on the defined schedule
+- Lightweight mention here — implementation lives elsewhere

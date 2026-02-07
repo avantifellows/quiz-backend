@@ -23,7 +23,7 @@
 13. [Deployment](#deployment)
 14. [Configuration](#configuration)
 15. [Logging](#logging)
-16. [ECS Migration](#ecs-migration)
+16. [ECS vs Lambda](#ecs-vs-lambda)
 
 ---
 
@@ -110,8 +110,8 @@ The system is designed to handle:
 | **Database** | MongoDB (via PyMongo 4.0.2) |
 | **Data Validation** | Pydantic 1.9.0 |
 | **ASGI Server** | Uvicorn 0.17.6 (4 workers) |
-| **Cloud Hosting** | AWS Lambda (staging/prod) / ECS Fargate (testing/prod) |
-| **Infrastructure** | AWS SAM (Lambda) / Terraform (ECS) |
+| **Cloud Hosting** | ECS Fargate (testing/prod) / AWS Lambda (staging) |
+| **Infrastructure** | Terraform (ECS) / AWS SAM (Lambda) |
 | **DNS/HTTPS** | Cloudflare (proxy mode, domain: `avantifellows.org`) |
 | **Container** | Docker (ARM64/Graviton) |
 | **Testing** | Pytest + mongomock |
@@ -541,9 +541,8 @@ Located in `app/tests/dummy_data/`:
 | Environment | Compute | Infrastructure | Status |
 |-------------|---------|----------------|--------|
 | **Testing** | ECS Fargate (ARM64) | Terraform | Active |
-| **Production (ECS)** | ECS Fargate (ARM64) | Terraform | Provisioning |
+| **Production** | ECS Fargate (ARM64) | Terraform | Active |
 | **Staging** | AWS Lambda | AWS SAM | Active |
-| **Production (Lambda)** | AWS Lambda | AWS SAM | Active (to be replaced by ECS) |
 
 ### ECS Fargate (Testing Environment)
 
@@ -619,22 +618,29 @@ aws ecs update-service \
 
 #### ECS Monitoring Commands
 
+Replace `ENV` with `testing` or `prod` as appropriate.
+
 ```bash
+# Live monitoring dashboard (refreshes every 15s)
+# Shows: ECS tasks, auto-scaling, CPU/Memory, ALB metrics, health check
+cd load-testing/quiz-http-api/deployment
+./monitor_ecs.sh --profile <aws-profile> [--env testing|prod] [--interval 15]
+
 # Check service status
-aws ecs describe-services --cluster quiz-backend-testing \
-  --services quiz-backend-testing \
+aws ecs describe-services --cluster quiz-backend-ENV \
+  --services quiz-backend-ENV \
   --query 'services[0].{desired:desiredCount,running:runningCount}'
 
 # Tail logs
-aws logs tail /ecs/quiz-backend-testing --follow
+aws logs tail /ecs/quiz-backend-ENV --follow
 
 # Check task details
-aws ecs describe-tasks --cluster quiz-backend-testing \
-  --tasks $(aws ecs list-tasks --cluster quiz-backend-testing --query 'taskArns[0]' --output text) \
+aws ecs describe-tasks --cluster quiz-backend-ENV \
+  --tasks $(aws ecs list-tasks --cluster quiz-backend-ENV --query 'taskArns[0]' --output text) \
   --query 'tasks[0].{cpu:cpu,memory:memory,lastStatus:lastStatus}'
 ```
 
-### AWS Lambda (Staging/Production)
+### AWS Lambda (Staging)
 
 - **Compute**: AWS Lambda (Python 3.9, 1024MB, 300s timeout)
 - **API**: AWS API Gateway (HTTP API)
@@ -646,7 +652,6 @@ aws ecs describe-tasks --cluster quiz-backend-testing \
 | Environment | Trigger |
 |-------------|---------|
 | Staging | Push/merge to `main` branch |
-| Production | Push to `release` branch |
 
 #### GitHub Actions Workflows
 
@@ -745,21 +750,24 @@ Logs are shipped to Loki via Lambda Promtail for centralized logging and Grafana
 
 ---
 
-## ECS Migration
+## ECS vs Lambda
 
-The testing environment runs on ECS Fargate. Staging and production run on Lambda. See `docs/MIGRATION_LAMBDA_TO_ECS.md` for the proposal and `.planning/ecs-migration-status-and-next-steps.md` for detailed status.
+Testing and production run on ECS Fargate. Staging runs on Lambda.
 
-**ECS advantages over Lambda:**
-- Connection pooling (20 connections per container vs 1 per Lambda)
-- Stay on M10 tier for most scenarios (vs manual M40 scaling)
+**Why ECS Fargate for testing/production:**
+- Connection pooling (20 connections per container vs 1 per Lambda invocation)
+- Stays on MongoDB M10 tier for most scenarios
 - Lower latency (no cold starts)
 - Cost savings (~$75-130/month)
 
-**Testing environment has:** Terraform IaC, S3 remote state, CI/CD pipeline, custom domain (`quiz-backend-testing.avantifellows.org`), HTTPS via Cloudflare proxy, auto-scaling (1–10 tasks on CPU).
+Both ECS environments have: Terraform IaC, S3 remote state, CI/CD pipelines, custom domains, HTTPS via Cloudflare proxy, auto-scaling (1–10 tasks on CPU). Production additionally has 30-day log retention and ALB deletion protection.
 
-**Production ECS environment has:** Terraform IaC (at `terraform/prod/`), S3 remote state, CI/CD pipeline triggered on `release` branch, custom domain (`quiz-backend.avantifellows.org`), HTTPS via Cloudflare proxy, auto-scaling (1–10 tasks on CPU), 30-day log retention, ALB deletion protection enabled.
-
-**Outstanding work:** `terraform apply` for prod, IAM policy update for prod resources, load testing.
+**Load-tested capacity (testing environment):**
+- 5,000 concurrent users on 10 pre-scaled tasks: 474 RPS, p50 60ms, p95 400ms (steady-state p95 ~100ms), 0.004% failure rate
+- Each task handles ~500-700 concurrent users at sub-110ms p95
+- MongoDB connections scale from ~100 (idle) to ~350 (under load) on M10 tier
+- Auto-scaling alarm evaluation takes ~5 min; for planned load events, pre-scale with `aws ecs update-service --desired-count N`
+- Load test reports: `load-testing/quiz-http-api/reports/`
 
 ---
 
