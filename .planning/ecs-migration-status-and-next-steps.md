@@ -186,7 +186,7 @@ These are the outstanding items from the original migration plan, prioritized fo
 | ~~7~~ | ~~Infra parity audit~~ | ~~Done (Feb 7, 2026) — all 11 .tf files verified, 6 identical, 5 with expected env-specific diffs only~~ |
 | ~~8~~ | ~~Workflow audit~~ | ~~Done (Feb 7, 2026) — workflows identical except 5 env-specific values, triggers correct~~ |
 | ~~9~~ | ~~PRs with full descriptions~~ | ~~Done (Feb 7, 2026) — quiz-backend#130 + load-testing#5, cross-linked~~ |
-| 10 | Frontend backend switcher | Add `?new_backend=true` URL query param to quiz-frontend so staging/prod can hit the ECS backend for testing; separate PR on frontend repo |
+| ~~10~~ | ~~Frontend backend switcher~~ | ~~Done (Feb 7, 2026) — quiz-frontend#198, cross-linked with quiz-backend#130~~ |
 | 11 | Scheduled scaling from sheet | Set up a flow (separate repo) that reads from a Google Sheet and sets min/desired/max for ECS clusters on a schedule |
 
 ---
@@ -229,16 +229,18 @@ These are the outstanding items from the original migration plan, prioritized fo
 
 ---
 
-### Step 11: Frontend Backend Switcher
+### ~~Step 11: Frontend Backend Switcher~~ — Done (Feb 7, 2026)
 
-**Why:** Before cutting over production traffic, need a way to test the ECS backend with real frontend behavior. A URL query param lets QA/devs opt into the new backend without affecting other users.
-
-**Scope:**
-- Add `?new_backend=true` query param support to quiz-frontend
-- When present, frontend hits the ECS backend URL instead of the Lambda/current URL
-- Must work on both staging and production frontends
-- Separate PR on the quiz-frontend repo
-- This is a standalone task — plan and implement separately
+**What was done:**
+- **PR:** [avantifellows/quiz-frontend#198](https://github.com/avantifellows/quiz-frontend/pull/198) — branch `feature/ecs-backend-switcher`
+- Modified `src/services/API/RootClient.ts` — extracted `createClient()` factory, creates two Axios clients (default Lambda + ECS), `apiClient()` checks `window.location.search` for `new_backend` param
+- ECS backend URLs hardcoded in CI/CD workflows (not secrets — they're public):
+  - Staging: `https://quiz-backend-testing.avantifellows.org`
+  - Production: `https://quiz-backend.avantifellows.org`
+- Added `VUE_APP_BACKEND_ECS` to `.env.example`
+- Safe fallback: if `VUE_APP_BACKEND_ECS` is not set, the query param is ignored
+- Usage: append `&new_backend=true` to any quiz URL to route API calls to ECS
+- Cross-linked with [quiz-backend#130](https://github.com/avantifellows/quiz-backend/pull/130)
 
 ---
 
