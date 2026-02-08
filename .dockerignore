@@ -1,0 +1,50 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Local env
+.env
+.env.local
+*.env
+
+# Terraform
+terraform/
+
+# Docs
+docs/
+*.md
+
+# AWS SAM (Lambda)
+templates/
+.aws-sam/
+samconfig.toml
+
+# Context for AI
+context_for_ai/
+
+# Misc
+.DS_Store
+*.log
