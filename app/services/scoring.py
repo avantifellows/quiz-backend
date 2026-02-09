@@ -201,6 +201,8 @@ def compute_session_metrics(
     for question_set in question_sets:
         questions = question_set.get("questions") or []
         qset_title = question_set.get("title")
+        if qset_title is None:
+            qset_title = ""
         qset_id = question_set.get("_id") or question_set.get("id")
         qset_id = str(qset_id) if qset_id is not None else ""
         marking_scheme = _get_marking_scheme(question_set, quiz_type)
