@@ -229,6 +229,11 @@ def compute_session_metrics(
                     qset_num_answered += 1
                 continue
 
+            if question.get("force_correct", False):
+                qset_num_answered += 1
+                qset_num_correct += 1
+                continue
+
             if not question.get("graded", True):
                 qset_num_ungraded += 1
                 continue
