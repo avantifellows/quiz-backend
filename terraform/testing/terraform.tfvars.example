@@ -1,0 +1,16 @@
+# Copy this file to terraform.tfvars and fill in values
+# DO NOT commit terraform.tfvars to git (it's in .gitignore)
+
+aws_region             = "ap-south-1"
+environment            = "testing"
+mongo_auth_credentials = "mongodb+srv://USER:PASS@cluster.mongodb.net/quiz-staging?retryWrites=true&w=majority"
+
+# ECS Configuration
+desired_count = 1
+task_cpu      = 1024  # 1 vCPU
+task_memory   = 2048  # 2 GB
+
+# Cloudflare (for custom domain + HTTPS)
+cloudflare_api_key   = "your-cloudflare-global-api-key"
+cloudflare_email     = "your-cloudflare-email@example.com"
+cloudflare_zone_name = "avantifellows.org"
