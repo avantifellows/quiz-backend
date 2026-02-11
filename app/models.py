@@ -144,6 +144,7 @@ class Question(BaseModel):
     matrix_rows: Optional[List[str]] = None  # for matrix rating/numerical questions
     correct_answer: Union[List[int], List[str], float, int, dict, None] = None
     graded: bool = True
+    force_correct: bool = False
     marking_scheme: MarkingScheme = None
     solution: Optional[List[str]] = []
     metadata: QuestionMetadata = None
