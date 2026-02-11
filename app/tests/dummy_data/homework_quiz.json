@@ -1,7 +1,8 @@
 {
    "question_sets": [
      {
-       "max_questions_allowed_to_attempt": 2,
+      "title": "Section A",
+      "max_questions_allowed_to_attempt": 2,
        "questions": [
          {
            "text": "Which grade are you in?",
