@@ -2,6 +2,7 @@ import json
 from .base import BaseTestCase
 from ..routers import quizzes, questions
 from settings import Settings
+from ..database import client as mongo_client
 
 settings = Settings()
 
@@ -75,8 +76,8 @@ class QuizTestCase(BaseTestCase):
             len(self.multi_qset_quiz["question_sets"][i]["questions"]) for i in range(2)
         ]
 
-        # the keys that should be present in every question stored inside a quiz
-        required_keys = ["type", "correct_answer", "graded", "question_set_id"]
+        # GET /quiz payload is sanitized (no answers/solutions)
+        required_keys = ["type", "graded", "question_set_id"]
         # the keys that can be skipped in questions stored inside a quiz
         optional_keys = [
             "text",
@@ -98,6 +99,8 @@ class QuizTestCase(BaseTestCase):
                 ][question_index]
                 for key in optional_keys + required_keys:
                     assert key in question
+                assert question.get("correct_answer") is None
+                assert question.get("solution") == []
 
         # checking the rest of the subset of questions in the quiz.
         # They should only contain some required keys and not all the keys
@@ -116,6 +119,8 @@ class QuizTestCase(BaseTestCase):
 
                 for key in required_keys:
                     assert key in question
+                assert question.get("correct_answer") is None
+                assert question.get("solution") == []
 
                 for key in optional_keys:
                     # key exists in the returned question
@@ -137,8 +142,8 @@ class QuizTestCase(BaseTestCase):
             len(self.multi_qset_omr["question_sets"][i]["questions"]) for i in range(2)
         ]  # 2 --> two question sets
 
-        # the keys that should be present in every question stored inside a quiz
-        required_keys = ["type", "correct_answer", "graded", "question_set_id"]
+        # Base GET /quiz payload is sanitized (no answers/solutions)
+        required_keys = ["type", "graded", "question_set_id"]
         # the keys that can be skipped in questions stored inside a quiz
         optional_keys = [
             "text",
@@ -160,6 +165,8 @@ class QuizTestCase(BaseTestCase):
                 ][question_index]
                 for key in optional_keys + required_keys:
                     assert key in question
+                assert question.get("correct_answer") is None
+                assert question.get("solution") == []
 
         # checking the rest of the subset of questions in the quiz.
         # They should only contain some required keys and not all the keys
@@ -178,6 +185,8 @@ class QuizTestCase(BaseTestCase):
 
                 for key in required_keys:
                     assert key in question
+                assert question.get("correct_answer") is None
+                assert question.get("solution") == []
 
                 for key in optional_keys:
                     # key exists in the returned question
@@ -208,6 +217,64 @@ class QuizTestCase(BaseTestCase):
                     else:
                         assert question[key] is None
 
+    def test_get_quiz_include_answers_returns_full_questions_and_unsanitized_answers(
+        self,
+    ):
+        response = self.client.get(
+            f"{quizzes.router.prefix}/{self.multi_qset_quiz_id}",
+            params={"include_answers": True},
+        )
+        assert response.status_code == 200
+        payload = response.json()
+
+        # include_answers=true should preserve bucketing (details only for first subset_size),
+        # but answers should not be sanitized.
+        first_q = payload["question_sets"][0]["questions"][0]
+        assert first_q.get("text") is not None
+
+        # Pick a trimmed question (first one after subset_size) and ensure it is still trimmed
+        trimmed_q = payload["question_sets"][0]["questions"][settings.subset_size]
+        assert trimmed_q.get("text") is None
+        assert trimmed_q.get("options") in (None, [])
+
+        # Answers should not be sanitized under include_answers=true
+        assert first_q.get("correct_answer") is not None
+        assert trimmed_q.get("correct_answer") is not None
+
+    def test_get_quiz_include_answers_respects_display_solution_false(self):
+        # Update the embedded (bucketed) quiz payload so we can verify the endpoint clears it.
+        embedded_q_id = self.multi_qset_quiz["question_sets"][0]["questions"][0]["_id"]
+        mongo_client.quiz.quizzes.update_one(
+            {
+                "_id": self.multi_qset_quiz_id,
+                "question_sets._id": self.multi_qset_quiz["question_sets"][0]["_id"],
+            },
+            {"$set": {"question_sets.0.questions.0.solution": ["example-solution"]}},
+        )
+        mongo_client.quiz.quizzes.update_one(
+            {"_id": self.multi_qset_quiz_id},
+            {"$set": {"display_solution": False}},
+        )
+
+        response = self.client.get(
+            f"{quizzes.router.prefix}/{self.multi_qset_quiz_id}",
+            params={"include_answers": True},
+        )
+        assert response.status_code == 200
+        payload = response.json()
+
+        # Find the updated question in the response and ensure its solution is cleared
+        found = None
+        for qs in payload.get("question_sets") or []:
+            for qq in qs.get("questions") or []:
+                if qq.get("_id") == embedded_q_id:
+                    found = qq
+                    break
+            if found is not None:
+                break
+        assert found is not None
+        assert found.get("solution") == []
+
     def test_created_partial_mark_quiz_contains_partial_key(self):
         # check that key exists
         assert "partial" in self.partial_mark_quiz["question_sets"][0]["marking_scheme"]
@@ -226,8 +293,16 @@ class QuizTestCase(BaseTestCase):
                 assert "num_correct_selected" in condition
 
     def test_created_matrix_match_quiz_contains_list_of_string_answer(self):
+        # Base GET /quiz payload is sanitized in Phase 3, so fetch with include_answers=true
+        response = self.client.get(
+            f"{quizzes.router.prefix}/{self.matrix_match_quiz_id}",
+            params={"include_answers": True},
+        )
+        assert response.status_code == 200
+        quiz_payload = response.json()
+
         # go through quiz and find advanced matrix match question
-        for question_set in self.matrix_match_quiz["question_sets"]:
+        for question_set in quiz_payload["question_sets"]:
             for question in question_set["questions"]:
                 if question["type"] == "matrix-match":
                     assert isinstance(question["correct_answer"], list)

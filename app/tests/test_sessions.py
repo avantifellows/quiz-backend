@@ -64,6 +64,123 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert session["events"][-1]["event_type"] == EventType.end_quiz
         assert session["has_quiz_ended"] is True
 
+    def test_preflight_returns_minimal_payload_and_false_when_not_ended(self):
+        quiz_id = self.timed_quiz_session["quiz_id"]
+        user_id = self.timed_quiz_session["user_id"]
+        response = self.client.get(
+            f"{sessions.router.prefix}/preflight",
+            params={"quiz_id": quiz_id, "user_id": user_id},
+        )
+        assert response.status_code == 200
+        assert response.json() == {"include_answers": False}
+
+    def test_preflight_returns_true_after_end_when_review_immediate(self):
+        # End the timed session
+        self.client.patch(
+            f"{sessions.router.prefix}/{self.timed_quiz_session_id}",
+            json={"event": EventType.start_quiz.value},
+        )
+        self.client.patch(
+            f"{sessions.router.prefix}/{self.timed_quiz_session_id}",
+            json={"event": EventType.end_quiz.value},
+        )
+
+        quiz_id = self.timed_quiz_session["quiz_id"]
+        user_id = self.timed_quiz_session["user_id"]
+        response = self.client.get(
+            f"{sessions.router.prefix}/preflight",
+            params={"quiz_id": quiz_id, "user_id": user_id},
+        )
+        assert response.status_code == 200
+        assert response.json() == {"include_answers": True}
+
+    def test_preflight_respects_review_immediate_and_session_end_time(self):
+        quiz_id = self.timed_quiz_session["quiz_id"]
+        user_id = self.timed_quiz_session["user_id"]
+
+        # Mark timed quiz as delayed review and set end time in the future
+        future_end = (datetime.utcnow() + timedelta(hours=1)).strftime(
+            "%Y-%m-%d %I:%M:%S %p"
+        )
+        mongo_client.quiz.quizzes.update_one(
+            {"_id": quiz_id},
+            {
+                "$set": {
+                    "review_immediate": False,
+                    "metadata.session_end_time": future_end,
+                }
+            },
+        )
+
+        # End the timed session
+        self.client.patch(
+            f"{sessions.router.prefix}/{self.timed_quiz_session_id}",
+            json={"event": EventType.start_quiz.value},
+        )
+        self.client.patch(
+            f"{sessions.router.prefix}/{self.timed_quiz_session_id}",
+            json={"event": EventType.end_quiz.value},
+        )
+
+        response = self.client.get(
+            f"{sessions.router.prefix}/preflight",
+            params={"quiz_id": quiz_id, "user_id": user_id},
+        )
+        assert response.status_code == 200
+        assert response.json() == {"include_answers": False}
+
+        # Move end time to the past; include_answers should flip to True
+        past_end = (datetime.utcnow() - timedelta(hours=1)).strftime(
+            "%Y-%m-%d %I:%M:%S %p"
+        )
+        mongo_client.quiz.quizzes.update_one(
+            {"_id": quiz_id},
+            {"$set": {"metadata.session_end_time": past_end}},
+        )
+        response = self.client.get(
+            f"{sessions.router.prefix}/preflight",
+            params={"quiz_id": quiz_id, "user_id": user_id},
+        )
+        assert response.status_code == 200
+        assert response.json() == {"include_answers": True}
+
+    def test_homework_reveal_endpoint_blocks_before_submit(self):
+        response = self.client.get(
+            f"{sessions.router.prefix}/{self.homework_session_id}/reveal/0"
+        )
+        assert response.status_code == 403
+
+    def test_homework_reveal_endpoint_returns_correct_answer_after_submit(self):
+        # Submit an answer for position 0
+        self.client.patch(
+            f"{session_answers.router.prefix}/{self.homework_session_id}/0",
+            json={"answer": [0]},
+        )
+
+        reveal = self.client.get(
+            f"{sessions.router.prefix}/{self.homework_session_id}/reveal/0"
+        )
+        assert reveal.status_code == 200
+        reveal_payload = reveal.json()
+        assert "correct_answer" in reveal_payload
+        assert "question_id" in reveal_payload
+
+        # Cross-check with the source question document (direct DB, because /questions is sanitized in Phase 3)
+        question_id = self.homework_session["session_answers"][0]["question_id"]
+        q = mongo_client.quiz.questions.find_one({"_id": question_id})
+        assert reveal_payload["correct_answer"] == (q or {}).get("correct_answer")
+
+    def test_reveal_endpoint_blocks_non_homework_quiz(self):
+        # Submit an answer for assessment session
+        self.client.patch(
+            f"{session_answers.router.prefix}/{self.timed_quiz_session_id}/0",
+            json={"answer": [0]},
+        )
+        response = self.client.get(
+            f"{sessions.router.prefix}/{self.timed_quiz_session_id}/reveal/0"
+        )
+        assert response.status_code == 403
+
     def test_create_session_with_invalid_quiz_id(self):
         response = self.client.post(
             sessions.router.prefix + "/", json={"quiz_id": "00", "user_id": 1}
