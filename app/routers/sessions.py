@@ -17,6 +17,7 @@ from datetime import datetime
 from logger_config import get_logger
 from typing import Dict, Optional
 from settings import Settings
+from services.scoring import compute_session_metrics
 
 
 def str_to_datetime(value) -> Optional[datetime]:
@@ -168,6 +169,19 @@ async def create_session(session: Session):
             logger.info(
                 f"No meaningful event has occurred in last_session. Returning this session which has id {last_session['_id']}"
             )
+            if (
+                last_session.get("has_quiz_ended")
+                and last_session.get("metrics") is None
+            ):
+                session_metrics = compute_session_metrics(last_session, quiz)
+                now = datetime.utcnow()
+                update_result = client.quiz.sessions.update_one(
+                    {"_id": last_session["_id"]},
+                    {"$set": {"metrics": session_metrics, "updated_at": now}},
+                )
+                if update_result.acknowledged:
+                    last_session["metrics"] = session_metrics
+                    last_session["updated_at"] = now
             # copy the omr mode value if changed (changes when toggled in UI)
             if (
                 "omr_mode" not in last_session
@@ -270,7 +284,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     * end button is clicked (end-quiz event)
     * dummy event logic added for JNV -- will be removed!
 
-    when end-quiz event is sent, session_updates also contains netrics
+    when end-quiz event is sent, backend computes and stores metrics
     """
     new_event = jsonable_encoder(session_updates)["event"]
     log_message = f"Updating session with id {session_id} and event {new_event}"
@@ -423,7 +437,18 @@ async def update_session(session_id: str, session_updates: UpdateSession):
 
     # update the document in the sessions collection
     if new_event == EventType.end_quiz:
-        session_metrics = jsonable_encoder(session_updates)["metrics"]
+        session_metrics = session.get("metrics")
+        if not has_ended:
+            quiz = client.quiz.quizzes.find_one({"_id": session["quiz_id"]})
+            if quiz is None:
+                logger.error(
+                    f"Quiz {session['quiz_id']} not found while scoring session {session_id}"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"quiz {session['quiz_id']} not found",
+                )
+            session_metrics = compute_session_metrics(session, quiz)
         session_update_query.setdefault("$set", {}).update(
             {
                 "has_quiz_ended": True,
@@ -432,6 +457,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
                 "total_time_spent": round(running_total, 2),
             }
         )
+        response_content["metrics"] = session_metrics
 
     # Always bump session-level updated_at for any session change
     session_update_query.setdefault("$set", {}).update(
@@ -459,6 +485,18 @@ async def get_session(session_id: str):
     logger.info(f"Fetching session with id {session_id}")
     if (session := client.quiz.sessions.find_one({"_id": session_id})) is not None:
         logger.info(f"Found session with id {session_id}")
+        if session.get("has_quiz_ended") and session.get("metrics") is None:
+            quiz = client.quiz.quizzes.find_one({"_id": session["quiz_id"]})
+            if quiz is not None:
+                session_metrics = compute_session_metrics(session, quiz)
+                now = datetime.utcnow()
+                update_result = client.quiz.sessions.update_one(
+                    {"_id": session_id},
+                    {"$set": {"metrics": session_metrics, "updated_at": now}},
+                )
+                if update_result.acknowledged:
+                    session["metrics"] = session_metrics
+                    session["updated_at"] = now
         return session
 
     logger.error(f"Session {session_id} not found")

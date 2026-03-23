@@ -1,0 +1,39 @@
+{
+  "title": "Scoring Small Form",
+  "max_marks": 0,
+  "num_graded_questions": 0,
+  "shuffle": false,
+  "num_attempts_allowed": 1,
+  "metadata": {
+    "quiz_type": "form",
+    "test_format": "chapter_test",
+    "grade": "8",
+    "subject": "Maths"
+  },
+  "question_sets": [
+    {
+      "title": "Section A",
+      "max_questions_allowed_to_attempt": 2,
+      "questions": [
+        {
+          "text": "Q1",
+          "type": "subjective",
+          "graded": false
+        },
+        {
+          "text": "Q2",
+          "type": "single-choice",
+          "options": [
+            {
+              "text": "Yes"
+            },
+            {
+              "text": "No"
+            }
+          ],
+          "graded": false
+        }
+      ]
+    }
+  ]
+}

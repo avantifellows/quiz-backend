@@ -111,6 +111,7 @@ async def create_quiz(quiz: Quiz):
                 {
                     "$project": {
                         "graded": 1,
+                        "force_correct": 1,
                         "type": 1,
                         "correct_answer": 1,
                         "question_set_id": 1,
