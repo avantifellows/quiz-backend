@@ -12,9 +12,9 @@ settings = Settings()
 logger = get_logger()
 
 
-def _sanitize_questions_in_place(quiz: dict) -> None:
+def _hide_answers_in_quiz_in_place(quiz: dict) -> None:
     """
-    Prevent leaking answers/solutions from base quiz endpoint.
+    Hide answers/solutions from base quiz endpoint.
     Keep payload shape stable but ensure correct_answer/solution do not contain real data.
     """
     for question_set in quiz.get("question_sets") or []:
@@ -208,7 +208,7 @@ async def get_quiz(
         if quiz.get("display_solution", True) is False:
             _clear_solutions_in_place(quiz)
         if not include_answers:
-            _sanitize_questions_in_place(quiz)
+            _hide_answers_in_quiz_in_place(quiz)
         return quiz
 
     if omr_mode is False and (
@@ -280,7 +280,7 @@ async def get_quiz(
     # Base quiz endpoint must not return correct answers/solutions.
     # When include_answers=true, preserve correct_answer (and solutions if enabled).
     if not include_answers:
-        _sanitize_questions_in_place(quiz)
+        _hide_answers_in_quiz_in_place(quiz)
 
     logger.info(f"Finished getting quiz: {quiz_id}")
     return quiz

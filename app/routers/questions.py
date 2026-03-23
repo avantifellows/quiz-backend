@@ -7,9 +7,9 @@ router = APIRouter(prefix="/questions", tags=["Questions"])
 logger = get_logger()
 
 
-def _sanitize_question_in_place(question: dict) -> None:
+def _hide_answers_in_place(question: dict) -> None:
     """
-    Prevent leaking answers/solutions from base question endpoints.
+    Hide answers/solutions from base question endpoints.
     """
     question["correct_answer"] = None
     question["solution"] = []
@@ -21,7 +21,7 @@ async def get_question(question_id: str, include_answers: bool = Query(False)):
     if (question := client.quiz.questions.find_one({"_id": question_id})) is not None:
         logger.info(f"Found question with ID: {question_id}")
         if not include_answers:
-            _sanitize_question_in_place(question)
+            _hide_answers_in_place(question)
         return question
 
     logger.error(f"Question {question_id} not found")
@@ -58,7 +58,7 @@ async def get_questions(
         )
         if not include_answers:
             for q in questions:
-                _sanitize_question_in_place(q)
+                _hide_answers_in_place(q)
         return questions
 
     error_message = (

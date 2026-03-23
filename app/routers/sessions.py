@@ -99,46 +99,6 @@ def _is_answer_submitted(answer) -> bool:
     return True
 
 
-SESSION_END_TIME_FMT = "%Y-%m-%d %I:%M:%S %p"
-
-
-def _parse_session_end_time(value) -> Optional[datetime]:
-    """
-    Parse quiz.metadata.session_end_time.
-    Supports both ISO strings and the documented legacy format.
-    Returns naive datetime (UTC assumed) or None.
-    """
-    if value is None:
-        return None
-    if isinstance(value, datetime):
-        return value
-    if not isinstance(value, str):
-        return None
-    try:
-        return datetime.fromisoformat(value)
-    except Exception:
-        pass
-    try:
-        return datetime.strptime(value, SESSION_END_TIME_FMT)
-    except Exception:
-        return None
-
-
-def _is_review_allowed(quiz: dict) -> bool:
-    """
-    Same review policy used elsewhere:
-    - review_immediate=True -> allowed immediately
-    - review_immediate=False -> allowed only after metadata.session_end_time (if provided)
-    """
-    if quiz.get("review_immediate", True) is not False:
-        return True
-    metadata = quiz.get("metadata") or {}
-    end_time = _parse_session_end_time(metadata.get("session_end_time"))
-    if end_time is None:
-        return False
-    return datetime.utcnow() > end_time
-
-
 @router.get("/preflight")
 async def quiz_preflight(
     quiz_id: str = Query(...),
@@ -148,12 +108,6 @@ async def quiz_preflight(
     Lightweight helper endpoint for FE.
     Returns whether FE should request quiz with answers included.
     """
-    quiz = client.quiz.quizzes.find_one({"_id": quiz_id})
-    if quiz is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"quiz {quiz_id} not found"
-        )
-
     latest_session = client.quiz.sessions.find_one(
         {"quiz_id": quiz_id, "user_id": user_id},
         sort=[("_id", pymongo.DESCENDING)],
@@ -162,8 +116,8 @@ async def quiz_preflight(
     has_quiz_ended = bool(
         latest_session and latest_session.get("has_quiz_ended") is True
     )
-    review_allowed = _is_review_allowed(quiz)
-    include_answers = bool(has_quiz_ended and review_allowed)
+    # Product decision: preflight is based only on session end state.
+    include_answers = has_quiz_ended
 
     return JSONResponse(
         status_code=status.HTTP_200_OK,

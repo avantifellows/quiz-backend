@@ -127,9 +127,10 @@ class SessionsTestCase(SessionsBaseTestCase):
             params={"quiz_id": quiz_id, "user_id": user_id},
         )
         assert response.status_code == 200
-        assert response.json() == {"include_answers": False}
+        # Preflight is now based only on has_quiz_ended, not review policy.
+        assert response.json() == {"include_answers": True}
 
-        # Move end time to the past; include_answers should flip to True
+        # Move end time to the past; include_answers remains True
         past_end = (datetime.utcnow() - timedelta(hours=1)).strftime(
             "%Y-%m-%d %I:%M:%S %p"
         )
