@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-FastAPI-based REST API for a mobile-friendly quiz engine. Manages quizzes, questions, sessions, and user answers with support for various question types (single-choice, multi-choice, subjective, numerical, matrix-match). Deployed on AWS Lambda with MongoDB.
+FastAPI-based REST API for a mobile-friendly quiz engine. Manages quizzes, questions, sessions, and user answers with support for various question types (single-choice, multi-choice, subjective, numerical, matrix-match). Uses MongoDB. Deployed on ECS Fargate (testing/production) and AWS Lambda (staging).
 
 ## Common Commands
 
@@ -34,16 +34,19 @@ pre-commit run --all-files  # manual run
 ## Architecture
 
 ### Directory Structure
-- `app/main.py` - FastAPI app initialization, middleware (request logging, CORS, GZIP)
+- `app/main.py` - FastAPI app initialization, middleware (request logging, CORS, GZIP), `/health` endpoint
 - `app/routers/` - API route handlers (quizzes, questions, sessions, session_answers, organizations, forms)
 - `app/models.py` - Pydantic request/response models
 - `app/schemas.py` - Enums (QuestionType, QuizType, NavigationMode) and custom types (PyObjectId)
-- `app/database.py` - MongoDB connection setup
+- `app/database.py` - MongoDB connection setup with connection pooling
 - `app/scripts/` - Database migration scripts
-- `templates/` - AWS SAM CloudFormation templates (staging.yaml, prod.yaml)
+- `Dockerfile` - Container image (ARM64/Graviton, 4 Uvicorn workers)
+- `terraform/` - ECS Fargate infrastructure (testing + prod environments)
+- `templates/` - AWS SAM CloudFormation templates (staging only)
 
 ### API Routes
 ```
+GET    /health                     - ALB health check (no DB, no auth)
 POST   /quiz                      - Create quiz with embedded questions
 GET    /quiz/{quiz_id}            - Get quiz
 GET    /form/{form_id}            - Get form (quiz_type must be "form")
@@ -54,6 +57,7 @@ GET    /organizations/authenticate/{api_key}
 POST   /sessions                  - Create quiz session for user
 GET    /sessions/{session_id}
 PATCH  /sessions/{session_id}     - Update session (events, metrics)
+PATCH  /session_answers/{session_id}/{position_index}
 PATCH  /session_answers/{session_id}/update-multiple-answers
 ```
 
@@ -86,8 +90,21 @@ Copy `.env.example` to `.env` for local development.
 
 ## Deployment
 
-GitHub Actions deploys via AWS SAM:
-- Push/merge to main → staging deployment
-- Manual workflow dispatch → production deployment
+### ECS Fargate (Testing + Production)
+- **Testing**: `https://quiz-backend-testing.avantifellows.org` — deploys on CI success on `main`
+- **Production**: `https://quiz-backend.avantifellows.org` — deploys on CI success on `release`
+- ARM64 Graviton, 1 vCPU / 2GB RAM per task, 4 Uvicorn workers
+- Auto-scaling: 1–10 tasks, CPU target-tracking at 50%
+- HTTPS via Cloudflare proxy, DNS CNAME → ALB
+- Infrastructure managed by Terraform in `terraform/testing/` and `terraform/prod/`
+- Terraform state: S3 + DynamoDB backend (bootstrap at `terraform/shared/state-backend/`)
 
-Lambda: Python 3.9, 1024MB memory, 300s timeout
+### Lambda (Staging)
+- Deploys via AWS SAM on push to `main`
+- Python 3.9, 1024MB memory, 300s timeout
+
+### CI/CD Workflows (`.github/workflows/`)
+- `ci.yml` - Pre-commit checks and pytest
+- `deploy_ecs_testing.yml` - Build ARM64 image → ECR → ECS (testing)
+- `deploy_ecs_prod.yml` - Build ARM64 image → ECR → ECS (production)
+- `deploy_to_staging.yml` - SAM deploy to Lambda (staging)
