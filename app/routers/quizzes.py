@@ -12,6 +12,24 @@ settings = Settings()
 logger = get_logger()
 
 
+def _hide_answers_in_quiz_in_place(quiz: dict) -> None:
+    """
+    Hide answers/solutions from base quiz endpoint.
+    Keep payload shape stable but ensure correct_answer/solution do not contain real data.
+    """
+    for question_set in quiz.get("question_sets") or []:
+        for question in question_set.get("questions") or []:
+            question["correct_answer"] = None
+            question["solution"] = []
+
+
+def _clear_solutions_in_place(quiz: dict) -> None:
+    """Respect display_solution=False without sanitizing correct_answer."""
+    for question_set in quiz.get("question_sets") or []:
+        for question in question_set.get("questions") or []:
+            question["solution"] = []
+
+
 def update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz):
     """
     if given quiz contains question sets that do not have max_questions_allowed_to_attempt key,
@@ -141,10 +159,13 @@ async def create_quiz(quiz: Quiz):
 
 @router.get("/{quiz_id}", response_model=GetQuizResponse)
 async def get_quiz(
-    quiz_id: str, omr_mode: bool = Query(False), single_page_mode: bool = Query(False)
+    quiz_id: str,
+    omr_mode: bool = Query(False),
+    single_page_mode: bool = Query(False),
+    include_answers: bool = Query(False),
 ):
     logger.info(
-        f"Starting to get quiz: {quiz_id} with omr_mode={omr_mode}, single_page_mode={single_page_mode}"
+        f"Starting to get quiz: {quiz_id} with omr_mode={omr_mode}, single_page_mode={single_page_mode}, include_answers={include_answers}"
     )
     quiz_collection = client.quiz.quizzes
 
@@ -184,6 +205,10 @@ async def get_quiz(
             )
             quiz["question_sets"][question_set_index]["questions"] = all_questions
         logger.info(f"Finished fetching all questions for single page mode: {quiz_id}")
+        if quiz.get("display_solution", True) is False:
+            _clear_solutions_in_place(quiz)
+        if not include_answers:
+            _hide_answers_in_quiz_in_place(quiz)
         return quiz
 
     if omr_mode is False and (
@@ -248,6 +273,14 @@ async def get_quiz(
             quiz["question_sets"][question_set_index]["questions"][
                 settings.subset_size :
             ] = updated_subset_without_details
+
+    if quiz.get("display_solution", True) is False:
+        _clear_solutions_in_place(quiz)
+
+    # Base quiz endpoint must not return correct answers/solutions.
+    # When include_answers=true, preserve correct_answer (and solutions if enabled).
+    if not include_answers:
+        _hide_answers_in_quiz_in_place(quiz)
 
     logger.info(f"Finished getting quiz: {quiz_id}")
     return quiz
