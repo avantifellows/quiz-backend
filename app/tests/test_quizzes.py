@@ -410,3 +410,38 @@ class QuizTestCase(BaseTestCase):
         }
         response = self.client.post(quizzes.router.prefix + "/", json=valid_quiz)
         assert response.status_code == 201
+
+    def test_single_page_mode_clears_solutions_when_display_solution_false(self):
+        # Ensure at least one question has a non-empty solution in the questions collection
+        qset_id = self.multi_qset_quiz["question_sets"][0]["_id"]
+        q = mongo_client.quiz.questions.find_one({"question_set_id": qset_id})
+        assert q is not None
+        mongo_client.quiz.questions.update_one(
+            {"_id": q["_id"]},
+            {"$set": {"solution": ["example-solution"]}},
+        )
+
+        # Set quiz policy to hide solutions
+        mongo_client.quiz.quizzes.update_one(
+            {"_id": self.multi_qset_quiz_id},
+            {"$set": {"display_solution": False}},
+        )
+
+        resp = self.client.get(
+            f"{quizzes.router.prefix}/{self.multi_qset_quiz_id}",
+            params={"single_page_mode": True},
+        )
+        assert resp.status_code == 200
+        payload = resp.json()
+
+        # Find the updated question in the response and ensure its solution is cleared
+        found = None
+        for qs in payload.get("question_sets") or []:
+            for qq in qs.get("questions") or []:
+                if qq.get("_id") == q["_id"]:
+                    found = qq
+                    break
+            if found is not None:
+                break
+        assert found is not None
+        assert found.get("solution") == []
