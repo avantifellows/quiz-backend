@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status, HTTPException
+from fastapi import APIRouter, status, HTTPException, Query
 from database import client
 from models import QuestionResponse
 from logger_config import get_logger
@@ -7,11 +7,21 @@ router = APIRouter(prefix="/questions", tags=["Questions"])
 logger = get_logger()
 
 
+def _hide_answers_in_place(question: dict) -> None:
+    """
+    Hide answers/solutions from base question endpoints.
+    """
+    question["correct_answer"] = None
+    question["solution"] = []
+
+
 @router.get("/{question_id}", response_model=QuestionResponse)
-async def get_question(question_id: str):
+async def get_question(question_id: str, include_answers: bool = Query(False)):
     logger.info(f"Fetching question with ID: {question_id}")
     if (question := client.quiz.questions.find_one({"_id": question_id})) is not None:
         logger.info(f"Found question with ID: {question_id}")
+        if not include_answers:
+            _hide_answers_in_place(question)
         return question
 
     logger.error(f"Question {question_id} not found")
@@ -22,7 +32,12 @@ async def get_question(question_id: str):
 
 
 @router.get("/")
-async def get_questions(question_set_id: str, skip: int = None, limit: int = None):
+async def get_questions(
+    question_set_id: str,
+    skip: int = None,
+    limit: int = None,
+    include_answers: bool = Query(False),
+):
     logger.info(
         f"Fetching questions with question_set_id: {question_set_id} with skip: {skip} and limit: {limit}"
     )
@@ -41,6 +56,9 @@ async def get_questions(question_set_id: str, skip: int = None, limit: int = Non
         logger.info(
             f"Found {len(questions)} questions with question_set_id: {question_set_id}"
         )
+        if not include_answers:
+            for q in questions:
+                _hide_answers_in_place(q)
         return questions
 
     error_message = (

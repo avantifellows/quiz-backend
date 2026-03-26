@@ -1,10 +1,10 @@
-from fastapi import APIRouter, status, HTTPException
+from fastapi import APIRouter, status, HTTPException, Query
 import random
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 import pymongo
 from database import client
-from schemas import EventType
+from schemas import EventType, QuizType
 from models import (
     Event,
     Session,
@@ -83,6 +83,50 @@ def _time_elapsed_secs(dt_1, dt_2) -> float:
 def derive_time_remaining(time_limit_max: int, total_time_spent: int) -> int:
     """Clamp to avoid negative time_remaining due to polling/latency gaps."""
     return max(0, int(time_limit_max) - int(total_time_spent))
+
+
+def _is_answer_submitted(answer) -> bool:
+    """Used to gate homework reveal endpoint: allow only after submit."""
+    if answer is None:
+        return False
+    if isinstance(answer, str):
+        return answer.strip() != ""
+    if isinstance(answer, list):
+        return len(answer) > 0
+    if isinstance(answer, dict):
+        return len(answer) > 0
+    # numbers/bools
+    return True
+
+
+@router.get("/preflight")
+async def quiz_preflight(
+    quiz_id: str = Query(...),
+    user_id: str = Query(...),
+):
+    """
+    Lightweight helper endpoint for FE.
+    Returns whether FE should request quiz with answers included.
+    """
+    latest_session = client.quiz.sessions.find_one(
+        {"quiz_id": quiz_id, "user_id": user_id},
+        sort=[("_id", pymongo.DESCENDING)],
+    )
+
+    has_quiz_ended = bool(
+        latest_session and latest_session.get("has_quiz_ended") is True
+    )
+    # Product decision: preflight is based only on session end state.
+    include_answers = has_quiz_ended
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content=jsonable_encoder(
+            {
+                "include_answers": include_answers,
+            }
+        ),
+    )
 
 
 @router.post("/", response_model=SessionResponse)
@@ -536,3 +580,73 @@ async def check_all_quiz_status(user_id: str) -> Dict[str, bool]:
 
     logger.info(f"Quiz end statuses for user {user_id}: {latest_sessions_dict}")
     return latest_sessions_dict
+
+
+@router.get("/{session_id}/reveal/{position_index}", response_model=None)
+async def reveal_correct_answer(
+    session_id: str,
+    position_index: int,
+):
+    """
+    Homework reveal endpoint.
+    After a student submits an answer, FE calls this endpoint to fetch the raw
+    correct answer (and solution if enabled) for that one question.
+    """
+    session = client.quiz.sessions.find_one({"_id": session_id})
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"session {session_id} not found",
+        )
+
+    quiz_id = session.get("quiz_id")
+    quiz = client.quiz.quizzes.find_one({"_id": quiz_id})
+    if quiz is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"quiz {quiz_id} not found"
+        )
+
+    quiz_type = (quiz.get("metadata") or {}).get("quiz_type")
+    if quiz_type != QuizType.homework.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="reveal is only allowed for homework quizzes",
+        )
+
+    answers = session.get("session_answers") or []
+    if position_index < 0 or position_index >= len(answers):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="position_index out of bounds",
+        )
+
+    session_answer = answers[position_index] or {}
+    if not _is_answer_submitted(session_answer.get("answer")):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="answer not submitted yet for this position",
+        )
+
+    question_id = session_answer.get("question_id")
+    if not question_id:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="session answer missing question_id",
+        )
+
+    question = client.quiz.questions.find_one({"_id": question_id})
+    if question is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"question {question_id} not found",
+        )
+
+    display_solution = quiz.get("display_solution", True) is not False
+    response = {
+        "question_id": question_id,
+        "correct_answer": question.get("correct_answer"),
+        "solution": question.get("solution", []) if display_solution else [],
+    }
+    return JSONResponse(
+        status_code=status.HTTP_200_OK, content=jsonable_encoder(response)
+    )
