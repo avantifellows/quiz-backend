@@ -4,6 +4,10 @@ resource "aws_appautoscaling_target" "ecs" {
   resource_id        = "service/${aws_ecs_cluster.quiz_backend.name}/${aws_ecs_service.quiz_backend.name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
+
+  lifecycle {
+    ignore_changes = [min_capacity, max_capacity]
+  }
 }
 
 resource "aws_appautoscaling_policy" "cpu" {
