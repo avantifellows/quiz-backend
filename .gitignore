@@ -165,10 +165,9 @@ templates/staging-test.yaml
 deployment/.terraform/*
 deployment/.terraform
 deployment/.terraform.lock.hcl
-deployment/terraform.tfstate.backup
-deployment/terraform.tfstate
-deployment/terraform.tfstate.d
-terraform.tfstate
+*.tfstate
+*.tfstate.backup
+*.tfstate.d
 deployment/.env.staging
 deployment/.env.production
 
