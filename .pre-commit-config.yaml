@@ -29,7 +29,14 @@ repos:
   rev: v0.30.0
   hooks:
     - id: tflint
-      files: \.tf$
+      name: tflint-testing
+      files: ^terraform/testing/
+    - id: tflint
+      name: tflint-prod
+      files: ^terraform/prod/
+    - id: tflint
+      name: tflint-shared
+      files: ^terraform/shared/
 - repo: https://github.com/aws-cloudformation/cfn-python-lint
   rev: v0.58.4
   hooks:

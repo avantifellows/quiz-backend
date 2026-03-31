@@ -75,4 +75,5 @@ async def health_check():
     """Lightweight health check endpoint for ALB."""
     return {"status": "healthy"}
 
+
 handler = Mangum(app)
