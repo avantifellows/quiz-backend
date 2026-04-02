@@ -1,4 +1,6 @@
 import json
+from bson import ObjectId
+from database import client as db_client
 from .base import SessionsBaseTestCase
 from ..routers import session_answers
 
@@ -234,6 +236,69 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
         # Verify array was not extended
         session = client.quiz.sessions.find_one({"_id": self.session_id})
         assert len(session["session_answers"]) == exact_length
+
+    # --- US-005: Malformed session_answers test coverage ---
+
+    def test_batch_update_missing_session_answers_field_returns_404(self):
+        """Session document with no session_answers field returns 404."""
+        doc_id = str(ObjectId())
+        db_client.quiz.sessions.insert_one(
+            {"_id": doc_id, "user_id": "test_user", "quiz_id": "test_quiz"}
+        )
+        self.addCleanup(
+            lambda: db_client.quiz.sessions.delete_one({"_id": doc_id})
+        )
+
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{doc_id}/update-multiple-answers",
+            json=[[0, {"answer": [0]}]],
+        )
+        assert response.status_code == 404
+        assert "No session answers found" in response.json()["detail"]
+
+    def test_batch_update_null_session_answers_returns_404(self):
+        """Session document with session_answers: None returns 404."""
+        doc_id = str(ObjectId())
+        db_client.quiz.sessions.insert_one(
+            {
+                "_id": doc_id,
+                "user_id": "test_user",
+                "quiz_id": "test_quiz",
+                "session_answers": None,
+            }
+        )
+        self.addCleanup(
+            lambda: db_client.quiz.sessions.delete_one({"_id": doc_id})
+        )
+
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{doc_id}/update-multiple-answers",
+            json=[[0, {"answer": [0]}]],
+        )
+        assert response.status_code == 404
+        assert "No session answers found" in response.json()["detail"]
+
+    def test_batch_update_non_array_session_answers_returns_404(self):
+        """Session document with non-array session_answers (e.g., 'corrupted') returns 404."""
+        doc_id = str(ObjectId())
+        db_client.quiz.sessions.insert_one(
+            {
+                "_id": doc_id,
+                "user_id": "test_user",
+                "quiz_id": "test_quiz",
+                "session_answers": "corrupted",
+            }
+        )
+        self.addCleanup(
+            lambda: db_client.quiz.sessions.delete_one({"_id": doc_id})
+        )
+
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{doc_id}/update-multiple-answers",
+            json=[[0, {"answer": [0]}]],
+        )
+        assert response.status_code == 404
+        assert "No session answers found" in response.json()["detail"]
 
     def test_update_session_answers_at_specific_positions(self):
         # updating all session answers
