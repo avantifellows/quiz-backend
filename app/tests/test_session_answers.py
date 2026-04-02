@@ -74,6 +74,62 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
         # ensure that `answer` is not affected
         assert session_answer["answer"] == self.session_answer["answer"]
 
+    # --- US-001: Pre-DB validation for batch endpoint ---
+
+    def test_batch_update_empty_batch_returns_400(self):
+        """Empty batch [] returns 400 before any DB read."""
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/update-multiple-answers",
+            json=[],
+        )
+        assert response.status_code == 400
+        assert "No position-answer pairs" in response.json()["detail"]
+
+    def test_batch_update_negative_index_returns_400(self):
+        """Negative position index returns 400 before any DB read."""
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/update-multiple-answers",
+            json=[[-1, {"answer": [0]}]],
+        )
+        assert response.status_code == 400
+        assert "negative" in response.json()["detail"]
+
+    def test_batch_update_duplicate_positions_returns_400(self):
+        """Duplicate positions returns 400 before any DB read."""
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/update-multiple-answers",
+            json=[[0, {"answer": [0]}], [0, {"answer": [1]}]],
+        )
+        assert response.status_code == 400
+        assert "Duplicate" in response.json()["detail"]
+
+    def test_batch_update_negative_index_with_valid_indices_returns_400(self):
+        """A mix of valid and negative indices still returns 400."""
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/update-multiple-answers",
+            json=[[0, {"answer": [0]}], [-2, {"answer": [1]}]],
+        )
+        assert response.status_code == 400
+        assert "negative" in response.json()["detail"]
+
+    def test_batch_update_validation_order_empty_before_negative(self):
+        """Empty check fires before negative check (empty batch is checked first)."""
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/update-multiple-answers",
+            json=[],
+        )
+        assert response.status_code == 400
+        # Empty check message, not negative
+        assert "No position-answer pairs" in response.json()["detail"]
+
+    def test_batch_update_nonexistent_session_with_valid_payload(self):
+        """Valid payload with nonexistent session still passes pre-DB validation and returns 404."""
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/nonexistent-session-id/update-multiple-answers",
+            json=[[0, {"answer": [0]}]],
+        )
+        assert response.status_code == 404
+
     def test_update_session_answers_at_specific_positions(self):
         # updating all session answers
 

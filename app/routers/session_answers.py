@@ -26,6 +26,37 @@ async def update_session_answers_at_specific_positions(
     positions_and_answers - a list of tuples that contain the position index and the corresponding session answer object.
     """
     log_message = f"Updating multiple session answers for session: {session_id}"
+
+    # Pre-DB validation: empty batch
+    if len(positions_and_answers) == 0:
+        error_message = "No position-answer pairs were provided in the batch update request"
+        logger.error(error_message)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_message,
+        )
+
+    # Extract positions for validation
+    positions_list = [p for p, _ in positions_and_answers]
+
+    # Pre-DB validation: negative indices
+    if any(p < 0 for p in positions_list):
+        error_message = "One or more provided position indices are negative"
+        logger.error(error_message)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_message,
+        )
+
+    # Pre-DB validation: duplicate positions
+    if len(positions_list) != len(set(positions_list)):
+        error_message = "Duplicate position indices are not allowed in a single batch update request"
+        logger.error(error_message)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_message,
+        )
+
     session = client.quiz.sessions.find_one({"_id": session_id})
     if session is None:
         session_id_error_message = f"Received multiple session_answer update request, but provided session with id {session_id} not found"
