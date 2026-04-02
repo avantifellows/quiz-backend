@@ -198,6 +198,43 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
         )
         assert response.status_code == 200
 
+    # --- US-004: Post-read bounds checking with off-by-one fix ---
+
+    def test_batch_update_position_equal_to_length_returns_400(self):
+        """Position == len(session_answers) returns 400 (off-by-one fix: >= not >)."""
+        exact_length = len(self.session_answers)
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/update-multiple-answers",
+            json=[[exact_length, {"answer": [0]}]],
+        )
+        assert response.status_code == 400
+        assert "out of bounds" in response.json()["detail"]
+
+    def test_batch_update_position_greater_than_length_returns_400(self):
+        """Position > len(session_answers) still returns 400."""
+        beyond_length = len(self.session_answers) + 5
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/update-multiple-answers",
+            json=[[beyond_length, {"answer": [0]}]],
+        )
+        assert response.status_code == 400
+        assert "out of bounds" in response.json()["detail"]
+
+    def test_batch_update_exact_length_does_not_extend_array(self):
+        """Position == len(session_answers) must not silently extend the array."""
+        from database import client
+
+        exact_length = len(self.session_answers)
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/update-multiple-answers",
+            json=[[exact_length, {"answer": [0]}]],
+        )
+        assert response.status_code == 400
+
+        # Verify array was not extended
+        session = client.quiz.sessions.find_one({"_id": self.session_id})
+        assert len(session["session_answers"]) == exact_length
+
     def test_update_session_answers_at_specific_positions(self):
         # updating all session answers
 

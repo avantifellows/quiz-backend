@@ -111,7 +111,7 @@ async def update_session_answers_at_specific_positions(
 
     num_answers = session_meta["num_answers"]
     positions, session_answers = zip(*positions_and_answers)
-    if any(pos > num_answers for pos in positions):
+    if any(pos >= num_answers for pos in positions):
         error_message = "One or more provided position indices are out of bounds of the session answers array"
         logger.error(error_message)
         raise HTTPException(
