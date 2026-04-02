@@ -130,6 +130,43 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
         )
         assert response.status_code == 404
 
+    # --- US-002: Pre-DB validation for empty per-item payload ---
+
+    def test_batch_update_empty_per_item_payload_returns_400(self):
+        """[index, {}] with no business fields returns 400."""
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/update-multiple-answers",
+            json=[[0, {}]],
+        )
+        assert response.status_code == 400
+        assert "Empty payload" in response.json()["detail"]
+
+    def test_batch_update_multiple_items_one_empty_returns_400(self):
+        """Batch with one valid and one empty per-item payload returns 400."""
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/update-multiple-answers",
+            json=[[0, {"answer": [0]}], [1, {}]],
+        )
+        assert response.status_code == 400
+        assert "Empty payload at position 1" in response.json()["detail"]
+
+    def test_batch_update_time_spent_only_is_accepted(self):
+        """Payload with only time_spent is a valid business field and should be accepted."""
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/update-multiple-answers",
+            json=[[0, {"time_spent": 45}]],
+        )
+        assert response.status_code == 200
+
+    def test_batch_update_empty_payload_rejected_before_db_read(self):
+        """Empty per-item payload is rejected before any DB read (nonexistent session)."""
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/nonexistent-session-id/update-multiple-answers",
+            json=[[0, {}]],
+        )
+        assert response.status_code == 400
+        assert "Empty payload" in response.json()["detail"]
+
     def test_update_session_answers_at_specific_positions(self):
         # updating all session answers
 

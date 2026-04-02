@@ -57,6 +57,17 @@ async def update_session_answers_at_specific_positions(
             detail=error_message,
         )
 
+    # Pre-DB validation: empty per-item payload
+    business_fields = {"answer", "visited", "time_spent", "marked_for_review"}
+    for position, session_answer in positions_and_answers:
+        if not (session_answer.__fields_set__ & business_fields):
+            error_message = f"Empty payload at position {position}: at least one business field (answer, visited, time_spent, marked_for_review) must be provided"
+            logger.error(error_message)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error_message,
+            )
+
     session = client.quiz.sessions.find_one({"_id": session_id})
     if session is None:
         session_id_error_message = f"Received multiple session_answer update request, but provided session with id {session_id} not found"
