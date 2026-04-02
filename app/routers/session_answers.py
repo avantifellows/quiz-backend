@@ -158,6 +158,26 @@ async def update_session_answer_in_a_session(
     position_index - the position index of the session answer in the session answers array. This corresponds to the position of the question in the quiz
     """
     log_message = f"Updating session answer for session: {session_id} at position: {position_index}. The answer is {session_answer.answer}. Visited is {session_answer.visited}. Time spent is {session_answer.time_spent} seconds. Marked for review status is {session_answer.marked_for_review}."
+
+    # Pre-DB validation: empty payload (__fields_set__ check before Pydantic model is converted to dict)
+    business_fields = {"answer", "visited", "time_spent", "marked_for_review"}
+    if not (session_answer.__fields_set__ & business_fields):
+        error_message = "Empty payload: at least one business field (answer, visited, time_spent, marked_for_review) must be provided"
+        logger.error(error_message)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_message,
+        )
+
+    # Pre-DB validation: negative index
+    if position_index < 0:
+        error_message = f"Provided position index {position_index} is negative"
+        logger.error(error_message)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_message,
+        )
+
     session_answer = remove_optional_unset_args(session_answer)
     session_answer = jsonable_encoder(session_answer)
 
@@ -189,7 +209,7 @@ async def update_session_answer_in_a_session(
         )
 
     # check if the session answer index that we're trying to access is out of bounds or not
-    if position_index > len(session["session_answers"]):
+    if position_index >= len(session["session_answers"]):
         logger.error(
             f"Provided position index {position_index} is out of bounds of length of the session answers array"
         )

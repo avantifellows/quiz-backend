@@ -300,6 +300,74 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
         assert response.status_code == 404
         assert "No session answers found" in response.json()["detail"]
 
+    # --- US-006: Single-item PATCH — validation tightening ---
+
+    def test_single_update_negative_index_returns_400(self):
+        """Negative position_index returns 400 (pre-DB validation)."""
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/-1",
+            json={"answer": [0]},
+        )
+        assert response.status_code == 400
+        assert "negative" in response.json()["detail"]
+
+    def test_single_update_position_equal_to_length_returns_400(self):
+        """position_index >= len(session_answers) returns 400 (off-by-one fix)."""
+        exact_length = len(self.session_answers)
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/{exact_length}",
+            json={"answer": [0]},
+        )
+        assert response.status_code == 400
+        assert "out of bounds" in response.json()["detail"]
+
+    def test_single_update_position_greater_than_length_returns_400(self):
+        """position_index > len(session_answers) still returns 400."""
+        beyond_length = len(self.session_answers) + 5
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/{beyond_length}",
+            json={"answer": [0]},
+        )
+        assert response.status_code == 400
+        assert "out of bounds" in response.json()["detail"]
+
+    def test_single_update_empty_payload_returns_400(self):
+        """Empty payload (zero business fields in __fields_set__) returns 400."""
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/{self.session_answer_position_index}",
+            json={},
+        )
+        assert response.status_code == 400
+        assert "Empty payload" in response.json()["detail"]
+
+    def test_single_update_empty_payload_rejected_before_db_read(self):
+        """Empty payload is rejected before any DB read (nonexistent session)."""
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/nonexistent-session-id/0",
+            json={},
+        )
+        assert response.status_code == 400
+        assert "Empty payload" in response.json()["detail"]
+
+    def test_single_update_negative_index_rejected_before_db_read(self):
+        """Negative index is rejected before any DB read (nonexistent session)."""
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/nonexistent-session-id/-1",
+            json={"answer": [0]},
+        )
+        assert response.status_code == 400
+        assert "negative" in response.json()["detail"]
+
+    def test_single_update_validation_order_empty_before_negative(self):
+        """Empty payload check fires before negative index check."""
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/-1",
+            json={},
+        )
+        assert response.status_code == 400
+        # Empty payload message, not negative — validates ordering
+        assert "Empty payload" in response.json()["detail"]
+
     def test_update_session_answers_at_specific_positions(self):
         # updating all session answers
 
