@@ -167,6 +167,37 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
         assert response.status_code == 400
         assert "Empty payload" in response.json()["detail"]
 
+    # --- US-003: Lightweight aggregation read path ---
+
+    def test_batch_update_out_of_bounds_position_returns_400(self):
+        """Position greater than session_answers length returns 400 via aggregation num_answers."""
+        out_of_bounds = len(self.session_answers) + 1
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/update-multiple-answers",
+            json=[[out_of_bounds, {"answer": [0]}]],
+        )
+        assert response.status_code == 400
+        assert "out of bounds" in response.json()["detail"]
+
+    def test_batch_update_session_not_found_returns_404(self):
+        """Nonexistent session returns 404 through aggregation read path."""
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/nonexistent-session-id/update-multiple-answers",
+            json=[[0, {"answer": [0]}]],
+        )
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"]
+
+    def test_batch_update_preserves_user_and_quiz_logging_context(self):
+        """Aggregation read path still retrieves user_id and quiz_id for logging."""
+        # A successful batch update proves user_id and quiz_id were retrieved
+        # (the endpoint would fail with KeyError if they were missing from the projection)
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/update-multiple-answers",
+            json=[[0, {"answer": [0, 1]}]],
+        )
+        assert response.status_code == 200
+
     def test_update_session_answers_at_specific_positions(self):
         # updating all session answers
 

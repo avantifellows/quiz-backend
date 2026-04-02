@@ -68,8 +68,27 @@ async def update_session_answers_at_specific_positions(
                 detail=error_message,
             )
 
-    session = client.quiz.sessions.find_one({"_id": session_id})
-    if session is None:
+    # Lightweight DB read: fetch only metadata instead of full session document
+    pipeline = [
+        {"$match": {"_id": session_id}},
+        {
+            "$project": {
+                "_id": 0,
+                "user_id": 1,
+                "quiz_id": 1,
+                "session_answers_is_array": {"$isArray": "$session_answers"},
+                "num_answers": {
+                    "$cond": [
+                        {"$isArray": "$session_answers"},
+                        {"$size": "$session_answers"},
+                        None,
+                    ]
+                },
+            }
+        },
+    ]
+    result = list(client.quiz.sessions.aggregate(pipeline))
+    if len(result) == 0:
         session_id_error_message = f"Received multiple session_answer update request, but provided session with id {session_id} not found"
         logger.error(session_id_error_message)
         raise HTTPException(
@@ -77,11 +96,12 @@ async def update_session_answers_at_specific_positions(
             detail=session_id_error_message,
         )
 
-    user_id, quiz_id = session["user_id"], session["quiz_id"]
+    session_meta = result[0]
+    user_id, quiz_id = session_meta["user_id"], session_meta["quiz_id"]
     log_message += f"(user: {user_id}, quiz: {quiz_id})"
     logger.info(log_message)
 
-    if "session_answers" not in session or session["session_answers"] is None:
+    if not session_meta["session_answers_is_array"]:
         no_session_answer_error_message = f"No session answers found in the session with id {session_id}, for user: {user_id} and quiz: {quiz_id}"
         logger.error(no_session_answer_error_message)
         raise HTTPException(
@@ -89,8 +109,9 @@ async def update_session_answers_at_specific_positions(
             detail=no_session_answer_error_message,
         )
 
+    num_answers = session_meta["num_answers"]
     positions, session_answers = zip(*positions_and_answers)
-    if any(pos > len(session["session_answers"]) for pos in positions):
+    if any(pos > num_answers for pos in positions):
         error_message = "One or more provided position indices are out of bounds of the session answers array"
         logger.error(error_message)
         raise HTTPException(
