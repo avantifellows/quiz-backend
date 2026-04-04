@@ -1,6 +1,6 @@
 from typing import Optional, List, Union
 from bson import ObjectId
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from schemas import (
     QuestionType,
     PyObjectId,
@@ -142,7 +142,84 @@ class Question(BaseModel):
     max_char_limit: Optional[int] = None
     matrix_size: Optional[List[int]] = None  # for matrix match question
     matrix_rows: Optional[List[str]] = None  # for matrix rating/numerical questions
-    correct_answer: Union[List[int], List[str], float, int, dict, None] = None
+    correct_answer: Union[List[int], List[str], int, float, str, dict, None] = None
+
+    @validator("correct_answer", always=True)
+    def validate_correct_answer(cls, v, values):
+        """Validate that correct_answer matches the expected type for the question type."""
+        if v is None:
+            return v
+
+        question_type = values.get("type")
+        if question_type is None:
+            return v
+
+        # Normalize enum to string value
+        q_type = (
+            question_type.value
+            if isinstance(question_type, QuestionType)
+            else question_type
+        )
+
+        if q_type in ("single-choice", "multi-choice"):
+            if not isinstance(v, list) or not all(isinstance(i, int) for i in v):
+                raise ValueError(
+                    f"For question type '{q_type}', correct_answer must be a list of integers, "
+                    f"got {type(v).__name__}"
+                )
+
+        elif q_type == "numerical-integer":
+            if not isinstance(v, (int, str, float)):
+                raise ValueError(
+                    f"For question type 'numerical-integer', correct_answer must be an int or "
+                    f"string parseable as int, got {type(v).__name__}"
+                )
+            if isinstance(v, float):
+                if not v.is_integer():
+                    raise ValueError(
+                        f"For question type 'numerical-integer', correct_answer must be an integer, "
+                        f"got float with value {v}"
+                    )
+                v = int(v)
+            elif isinstance(v, str):
+                try:
+                    int(v)
+                except ValueError:
+                    raise ValueError(
+                        f"For question type 'numerical-integer', correct_answer string '{v}' "
+                        f"is not parseable as an integer"
+                    )
+
+        elif q_type == "numerical-float":
+            if not isinstance(v, (int, float)):
+                raise ValueError(
+                    f"For question type 'numerical-float', correct_answer must be a number "
+                    f"(int or float), got {type(v).__name__}"
+                )
+
+        elif q_type == "matrix-match":
+            if not isinstance(v, list) or not all(isinstance(i, str) for i in v):
+                raise ValueError(
+                    f"For question type 'matrix-match', correct_answer must be a list of strings, "
+                    f"got {type(v).__name__}"
+                )
+
+        elif q_type == "subjective":
+            if not isinstance(v, str):
+                raise ValueError(
+                    f"For question type 'subjective', correct_answer must be a string, "
+                    f"got {type(v).__name__}"
+                )
+
+        elif q_type in ("matrix-rating", "matrix-numerical", "matrix-subjective"):
+            if not isinstance(v, dict):
+                raise ValueError(
+                    f"For question type '{q_type}', correct_answer must be a dict, "
+                    f"got {type(v).__name__}"
+                )
+
+        return v
+
     graded: bool = True
     force_correct: bool = False
     marking_scheme: MarkingScheme = None
