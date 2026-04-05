@@ -247,9 +247,7 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
         db_client.quiz.sessions.insert_one(
             {"_id": doc_id, "user_id": "test_user", "quiz_id": "test_quiz"}
         )
-        self.addCleanup(
-            lambda: db_client.quiz.sessions.delete_one({"_id": doc_id})
-        )
+        self.addCleanup(lambda: db_client.quiz.sessions.delete_one({"_id": doc_id}))
 
         response = self.client.patch(
             f"{session_answers.router.prefix}/{doc_id}/update-multiple-answers",
@@ -269,9 +267,7 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
                 "session_answers": None,
             }
         )
-        self.addCleanup(
-            lambda: db_client.quiz.sessions.delete_one({"_id": doc_id})
-        )
+        self.addCleanup(lambda: db_client.quiz.sessions.delete_one({"_id": doc_id}))
 
         response = self.client.patch(
             f"{session_answers.router.prefix}/{doc_id}/update-multiple-answers",
@@ -291,9 +287,7 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
                 "session_answers": "corrupted",
             }
         )
-        self.addCleanup(
-            lambda: db_client.quiz.sessions.delete_one({"_id": doc_id})
-        )
+        self.addCleanup(lambda: db_client.quiz.sessions.delete_one({"_id": doc_id}))
 
         response = self.client.patch(
             f"{session_answers.router.prefix}/{doc_id}/update-multiple-answers",
@@ -387,9 +381,7 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
                 ],
             }
         )
-        self.addCleanup(
-            lambda: db_client.quiz.sessions.delete_one({"_id": doc_id})
-        )
+        self.addCleanup(lambda: db_client.quiz.sessions.delete_one({"_id": doc_id}))
 
         # Patch at CLASS level — pymongo Database.__getitem__ returns a NEW
         # Collection object on every access, so instance-level patching would
@@ -411,8 +403,9 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
             aggregate_called = True
             return original_aggregate(self_col, *args, **kwargs)
 
-        with patch.object(Collection, "find_one", spy_find_one), \
-             patch.object(Collection, "aggregate", spy_aggregate):
+        with patch.object(Collection, "find_one", spy_find_one), patch.object(
+            Collection, "aggregate", spy_aggregate
+        ):
             response = self.client.patch(
                 f"{session_answers.router.prefix}/{doc_id}/update-multiple-answers",
                 json=[[0, {"answer": [1, 2]}]],
@@ -420,8 +413,12 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
             assert response.status_code == 200
 
             # The batch endpoint must use aggregate (lightweight read), not find_one
-            assert not find_one_called, "find_one should not be called — batch endpoint should use aggregate"
-            assert aggregate_called, "aggregate should be called for the lightweight read path"
+            assert (
+                not find_one_called
+            ), "find_one should not be called — batch endpoint should use aggregate"
+            assert (
+                aggregate_called
+            ), "aggregate should be called for the lightweight read path"
 
     def test_update_session_answers_at_specific_positions(self):
         # updating all session answers
