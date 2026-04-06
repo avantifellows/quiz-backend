@@ -1,6 +1,6 @@
 # Batch Update Endpoint: Lightweight Read Optimization
 
-**Date:** 2026-04-01  
+**Date:** 2026-04-01
 **Primary file:** `quiz-backend/app/routers/session_answers.py` (`update_session_answers_at_specific_positions`)
 
 ---

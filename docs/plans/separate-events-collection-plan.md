@@ -306,7 +306,7 @@ for session in db.sessions.find({"events": {"$exists": True}}):
         # Insert events into new collection
         event_docs = [{"session_id": session["_id"], **e} for e in events]
         db.session_events.insert_many(event_docs)
-    
+
     # Update session with denormalized fields
     db.sessions.update_one(
         {"_id": session["_id"]},

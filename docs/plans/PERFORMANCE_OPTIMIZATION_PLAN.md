@@ -46,17 +46,17 @@ At 7-8K users the failure rate drops to 24%, and all other endpoints remain heal
 async def update_session_answers_at_specific_positions(session_id, positions_and_answers):
     # STEP 1: Read entire session document
     session = client.quiz.sessions.find_one({"_id": session_id})    # ← BLOCKING READ
-    
+
     # STEP 2: Validate session exists, answers exist, positions in bounds
     # (iterates through session document)
-    
+
     # STEP 3: Build flat $set query
     setQuery = {
         f"session_answers.{pos}.{key}": value
         for pos, answer in zip(positions, answers)
         for key, value in answer.items()
     }
-    
+
     # STEP 4: Execute atomic update
     result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})  # ← BLOCKING WRITE
 ```
@@ -69,13 +69,13 @@ async def update_session_answers_at_specific_positions(session_id, positions_and
 async def update_session(session_id, session_updates):
     # STEP 1: Read entire session document
     session = client.quiz.sessions.find_one({"_id": session_id})    # ← BLOCKING READ
-    
+
     # STEP 2: If end-quiz event:
     #   a. Read quiz document
     quiz = client.quiz.quizzes.find_one({"_id": session["quiz_id"]})  # ← BLOCKING READ
     #   b. Compute metrics synchronously (iterates all questions)
     session_metrics = compute_session_metrics(session, quiz)          # ← CPU-BOUND
-    
+
     # STEP 3: Write metrics + end state back
     client.quiz.sessions.update_one({"_id": session_id}, {"$set": {...}})  # ← BLOCKING WRITE
 ```
@@ -313,24 +313,24 @@ Instead of sending all 51 answers in one request, chunk into smaller batches:
 async function endTest() {
     const CHUNK_SIZE = 15;
     const allAnswers = buildAllAnswerPayloads(); // existing logic
-    
+
     // Send in parallel chunks
     const chunks = [];
     for (let i = 0; i < allAnswers.length; i += CHUNK_SIZE) {
         chunks.push(allAnswers.slice(i, i + CHUNK_SIZE));
     }
-    
+
     const results = await Promise.all(
-        chunks.map(chunk => 
+        chunks.map(chunk =>
             SessionAPIService.updateSessionAnswersAtSpecificPositions(state.sessionId, chunk)
         )
     );
-    
+
     if (results.some(r => r.status !== 200)) {
         // handle partial failure
         return;
     }
-    
+
     // Then send end-quiz event
     await SessionAPIService.updateSession(state.sessionId, { event: eventType.END_QUIZ });
 }
