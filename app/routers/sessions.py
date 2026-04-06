@@ -262,7 +262,7 @@ async def create_session(session: Session):
         current_session["time_remaining"] = last_session.get("time_remaining", None)
         current_session["has_quiz_ended"] = last_session.get("has_quiz_ended", False)
         current_session["metrics"] = last_session.get("metrics", None)
-        current_session["question_order"] = last_session["question_order"]
+        current_session["question_order"] = last_session.get("question_order") or []
         current_session["time_limit_max"] = last_session.get("time_limit_max", None)
         # Keep precomputed timing fields consistent with copied events.
         current_session["start_quiz_time"] = last_session.get("start_quiz_time", None)
@@ -270,7 +270,7 @@ async def create_session(session: Session):
         current_session["total_time_spent"] = last_session.get("total_time_spent", None)
 
         # restore the answers from the last (previous) sessions
-        session_answers_of_the_last_session = last_session["session_answers"]
+        session_answers_of_the_last_session = last_session.get("session_answers") or []
 
         for _, session_answer in enumerate(session_answers_of_the_last_session):
             # note: we retain created_at key in session_answer
