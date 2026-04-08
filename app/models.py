@@ -1,5 +1,5 @@
 from typing import Optional, List, Union
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from schemas import (
     QuestionType,
     PyObjectId,
@@ -59,7 +59,7 @@ class MarkingScheme(BaseModel):
     correct: float
     wrong: float
     skipped: float
-    partial: List[PartialMarkRule] = None
+    partial: Optional[List[PartialMarkRule]] = None
 
 
 class QuizTimeLimit(BaseModel):
@@ -82,7 +82,7 @@ class QuestionSetMetric(BaseModel):
     num_correct: int
     num_wrong: int
     num_partially_correct: int
-    num_marked_for_review: Optional[int]  # not there for non-assessment
+    num_marked_for_review: Optional[int] = None  # not there for non-assessment
     attempt_rate: float
     accuracy_rate: float
 
@@ -94,40 +94,40 @@ class SessionMetrics(BaseModel):
     total_correct: int
     total_wrong: int
     total_partially_correct: int
-    total_marked_for_review: Optional[int]  # not there for non-assessment
+    total_marked_for_review: Optional[int] = None  # not there for non-assessment
     total_marks: float
 
 
 class QuestionMetadata(BaseModel):
-    grade: Optional[str]
-    subject: Optional[str]
-    chapter: Optional[str]
-    chapter_id: Optional[str]
-    topic: Optional[str]
-    topic_id: Optional[str]
-    competency: Optional[List[str]]
-    difficulty: Optional[str]
-    skill: Optional[str]
-    skill_id: Optional[str]
-    concept: Optional[str]
-    concept_id: Optional[str]
-    priority: Optional[str]
+    grade: Optional[str] = None
+    subject: Optional[str] = None
+    chapter: Optional[str] = None
+    chapter_id: Optional[str] = None
+    topic: Optional[str] = None
+    topic_id: Optional[str] = None
+    competency: Optional[List[str]] = None
+    difficulty: Optional[str] = None
+    skill: Optional[str] = None
+    skill_id: Optional[str] = None
+    concept: Optional[str] = None
+    concept_id: Optional[str] = None
+    priority: Optional[str] = None
 
 
 class QuizMetadata(BaseModel):
     quiz_type: QuizType
-    test_format: Optional[TestFormat]
-    grade: Optional[str]
-    subject: Optional[str]
-    chapter: Optional[str]
-    topic: Optional[str]
-    source: Optional[str]
-    source_id: Optional[str]
-    session_end_time: Optional[str]  # format: %Y-%m-%d %I:%M:%S %p
-    next_step_url: Optional[str]  # URL to redirect to after quiz completion
-    next_step_text: Optional[str]  # Text to display on the next step button
+    test_format: Optional[TestFormat] = None
+    grade: Optional[str] = None
+    subject: Optional[str] = None
+    chapter: Optional[str] = None
+    topic: Optional[str] = None
+    source: Optional[str] = None
+    source_id: Optional[str] = None
+    session_end_time: Optional[str] = None  # format: %Y-%m-%d %I:%M:%S %p
+    next_step_url: Optional[str] = None  # URL to redirect to after quiz completion
+    next_step_text: Optional[str] = None  # Text to display on the next step button
     next_step_autostart: Optional[bool] = False  # Whether next step should auto-start
-    single_page_header_text: Optional[str]  # header text for single page mode
+    single_page_header_text: Optional[str] = None  # header text for single page mode
 
 
 class Question(BaseModel):
@@ -138,16 +138,16 @@ class Question(BaseModel):
     type: QuestionType
     instructions: Optional[str] = None
     image: Optional[Image] = None
-    options: Optional[List[Option]] = []
+    options: Optional[List[Option]] = Field(default_factory=list)
     max_char_limit: Optional[int] = None
     matrix_size: Optional[List[int]] = None  # for matrix match question
     matrix_rows: Optional[List[str]] = None  # for matrix rating/numerical questions
     correct_answer: Union[List[int], List[str], float, int, dict, None] = None
     graded: bool = True
     force_correct: bool = False
-    marking_scheme: MarkingScheme = None
-    solution: Optional[List[str]] = []
-    metadata: QuestionMetadata = None
+    marking_scheme: Optional[MarkingScheme] = None
+    solution: Optional[List[str]] = Field(default_factory=list)
+    metadata: Optional[QuestionMetadata] = None
     source: Optional[str] = None
     source_id: Optional[str] = None
 
@@ -220,7 +220,7 @@ class QuestionSet(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     max_questions_allowed_to_attempt: int
-    marking_scheme: MarkingScheme = (
+    marking_scheme: Optional[MarkingScheme] = (
         None  # takes precedence over question-level marking scheme
     )
 
@@ -300,7 +300,7 @@ class Quiz(BaseModel):
     )
 
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    title: Optional[str]
+    title: Optional[str] = None
     question_sets: List[QuestionSet]
     max_marks: int
     num_graded_questions: int
@@ -314,7 +314,7 @@ class Quiz(BaseModel):
     navigation_mode: NavigationMode = "linear"
     instructions: Optional[str] = None
     language: QuizLanguage = "en"
-    metadata: QuizMetadata = None
+    metadata: Optional[QuizMetadata] = None
 
 
 class GetQuizResponse(Quiz):
@@ -420,7 +420,7 @@ class SessionAnswer(BaseModel):
     question_id: str
     answer: answerType = None
     visited: bool = False
-    time_spent: int = None  # in seconds
+    time_spent: Optional[int] = None  # in seconds
     marked_for_review: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -435,10 +435,10 @@ class UpdateSessionAnswer(BaseModel):
         },
     )
 
-    answer: Optional[answerType]
-    visited: Optional[bool]
-    time_spent: Optional[int]
-    marked_for_review: Optional[bool]
+    answer: Optional[answerType] = None
+    visited: Optional[bool] = None
+    time_spent: Optional[int] = None
+    marked_for_review: Optional[bool] = None
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -474,7 +474,14 @@ class Session(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     # Session-level "last modified" timestamp. This is used for incremental ETL sync.
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    events: List[Event] = []
+    events: List[Event] = Field(default_factory=list)
+
+    @field_validator("user_id", mode="before")
+    @classmethod
+    def coerce_user_id_to_str(cls, v):
+        """Preserve Pydantic v1 behavior: accept int input and coerce to str."""
+        return str(v)
+
     has_quiz_ended: bool = False
     time_limit_max: Optional[
         int
@@ -484,9 +491,9 @@ class Session(BaseModel):
     total_time_spent: Optional[
         float
     ] = None  # in seconds (float for sub-second precision)
-    question_order: List[
-        int
-    ] = []  # random order of questions for each quiz assesment/homework
+    question_order: List[int] = Field(
+        default_factory=list
+    )  # random order of questions for each quiz assesment/homework
     metrics: Optional[SessionMetrics] = None  # gets updated when quiz ends
 
 
@@ -498,7 +505,7 @@ class UpdateSession(BaseModel):
     )
 
     event: EventType
-    metrics: Optional[SessionMetrics]
+    metrics: Optional[SessionMetrics] = None
 
 
 class SessionResponse(Session):
@@ -544,5 +551,5 @@ class UpdateSessionResponse(BaseModel):
         json_schema_extra={"example": {"time_remaining": 300}},
     )
 
-    time_remaining: Optional[int]  # time in seconds
+    time_remaining: Optional[int] = None  # time in seconds
     metrics: Optional[SessionMetrics] = None
