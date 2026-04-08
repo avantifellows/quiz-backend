@@ -189,7 +189,7 @@ async def create_session(session: Session):
                 for question_index, question in enumerate(question_set["questions"]):
                     session_answers.append(
                         jsonable_encoder(
-                            SessionAnswer.parse_obj({"question_id": question["_id"]})
+                            SessionAnswer.model_validate({"question_id": question["_id"]})
                         )
                     )
     else:
@@ -280,7 +280,7 @@ async def create_session(session: Session):
 
             # append with new session_answer "_id" keys
             session_answers.append(
-                jsonable_encoder(SessionAnswer.parse_obj(session_answer))
+                jsonable_encoder(SessionAnswer.model_validate(session_answer))
             )
 
     current_session["session_answers"] = session_answers
@@ -347,7 +347,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     log_message += f", for user: {user_id} and quiz: {quiz_id}"
     logger.info(log_message)
 
-    new_event_obj = jsonable_encoder(Event.parse_obj({"event_type": new_event}))
+    new_event_obj = jsonable_encoder(Event.model_validate({"event_type": new_event}))
     total_time_spent = session.get("total_time_spent", None)
     running_total = float(total_time_spent or 0)
     should_update_total_time_spent = total_time_spent is None
