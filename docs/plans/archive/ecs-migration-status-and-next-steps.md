@@ -1,5 +1,6 @@
-# ECS Migration — Status & Next Steps
+# ECS Migration — Status & Next Steps (ARCHIVED)
 
+> **Status:** ARCHIVED — Migration complete. Lambda/SAM fully decommissioned. ECS Fargate is the sole deployment target.
 > **Last reviewed:** February 7, 2026
 > **Branch:** `docs/migration-lambda-to-ecs` (merged with main)
 > **Reference:** `context_for_ai/plans/ecs-migration-implementation-plan.md`

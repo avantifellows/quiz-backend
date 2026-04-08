@@ -7,10 +7,6 @@ on:
     types: [completed]
     branches: [release]
 
-  # Temporary: for testing on the feature branch. Remove after first successful deploy.
-  push:
-    branches: [docs/migration-lambda-to-ecs]
-
 env:
   AWS_REGION: ap-south-1
   ECR_REPOSITORY: quiz-backend-prod
@@ -23,18 +19,14 @@ jobs:
   deploy:
     name: Build & Deploy
     runs-on: ubuntu-latest
-    # For workflow_run: only deploy if CI succeeded
-    # For push: always run
-    if: >-
-      github.event_name == 'push' ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    # Only deploy if CI succeeded
+    if: github.event.workflow_run.conclusion == 'success'
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # workflow_run uses the head SHA from the CI run; push uses the current SHA
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -55,12 +47,7 @@ jobs:
 
       - name: Determine image tag
         id: vars
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
-          fi
+        run: echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6

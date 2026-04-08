@@ -23,7 +23,7 @@
 13. [Deployment](#deployment)
 14. [Configuration](#configuration)
 15. [Logging](#logging)
-16. [ECS vs Lambda](#ecs-vs-lambda)
+16. [ECS Fargate](#ecs-fargate)
 
 ---
 
@@ -106,15 +106,15 @@ The system is designed to handle:
 | Component | Technology |
 |-----------|------------|
 | **Framework** | FastAPI 0.75.0 |
-| **Language** | Python 3.9 |
+| **Language** | Python 3.9 (upgrading to 3.12) |
 | **Database** | MongoDB (via PyMongo 4.0.2) |
 | **Data Validation** | Pydantic 1.9.0 |
 | **ASGI Server** | Uvicorn 0.17.6 (4 workers) |
-| **Cloud Hosting** | ECS Fargate (testing/prod) / AWS Lambda (staging) |
-| **Infrastructure** | Terraform (ECS) / AWS SAM (Lambda) |
+| **Cloud Hosting** | ECS Fargate (testing/prod) |
+| **Infrastructure** | Terraform |
 | **DNS/HTTPS** | Cloudflare (proxy mode, domain: `avantifellows.org`) |
 | **Container** | Docker (ARM64/Graviton) |
-| **Testing** | Pytest + mongomock |
+| **Testing** | Pytest + real MongoDB |
 | **Code Quality** | Pre-commit hooks (Black, Flake8) |
 
 ---
@@ -144,9 +144,6 @@ quiz-backend/
 │       ├── base.py               # Base test classes
 │       ├── test_*.py             # Test modules
 │       └── dummy_data/           # JSON test fixtures
-├── templates/                    # AWS SAM templates
-│   ├── staging.yaml
-│   └── prod.yaml
 ├── docs/                         # Documentation
 │   ├── ENV.md                    # Environment variables
 │   ├── quiz-prod-m10_Schema_Documentation.md
@@ -166,9 +163,7 @@ quiz-backend/
 ├── .github/workflows/            # CI/CD pipelines
 │   ├── ci.yml                    # Tests and pre-commit
 │   ├── deploy_ecs_testing.yml    # ECS testing deploy (on CI success)
-│   ├── deploy_ecs_prod.yml       # ECS prod deploy (on CI success for release)
-│   ├── deploy_to_staging.yml     # Lambda staging deploy
-│   └── deploy_to_prod.yml        # Lambda production deploy
+│   └── deploy_ecs_prod.yml       # ECS prod deploy (on CI success for release)
 ├── Dockerfile                    # Container image definition
 ├── .dockerignore                 # Docker build exclusions
 ├── startServerMac.sh             # Local dev server (macOS)
@@ -338,7 +333,6 @@ Entry point for the FastAPI application:
 - GZIP compression for responses > 1KB
 - Router registration
 - `/health` endpoint for ALB health checks
-- Mangum handler for AWS Lambda
 
 ### `app/database.py`
 MongoDB connection setup with connection pooling:
@@ -478,11 +472,6 @@ cp .env.example .env
 ./startServerLinux.sh
 ```
 
-**Fresh sync from remote DB:**
-```bash
-./startServerMac.sh --freshSync --source mongodb+srv://user:pass@host/db
-```
-
 Server runs at `http://127.0.0.1:8000`
 API docs at `http://127.0.0.1:8000/docs`
 
@@ -493,7 +482,7 @@ API docs at `http://127.0.0.1:8000/docs`
 ### Framework
 
 - **Pytest** for test execution
-- **mongomock** for MongoDB mocking
+- **Real MongoDB** (local or CI service) for test database
 - Test fixtures in `app/tests/dummy_data/`
 
 ### Base Test Classes
@@ -542,7 +531,6 @@ Located in `app/tests/dummy_data/`:
 |-------------|---------|----------------|--------|
 | **Testing** | ECS Fargate (ARM64) | Terraform | Active |
 | **Production** | ECS Fargate (ARM64) | Terraform | Active |
-| **Staging** | AWS Lambda | AWS SAM | Active |
 
 ### ECS Fargate (Testing Environment)
 
@@ -640,46 +628,16 @@ aws ecs describe-tasks --cluster quiz-backend-ENV \
   --query 'tasks[0].{cpu:cpu,memory:memory,lastStatus:lastStatus}'
 ```
 
-### AWS Lambda (Staging)
-
-- **Compute**: AWS Lambda (Python 3.9, 1024MB, 300s timeout)
-- **API**: AWS API Gateway (HTTP API)
-- **Database**: MongoDB Atlas (M10 tier, 500 connections)
-- **Infrastructure**: AWS SAM (CloudFormation)
-
-#### Lambda Deployment Triggers
-
-| Environment | Trigger |
-|-------------|---------|
-| Staging | Push/merge to `main` branch |
-
 #### GitHub Actions Workflows
 
 1. **ci.yml**: Pre-commit checks and pytest
 2. **deploy_ecs_testing.yml**: Build ARM64 image, push to ECR, update ECS testing service
 3. **deploy_ecs_prod.yml**: Build ARM64 image, push to ECR, update ECS prod service
-4. **deploy_to_staging.yml**: SAM deploy to Lambda staging
-5. **deploy_to_prod.yml**: SAM deploy to Lambda production
 
 #### Required Secrets (GitHub)
 
 - `AWS_ACCESS_KEY_ID` — used by all deploy workflows (IAM user: `quiz-backend`)
 - `AWS_SECRET_ACCESS_KEY` — used by all deploy workflows
-- `MONGO_AUTH_CREDENTIALS` — used by Lambda SAM deploys only (ECS gets it from the live task definition)
-
-#### Lambda Deployment Commands (Manual)
-
-```bash
-# Build
-sam build --use-container -t templates/staging.yaml
-
-# Deploy
-sam deploy --stack-name QuizBackendStaging \
-  --s3-bucket quiz-staging-backend \
-  --region ap-south-1 \
-  --capabilities CAPABILITY_IAM \
-  --parameter-overrides MongoAuthCredentials=$MONGO_AUTH_CREDENTIALS
-```
 
 ---
 
@@ -717,7 +675,6 @@ Configured in `main.py`:
 - `black` (code formatting)
 - `flake8` (linting, ignores E501, E203, W503)
 - `tflint` (Terraform)
-- `cfn-python-lint` (CloudFormation)
 
 ---
 
@@ -746,21 +703,15 @@ rid=ABC123 completed_in=45.23ms status_code=200
 
 ### Log Shipping (Production)
 
-Logs are shipped to Loki via Lambda Promtail for centralized logging and Grafana dashboards.
+Logs are sent to CloudWatch Logs via ECS Fargate's awslogs driver.
 
 ---
 
-## ECS vs Lambda
+## ECS Fargate
 
-Testing and production run on ECS Fargate. Staging runs on Lambda.
+Both testing and production run on ECS Fargate (ARM64/Graviton).
 
-**Why ECS Fargate for testing/production:**
-- Connection pooling (20 connections per container vs 1 per Lambda invocation)
-- Stays on MongoDB M10 tier for most scenarios
-- Lower latency (no cold starts)
-- Cost savings (~$75-130/month)
-
-Both ECS environments have: Terraform IaC, S3 remote state, CI/CD pipelines, custom domains, HTTPS via Cloudflare proxy, auto-scaling (1–10 tasks on CPU). Production additionally has 30-day log retention and ALB deletion protection.
+Both ECS environments have: Terraform IaC, S3 remote state, CI/CD pipelines, custom domains, HTTPS via Cloudflare proxy, auto-scaling (1-10 tasks on CPU). Production additionally has 30-day log retention and ALB deletion protection.
 
 **Load-tested capacity (testing environment):**
 - 5,000 concurrent users on 10 pre-scaled tasks: 474 RPS, p50 60ms, p95 400ms (steady-state p95 ~100ms), 0.004% failure rate

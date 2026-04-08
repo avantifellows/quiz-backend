@@ -9,9 +9,8 @@ if "MONGO_AUTH_CREDENTIALS" not in os.environ:
 
     load_dotenv("../.env")
 
-# Connection pool configuration for ECS
-# These settings ensure efficient connection reuse while remaining
-# compatible with Lambda (which will just use fewer connections)
+# Connection pool configuration for ECS Fargate
+# Each container maintains a pool of reusable connections to MongoDB
 client = MongoClient(
     os.getenv("MONGO_AUTH_CREDENTIALS"),
     # Connection Pool Settings

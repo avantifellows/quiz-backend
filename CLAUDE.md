@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-FastAPI-based REST API for a mobile-friendly quiz engine. Manages quizzes, questions, sessions, and user answers with support for various question types (single-choice, multi-choice, subjective, numerical, matrix-match). Uses MongoDB. Deployed on ECS Fargate (testing/production) and AWS Lambda (staging).
+FastAPI-based REST API for a mobile-friendly quiz engine. Manages quizzes, questions, sessions, and user answers with support for various question types (single-choice, multi-choice, subjective, numerical, matrix-match). Uses MongoDB. Deployed on ECS Fargate (testing/production).
 
 ## Common Commands
 
@@ -12,9 +12,6 @@ FastAPI-based REST API for a mobile-friendly quiz engine. Manages quizzes, quest
 # Start development server (starts MongoDB + Uvicorn on port 8000)
 ./startServerMac.sh        # macOS
 ./startServerLinux.sh      # Linux
-
-# Fresh sync from remote database
-./startServerMac.sh --freshSync --source mongodb+srv://user:pass@host/db
 
 # Install dependencies
 pip install -r app/requirements.txt
@@ -42,7 +39,6 @@ pre-commit run --all-files  # manual run
 - `app/scripts/` - Database migration scripts
 - `Dockerfile` - Container image (ARM64/Graviton, 4 Uvicorn workers)
 - `terraform/` - ECS Fargate infrastructure (testing + prod environments)
-- `templates/` - AWS SAM CloudFormation templates (staging only)
 
 ### API Routes
 ```
@@ -76,7 +72,7 @@ PATCH  /session_answers/{session_id}/update-multiple-answers
 
 ## Testing
 
-Tests use mongomock. Test fixtures in `app/tests/dummy_data/` (JSON files for various quiz types).
+Tests use real MongoDB (local or CI service). Test fixtures in `app/tests/dummy_data/` (JSON files for various quiz types).
 
 Base test classes in `app/tests/base.py`:
 - `BaseTestCase` - sets up organizations and quiz types
@@ -99,12 +95,7 @@ Copy `.env.example` to `.env` for local development.
 - Infrastructure managed by Terraform in `terraform/testing/` and `terraform/prod/`
 - Terraform state: S3 + DynamoDB backend (bootstrap at `terraform/shared/state-backend/`)
 
-### Lambda (Staging)
-- Deploys via AWS SAM on push to `main`
-- Python 3.9, 1024MB memory, 300s timeout
-
 ### CI/CD Workflows (`.github/workflows/`)
 - `ci.yml` - Pre-commit checks and pytest
 - `deploy_ecs_testing.yml` - Build ARM64 image → ECR → ECS (testing)
 - `deploy_ecs_prod.yml` - Build ARM64 image → ECR → ECS (production)
-- `deploy_to_staging.yml` - SAM deploy to Lambda (staging)
