@@ -220,9 +220,9 @@ class QuestionSet(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     max_questions_allowed_to_attempt: int
-    marking_scheme: Optional[MarkingScheme] = (
-        None  # takes precedence over question-level marking scheme
-    )
+    marking_scheme: Optional[
+        MarkingScheme
+    ] = None  # takes precedence over question-level marking scheme
 
 
 class QuestionSetResponse(QuestionSet):
@@ -483,14 +483,14 @@ class Session(BaseModel):
         return str(v)
 
     has_quiz_ended: bool = False
-    time_limit_max: Optional[int] = (
-        None  # store quiz.time_limit.max in seconds for derivation
-    )
+    time_limit_max: Optional[
+        int
+    ] = None  # store quiz.time_limit.max in seconds for derivation
     start_quiz_time: Optional[datetime] = None
     end_quiz_time: Optional[datetime] = None
-    total_time_spent: Optional[float] = (
-        None  # in seconds (float for sub-second precision)
-    )
+    total_time_spent: Optional[
+        float
+    ] = None  # in seconds (float for sub-second precision)
     question_order: List[int] = Field(
         default_factory=list
     )  # random order of questions for each quiz assesment/homework
