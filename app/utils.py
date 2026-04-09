@@ -26,4 +26,6 @@ def remove_optional_unset_args(model: BaseModel):
 
         return destination
 
-    return union(model.model_dump(exclude_unset=True), model.model_dump(exclude_none=True))
+    return union(
+        model.model_dump(exclude_unset=True), model.model_dump(exclude_none=True)
+    )

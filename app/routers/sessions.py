@@ -189,7 +189,9 @@ async def create_session(session: Session):
                 for question_index, question in enumerate(question_set["questions"]):
                     session_answers.append(
                         jsonable_encoder(
-                            SessionAnswer.model_validate({"question_id": question["_id"]})
+                            SessionAnswer.model_validate(
+                                {"question_id": question["_id"]}
+                            )
                         )
                     )
     else:

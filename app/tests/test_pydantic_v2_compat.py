@@ -10,6 +10,7 @@ Proves the v1-to-v2 migration preserves all API contracts:
 - Backwards compatibility backfill
 - Form endpoint validation and modes
 """
+
 import json
 from bson import ObjectId
 from .base import BaseTestCase, SessionsBaseTestCase
@@ -283,8 +284,14 @@ class RawDictResponseTestCase(SessionsBaseTestCase):
         assert r.status_code == 200
         quiz = r.json()
         expected = {
-            "_id", "question_sets", "max_marks", "num_graded_questions",
-            "shuffle", "num_attempts_allowed", "navigation_mode", "language",
+            "_id",
+            "question_sets",
+            "max_marks",
+            "num_graded_questions",
+            "shuffle",
+            "num_attempts_allowed",
+            "navigation_mode",
+            "language",
             "metadata",
         }
         assert expected.issubset(set(quiz.keys()))
@@ -298,8 +305,14 @@ class RawDictResponseTestCase(SessionsBaseTestCase):
         assert r.status_code == 200
         session = r.json()
         expected = {
-            "_id", "user_id", "quiz_id", "is_first", "session_answers",
-            "has_quiz_ended", "question_order", "events",
+            "_id",
+            "user_id",
+            "quiz_id",
+            "is_first",
+            "session_answers",
+            "has_quiz_ended",
+            "question_order",
+            "events",
         }
         assert expected.issubset(set(session.keys()))
         assert isinstance(session["session_answers"], list)
@@ -327,7 +340,10 @@ class RawDictResponseTestCase(SessionsBaseTestCase):
         assert r.status_code == 200
         form = r.json()
         expected = {
-            "_id", "question_sets", "max_marks", "num_graded_questions",
+            "_id",
+            "question_sets",
+            "max_marks",
+            "num_graded_questions",
             "metadata",
         }
         assert expected.issubset(set(form.keys()))

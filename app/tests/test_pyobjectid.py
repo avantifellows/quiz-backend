@@ -1,9 +1,7 @@
 import unittest
 from bson import ObjectId
 from fastapi.encoders import jsonable_encoder
-from fastapi.testclient import TestClient
-from ..schemas import PyObjectId
-from ..models import Organization, Question, QuestionSet, Session, SessionAnswer
+from ..models import Organization, QuestionSet
 from ..main import app
 
 
