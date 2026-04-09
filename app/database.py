@@ -1,17 +1,22 @@
 import os
 from pymongo import MongoClient
 
-# this is required for loading environment variables when
-# running the app locally as the environment variable should
-# be set when the app is running on staging/production by Github Actions
+# Load .env for local development — in CI/ECS the env var is set directly.
+# load_dotenv() searches upward from CWD, so it works from both the repo root
+# and the app/ directory.
 if "MONGO_AUTH_CREDENTIALS" not in os.environ:
     from dotenv import load_dotenv
 
-    load_dotenv("../.env")
+    load_dotenv()
 
-# Connection pool configuration for ECS
-# These settings ensure efficient connection reuse while remaining
-# compatible with Lambda (which will just use fewer connections)
+if not os.getenv("MONGO_AUTH_CREDENTIALS"):
+    raise RuntimeError(
+        "MONGO_AUTH_CREDENTIALS is not set. "
+        "Set it in your environment or in a .env file at the repo root."
+    )
+
+# Connection pool configuration for ECS Fargate
+# Each container maintains a pool of reusable connections to MongoDB
 client = MongoClient(
     os.getenv("MONGO_AUTH_CREDENTIALS"),
     # Connection Pool Settings

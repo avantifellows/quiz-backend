@@ -62,7 +62,7 @@ async def update_session_answers_at_specific_positions(
     # Pre-DB validation: empty per-item payload
     business_fields = {"answer", "visited", "time_spent", "marked_for_review"}
     for position, session_answer in positions_and_answers:
-        if not (session_answer.__fields_set__ & business_fields):
+        if not (session_answer.model_fields_set & business_fields):
             error_message = f"Empty payload at position {position}: at least one business field (answer, visited, time_spent, marked_for_review) must be provided"
             logger.error(error_message)
             raise HTTPException(
@@ -163,7 +163,7 @@ async def update_session_answer_in_a_session(
 
     # Pre-DB validation: empty payload (__fields_set__ check before Pydantic model is converted to dict)
     business_fields = {"answer", "visited", "time_spent", "marked_for_review"}
-    if not (session_answer.__fields_set__ & business_fields):
+    if not (session_answer.model_fields_set & business_fields):
         error_message = "Empty payload: at least one business field (answer, visited, time_spent, marked_for_review) must be provided"
         logger.error(error_message)
         raise HTTPException(

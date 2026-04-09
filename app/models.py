@@ -1,6 +1,5 @@
 from typing import Optional, List, Union
-from bson import ObjectId
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from schemas import (
     QuestionType,
     PyObjectId,
@@ -16,23 +15,24 @@ answerType = Union[List[int], List[str], float, int, str, dict, None]
 
 
 class Organization(BaseModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_schema_extra={"example": {"name": "Avanti Fellows"}},
+    )
+
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     name: str
 
-    class Config:
-        allow_population_by_field_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
-        schema_extra = {"example": {"name": "Avanti Fellows"}}
-
 
 class OrganizationResponse(Organization):
-    name: str
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_schema_extra={"example": {"name": "Avanti Fellows"}},
+    )
 
-    class Config:
-        allow_population_by_field_name = True
-        arbitrary_types_allowed = True
-        schema_extra = {"example": {"name": "Avanti Fellows"}}
+    name: str
 
 
 class Image(BaseModel):
@@ -59,7 +59,7 @@ class MarkingScheme(BaseModel):
     correct: float
     wrong: float
     skipped: float
-    partial: List[PartialMarkRule] = None
+    partial: Optional[List[PartialMarkRule]] = None
 
 
 class QuizTimeLimit(BaseModel):
@@ -82,7 +82,7 @@ class QuestionSetMetric(BaseModel):
     num_correct: int
     num_wrong: int
     num_partially_correct: int
-    num_marked_for_review: Optional[int]  # not there for non-assessment
+    num_marked_for_review: Optional[int] = None  # not there for non-assessment
     attempt_rate: float
     accuracy_rate: float
 
@@ -94,40 +94,40 @@ class SessionMetrics(BaseModel):
     total_correct: int
     total_wrong: int
     total_partially_correct: int
-    total_marked_for_review: Optional[int]  # not there for non-assessment
+    total_marked_for_review: Optional[int] = None  # not there for non-assessment
     total_marks: float
 
 
 class QuestionMetadata(BaseModel):
-    grade: Optional[str]
-    subject: Optional[str]
-    chapter: Optional[str]
-    chapter_id: Optional[str]
-    topic: Optional[str]
-    topic_id: Optional[str]
-    competency: Optional[List[str]]
-    difficulty: Optional[str]
-    skill: Optional[str]
-    skill_id: Optional[str]
-    concept: Optional[str]
-    concept_id: Optional[str]
-    priority: Optional[str]
+    grade: Optional[str] = None
+    subject: Optional[str] = None
+    chapter: Optional[str] = None
+    chapter_id: Optional[str] = None
+    topic: Optional[str] = None
+    topic_id: Optional[str] = None
+    competency: Optional[List[str]] = None
+    difficulty: Optional[str] = None
+    skill: Optional[str] = None
+    skill_id: Optional[str] = None
+    concept: Optional[str] = None
+    concept_id: Optional[str] = None
+    priority: Optional[str] = None
 
 
 class QuizMetadata(BaseModel):
     quiz_type: QuizType
-    test_format: Optional[TestFormat]
-    grade: Optional[str]
-    subject: Optional[str]
-    chapter: Optional[str]
-    topic: Optional[str]
-    source: Optional[str]
-    source_id: Optional[str]
-    session_end_time: Optional[str]  # format: %Y-%m-%d %I:%M:%S %p
-    next_step_url: Optional[str]  # URL to redirect to after quiz completion
-    next_step_text: Optional[str]  # Text to display on the next step button
+    test_format: Optional[TestFormat] = None
+    grade: Optional[str] = None
+    subject: Optional[str] = None
+    chapter: Optional[str] = None
+    topic: Optional[str] = None
+    source: Optional[str] = None
+    source_id: Optional[str] = None
+    session_end_time: Optional[str] = None  # format: %Y-%m-%d %I:%M:%S %p
+    next_step_url: Optional[str] = None  # URL to redirect to after quiz completion
+    next_step_text: Optional[str] = None  # Text to display on the next step button
     next_step_autostart: Optional[bool] = False  # Whether next step should auto-start
-    single_page_header_text: Optional[str]  # header text for single page mode
+    single_page_header_text: Optional[str] = None  # header text for single page mode
 
 
 class Question(BaseModel):
@@ -138,24 +138,23 @@ class Question(BaseModel):
     type: QuestionType
     instructions: Optional[str] = None
     image: Optional[Image] = None
-    options: Optional[List[Option]] = []
+    options: Optional[List[Option]] = Field(default_factory=list)
     max_char_limit: Optional[int] = None
     matrix_size: Optional[List[int]] = None  # for matrix match question
     matrix_rows: Optional[List[str]] = None  # for matrix rating/numerical questions
     correct_answer: Union[List[int], List[str], float, int, dict, None] = None
     graded: bool = True
     force_correct: bool = False
-    marking_scheme: MarkingScheme = None
-    solution: Optional[List[str]] = []
-    metadata: QuestionMetadata = None
+    marking_scheme: Optional[MarkingScheme] = None
+    solution: Optional[List[str]] = Field(default_factory=list)
+    metadata: Optional[QuestionMetadata] = None
     source: Optional[str] = None
     source_id: Optional[str] = None
 
-    class Config:
-        allow_population_by_field_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
-        schema_extra = {
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_schema_extra={
             "example": {
                 "text": "Which grade are you in?",
                 "type": "multi-choice",
@@ -177,17 +176,15 @@ class Question(BaseModel):
                 "graded": True,
                 "marking_scheme": {"correct": 4, "wrong": -1, "skipped": 0},
             }
-        }
+        },
+    )
 
 
 class QuestionResponse(Question):
     """Model for the response of any request that returns a question"""
 
-    question_set_id: str
-    text: Optional[str] = None
-
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "text": "Which grade are you in?",
                 "type": "multi-choice",
@@ -210,7 +207,11 @@ class QuestionResponse(Question):
                 "marking_scheme": {"correct": 4, "wrong": -1, "skipped": 0},
                 "question_set_id": "1234",
             }
-        }
+        },
+    )
+
+    question_set_id: str
+    text: Optional[str] = None
 
 
 class QuestionSet(BaseModel):
@@ -219,9 +220,9 @@ class QuestionSet(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     max_questions_allowed_to_attempt: int
-    marking_scheme: MarkingScheme = (
-        None  # takes precedence over question-level marking scheme
-    )
+    marking_scheme: Optional[
+        MarkingScheme
+    ] = None  # takes precedence over question-level marking scheme
 
 
 class QuestionSetResponse(QuestionSet):
@@ -231,28 +232,10 @@ class QuestionSetResponse(QuestionSet):
 class Quiz(BaseModel):
     """Model for the body of the request that creates a quiz"""
 
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    title: Optional[str]
-    question_sets: List[QuestionSet]
-    max_marks: int
-    num_graded_questions: int
-    shuffle: bool = False
-    num_attempts_allowed: int = 1
-    time_limit: Optional[QuizTimeLimit] = None
-    # review answers immediately after quiz ends
-    review_immediate: Optional[bool] = True
-    display_solution: Optional[bool] = True
-    show_scores: Optional[bool] = True
-    navigation_mode: NavigationMode = "linear"
-    instructions: Optional[str] = None
-    language: QuizLanguage = "en"
-    metadata: QuizMetadata = None
-
-    class Config:
-        allow_population_by_field_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
-        schema_extra = {
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_schema_extra={
             "example": {
                 "question_sets": [
                     {
@@ -313,16 +296,32 @@ class Quiz(BaseModel):
                     "test_format": "part_test",
                 },
             }
-        }
+        },
+    )
+
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    title: Optional[str] = None
+    question_sets: List[QuestionSet]
+    max_marks: int
+    num_graded_questions: int
+    shuffle: bool = False
+    num_attempts_allowed: int = 1
+    time_limit: Optional[QuizTimeLimit] = None
+    # review answers immediately after quiz ends
+    review_immediate: Optional[bool] = True
+    display_solution: Optional[bool] = True
+    show_scores: Optional[bool] = True
+    navigation_mode: NavigationMode = "linear"
+    instructions: Optional[str] = None
+    language: QuizLanguage = "en"
+    metadata: Optional[QuizMetadata] = None
 
 
 class GetQuizResponse(Quiz):
     """Model for the response of any request that returns a quiz"""
 
-    question_sets: List[QuestionSetResponse]
-
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "_id": "1234",
                 "question_sets": [
@@ -386,56 +385,61 @@ class GetQuizResponse(Quiz):
                     "test_format": "full_syllabus_test",
                 },
             }
-        }
+        },
+    )
+
+    question_sets: List[QuestionSetResponse]
 
 
 class CreateQuizResponse(BaseModel):
     """Model for the response of a request that creates a quiz"""
 
-    id: str
-
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "id": "1234",
             }
-        }
+        },
+    )
+
+    id: str
 
 
 class SessionAnswer(BaseModel):
     """Model for the body of the request that creates a session answer"""
 
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_schema_extra={
+            "example": {"question_id": "4567", "answer": [0, 1, 2], "time_spent": 30}
+        },
+    )
+
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     question_id: str
     answer: answerType = None
     visited: bool = False
-    time_spent: int = None  # in seconds
+    time_spent: Optional[int] = None  # in seconds
     marked_for_review: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-
-    class Config:
-        allow_population_by_field_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
-        schema_extra = {
-            "example": {"question_id": "4567", "answer": [0, 1, 2], "time_spent": 30}
-        }
 
 
 class UpdateSessionAnswer(BaseModel):
     """Model for the body of the request that updates a session answer"""
 
-    answer: Optional[answerType]
-    visited: Optional[bool]
-    time_spent: Optional[int]
-    marked_for_review: Optional[bool]
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
-
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {"answer": [0, 1, 2], "visited": True, "time_spent": 20}
-        }
+        },
+    )
+
+    answer: Optional[answerType] = None
+    visited: Optional[bool] = None
+    time_spent: Optional[int] = None
+    marked_for_review: Optional[bool] = None
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 """
@@ -452,6 +456,17 @@ class SessionAnswerResponse(SessionAnswer):
 class Session(BaseModel):
     """Model for the body of the request that creates a session"""
 
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_schema_extra={
+            "example": {
+                "user_id": "1234",
+                "quiz_id": "5678",
+            }
+        },
+    )
+
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     user_id: str
     quiz_id: str
@@ -459,7 +474,14 @@ class Session(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     # Session-level "last modified" timestamp. This is used for incremental ETL sync.
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    events: List[Event] = []
+    events: List[Event] = Field(default_factory=list)
+
+    @field_validator("user_id", mode="before")
+    @classmethod
+    def coerce_user_id_to_str(cls, v):
+        """Preserve Pydantic v1 behavior: accept int input and coerce to str."""
+        return str(v)
+
     has_quiz_ended: bool = False
     time_limit_max: Optional[
         int
@@ -469,42 +491,28 @@ class Session(BaseModel):
     total_time_spent: Optional[
         float
     ] = None  # in seconds (float for sub-second precision)
-    question_order: List[
-        int
-    ] = []  # random order of questions for each quiz assesment/homework
+    question_order: List[int] = Field(
+        default_factory=list
+    )  # random order of questions for each quiz assesment/homework
     metrics: Optional[SessionMetrics] = None  # gets updated when quiz ends
-
-    class Config:
-        allow_population_by_field_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
-        schema_extra = {
-            "example": {
-                "user_id": "1234",
-                "quiz_id": "5678",
-            }
-        }
 
 
 class UpdateSession(BaseModel):
     """Model for the body of the request that updates a session"""
 
-    event: EventType
-    metrics: Optional[SessionMetrics]
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"event": "start-quiz"}},
+    )
 
-    class Config:
-        schema_extra = {"example": {"event": "start-quiz"}}
+    event: EventType
+    metrics: Optional[SessionMetrics] = None
 
 
 class SessionResponse(Session):
     """Model for the response of any request that returns a session"""
 
-    is_first: bool
-    session_answers: List[SessionAnswer]
-    time_remaining: Optional[int] = None  # time in seconds
-
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "_id": "1234",
                 "user_id": "1234",
@@ -528,14 +536,20 @@ class SessionResponse(Session):
                 ],
                 "question_order": [0, 1, 2, 3],
             }
-        }
+        },
+    )
+
+    is_first: bool
+    session_answers: List[SessionAnswer]
+    time_remaining: Optional[int] = None  # time in seconds
 
 
 class UpdateSessionResponse(BaseModel):
     """Model for the response of request that updates a session"""
 
-    time_remaining: Optional[int]  # time in seconds
-    metrics: Optional[SessionMetrics] = None
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"time_remaining": 300}},
+    )
 
-    class Config:
-        schema_extra = {"example": {"time_remaining": 300}}
+    time_remaining: Optional[int] = None  # time in seconds
+    metrics: Optional[SessionMetrics] = None

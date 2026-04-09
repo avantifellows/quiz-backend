@@ -1,22 +1,22 @@
 import unittest
 import json
 from fastapi.testclient import TestClient
-from mongoengine import connect, disconnect
 from main import app
+from database import client as mongo_client
 from routers import quizzes, sessions, organizations
 
 
 class BaseTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        connect("mongoenginetest", host="mongomock://127.0.0.1:8000")
         cls.client = TestClient(app)
 
-    @classmethod
-    def tearDownClass(cls):
-        disconnect()
-
     def setUp(self):
+        # Drop all collections in the quiz database before each test
+        # to ensure test isolation
+        db = mongo_client.quiz
+        for collection_name in db.list_collection_names():
+            db.drop_collection(collection_name)
         # Set up for organizations
         self.organization_data = json.load(
             open("app/tests/dummy_data/organization.json")
