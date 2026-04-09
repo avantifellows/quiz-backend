@@ -88,9 +88,9 @@ The following steps are for a Mac system.
 
 ### Virtual Environment Setup
 
-- Create a virtual environment (make sure that `virtualenv` is installed on your system):
+- **Python 3.12** is required. Create a virtual environment:
   ```bash
-  virtualenv venv
+  python3.12 -m venv venv
   ```
 
 - Activate the environment:
@@ -113,7 +113,7 @@ The following steps are for a Mac system.
   pre-commit install
   ```
 
-- Copy `.env.example` to `.env` and set all the environment variables as mentioned in `docs/ENV.md`. No need to change anything if you're planning to connect to a local DB. If you're planning to connect your local server to a staging and prod DB, only then you need to change. PLEASE DO NOT CONNECT YOUR LOCAL INSTANCE TO STAGING/PROD DB.
+- Copy `.env.example` to `.env` and set all the environment variables as mentioned in [`docs/ENV.md`](docs/ENV.md). The default value points to a local MongoDB instance — no changes needed for local development.
 
 ## Running locally
 For Linux machines, simply run the below in the terminal:
@@ -153,7 +153,7 @@ The backend is deployed on **ECS Fargate** (ARM64/Graviton) for both testing and
 Infrastructure is managed by Terraform in `terraform/testing/` and `terraform/prod/`. Make sure to set all the environment variables mentioned in [`docs/ENV.md`](docs/ENV.md) in your GitHub repository environments.
 
 ## Tests
-Tests run against a real MongoDB instance (local or CI service). Make sure MongoDB is running locally before running tests.
+Tests run against a real MongoDB instance (local or CI service). Make sure MongoDB is running locally and `MONGO_AUTH_CREDENTIALS` is set (via `.env` or environment export) before running tests.
 
 ```bash
 pytest

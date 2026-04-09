@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-FastAPI-based REST API for a mobile-friendly quiz engine. Manages quizzes, questions, sessions, and user answers with support for various question types (single-choice, multi-choice, subjective, numerical, matrix-match). Uses MongoDB. Deployed on ECS Fargate (testing/production).
+FastAPI-based REST API for a mobile-friendly quiz engine. Manages quizzes, questions, sessions, and user answers with support for various question types (single-choice, multi-choice, subjective, numerical, matrix-match). Built with Python 3.12, Pydantic v2, and PyMongo. Uses MongoDB. Deployed on ECS Fargate (testing/production).
 
 ## Common Commands
 
@@ -33,8 +33,8 @@ pre-commit run --all-files  # manual run
 ### Directory Structure
 - `app/main.py` - FastAPI app initialization, middleware (request logging, CORS, GZIP), `/health` endpoint
 - `app/routers/` - API route handlers (quizzes, questions, sessions, session_answers, organizations, forms)
-- `app/models.py` - Pydantic request/response models
-- `app/schemas.py` - Enums (QuestionType, QuizType, NavigationMode) and custom types (PyObjectId)
+- `app/models.py` - Pydantic v2 request/response models (ConfigDict, model_validate, model_dump)
+- `app/schemas.py` - Enums (QuestionType, QuizType, NavigationMode) and custom types (PyObjectId with Pydantic v2 core schema)
 - `app/database.py` - MongoDB connection setup with connection pooling
 - `app/scripts/` - Database migration scripts
 - `Dockerfile` - Container image (ARM64/Graviton, 4 Uvicorn workers)
@@ -72,7 +72,7 @@ PATCH  /session_answers/{session_id}/update-multiple-answers
 
 ## Testing
 
-Tests use real MongoDB (local or CI service). Test fixtures in `app/tests/dummy_data/` (JSON files for various quiz types).
+Tests use real MongoDB (local or CI service). `MONGO_AUTH_CREDENTIALS` must be set (app fails with RuntimeError if unset). Test fixtures in `app/tests/dummy_data/` (JSON files for various quiz types).
 
 Base test classes in `app/tests/base.py`:
 - `BaseTestCase` - sets up organizations and quiz types

@@ -1,6 +1,6 @@
 # Quiz Backend - Project Context
 
-> **Last Updated:** March 23, 2026
+> **Last Updated:** April 9, 2026
 >
 > This document provides comprehensive context for AI coding agents and human engineers working on this project.
 
@@ -105,16 +105,16 @@ The system is designed to handle:
 
 | Component | Technology |
 |-----------|------------|
-| **Framework** | FastAPI 0.75.0 |
-| **Language** | Python 3.9 (upgrading to 3.12) |
-| **Database** | MongoDB (via PyMongo 4.0.2) |
-| **Data Validation** | Pydantic 1.9.0 |
-| **ASGI Server** | Uvicorn 0.17.6 (4 workers) |
+| **Framework** | FastAPI 0.115.12 |
+| **Language** | Python 3.12 |
+| **Database** | MongoDB (via PyMongo 4.12.1) |
+| **Data Validation** | Pydantic 2.11.3 + pydantic-settings 2.9.1 |
+| **ASGI Server** | Uvicorn 0.34.2 (4 workers) |
 | **Cloud Hosting** | ECS Fargate (testing/prod) |
 | **Infrastructure** | Terraform |
 | **DNS/HTTPS** | Cloudflare (proxy mode, domain: `avantifellows.org`) |
 | **Container** | Docker (ARM64/Graviton) |
-| **Testing** | Pytest + real MongoDB |
+| **Testing** | Pytest 8.3.5 + real MongoDB |
 | **Code Quality** | Pre-commit hooks (Black, Flake8) |
 
 ---
@@ -342,7 +342,7 @@ MongoDB connection setup with connection pooling:
 - Retry settings for resilience
 
 ### `app/models.py`
-Pydantic models for all request/response schemas:
+Pydantic v2 models for all request/response schemas (uses `ConfigDict`, `model_validate`, `model_dump`):
 - `Quiz`, `QuestionSet`, `Question`: Quiz structure
 - `Session`, `SessionAnswer`: Session tracking
 - `Organization`: Auth entities
@@ -351,7 +351,7 @@ Pydantic models for all request/response schemas:
 
 ### `app/schemas.py`
 Enums and custom types:
-- `PyObjectId`: Custom ObjectId validator for Pydantic
+- `PyObjectId`: Custom ObjectId type for Pydantic v2 (uses `__get_pydantic_core_schema__`)
 - `QuestionType`, `QuizType`, `NavigationMode`, `EventType`: Enum definitions
 - `TestFormat`, `QuizLanguage`: Additional enums
 
@@ -439,14 +439,14 @@ Question-set-level marking_scheme
 ### Prerequisites
 
 1. MongoDB 6.0 installed locally
-2. Python 3.9
+2. Python 3.12
 3. Virtual environment
 
 ### Setup
 
 ```bash
-# Create and activate virtual environment
-virtualenv venv
+# Create and activate virtual environment (Python 3.12 required)
+python3.12 -m venv venv
 source venv/bin/activate
 
 # Install dependencies
