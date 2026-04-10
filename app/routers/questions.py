@@ -1,5 +1,5 @@
 from fastapi import APIRouter, status, HTTPException, Query
-from database import client
+from database import get_quiz_db
 from models import QuestionResponse
 from logger_config import get_logger
 
@@ -18,7 +18,8 @@ def _hide_answers_in_place(question: dict) -> None:
 @router.get("/{question_id}", response_model=QuestionResponse)
 async def get_question(question_id: str, include_answers: bool = Query(False)):
     logger.info(f"Fetching question with ID: {question_id}")
-    if (question := client.quiz.questions.find_one({"_id": question_id})) is not None:
+    db = get_quiz_db()
+    if (question := db.questions.find_one({"_id": question_id})) is not None:
         logger.info(f"Found question with ID: {question_id}")
         if not include_answers:
             _hide_answers_in_place(question)
@@ -52,7 +53,8 @@ async def get_questions(
     if limit:
         pipeline.append({"$limit": limit})
 
-    if (questions := list(client.quiz.questions.aggregate(pipeline))) is not None:
+    db = get_quiz_db()
+    if (questions := list(db.questions.aggregate(pipeline))) is not None:
         logger.info(
             f"Found {len(questions)} questions with question_set_id: {question_set_id}"
         )

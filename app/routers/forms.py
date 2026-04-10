@@ -1,5 +1,5 @@
 from fastapi import APIRouter, status, HTTPException, Query
-from database import client
+from database import get_quiz_db
 from models import GetQuizResponse
 from schemas import QuizType
 from settings import Settings
@@ -21,9 +21,9 @@ async def get_form(
     logger.info(
         f"Starting to get form: {form_id} with omr_mode={omr_mode}, single_page_mode={single_page_mode}"
     )
-    quiz_collection = client.quiz.quizzes
+    db = get_quiz_db()
 
-    if (quiz := quiz_collection.find_one({"_id": form_id})) is None:
+    if (quiz := db.quizzes.find_one({"_id": form_id})) is None:
         logger.warning(f"Requested form {form_id} not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"form {form_id} not found"
@@ -51,9 +51,9 @@ async def get_form(
         # Fetch all questions with full details for each question set
         for question_set_index, question_set in enumerate(quiz["question_sets"]):
             all_questions = list(
-                client.quiz.questions.find(
-                    {"question_set_id": question_set["_id"]}
-                ).sort("_id", 1)
+                db.questions.find({"question_set_id": question_set["_id"]}).sort(
+                    "_id", 1
+                )
             )
             quiz["question_sets"][question_set_index]["questions"] = all_questions
         logger.info(f"Finished fetching all questions for single page mode: {form_id}")
@@ -81,7 +81,7 @@ async def get_form(
         # count number of options for each question in a qset id
         # group them together into an optionsArray
         options_count_across_sets = list(
-            client.quiz.questions.aggregate(
+            db.questions.aggregate(
                 [
                     {"$match": {"question_set_id": {"$in": question_set_ids}}},
                     {"$sort": {"_id": 1}},  # sort questions based on question_id

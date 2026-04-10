@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status, HTTPException
 from fastapi.responses import JSONResponse
 from settings import Settings
-from database import client
+from database import get_quiz_db
 from models import Organization, OrganizationResponse
 import secrets
 import string
@@ -29,9 +29,10 @@ async def create_organization(organization: Organization):
     logger.info(f"Generated API key: {key}")
 
     # check if API key exists
-    if (client.quiz.organization.find_one({"key": key})) is None:
+    db = get_quiz_db()
+    if (db.organization.find_one({"key": key})) is None:
         organization["key"] = key
-        new_organization = client.quiz.organization.insert_one(organization)
+        new_organization = db.organization.insert_one(organization)
         if new_organization.acknowledged:
             logger.info(f"Inserted new organization with API key: {key}")
         else:
@@ -40,7 +41,7 @@ async def create_organization(organization: Organization):
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to insert new organization",
             )
-        created_organization = client.quiz.organization.find_one(
+        created_organization = db.organization.find_one(
             {"_id": new_organization.inserted_id}
         )
 
@@ -59,8 +60,9 @@ async def create_organization(organization: Organization):
 @router.get("/authenticate/{api_key}", response_model=OrganizationResponse)
 async def check_auth_token(api_key: str):
     logger.info(f"Authenticating API key: {api_key}")
+    db = get_quiz_db()
     if (
-        org := client.quiz.organization.find_one(
+        org := db.organization.find_one(
             {"key": api_key},
         )
     ) is not None:

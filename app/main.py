@@ -10,7 +10,7 @@ from logger_config import setup_logger
 logger = setup_logger()
 
 # Initialize the database client before importing routers,
-# since routers bind database.client at import time.
+# so that get_quiz_db() is ready when requests arrive.
 init_db()
 
 from routers import (  # noqa: E402
