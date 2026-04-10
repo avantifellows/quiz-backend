@@ -3,7 +3,8 @@
 
 aws_region             = "ap-south-1"
 environment            = "testing"
-mongo_auth_credentials = "mongodb+srv://USER:PASS@cluster.mongodb.net/quiz-staging?retryWrites=true&w=majority"
+mongo_auth_credentials = "mongodb+srv://USER:PASS@cluster.mongodb.net/?retryWrites=true&w=majority"
+mongo_db_name          = "quiz"
 
 # ECS Configuration
 desired_count = 1
