@@ -1,20 +1,27 @@
 import unittest
 import json
 from fastapi.testclient import TestClient
-from main import app
-from database import client as mongo_client
+from database import get_quiz_db
 from routers import quizzes, sessions, organizations
 
 
 class BaseTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.client = TestClient(app)
+        from main import create_app
+
+        app = create_app()
+        cls._test_client_ctx = TestClient(app)
+        cls.client = cls._test_client_ctx.__enter__()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._test_client_ctx.__exit__(None, None, None)
 
     def setUp(self):
-        # Drop all collections in the quiz database before each test
+        # Drop all collections in the test database before each test
         # to ensure test isolation
-        db = mongo_client.quiz
+        db = get_quiz_db()
         for collection_name in db.list_collection_names():
             db.drop_collection(collection_name)
         # Set up for organizations

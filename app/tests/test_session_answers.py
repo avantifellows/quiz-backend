@@ -2,7 +2,7 @@ import json
 from unittest.mock import patch
 from bson import ObjectId
 from pymongo.collection import Collection
-from database import client as db_client
+from database import get_quiz_db
 from .base import SessionsBaseTestCase
 from routers import session_answers
 
@@ -226,8 +226,6 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
 
     def test_batch_update_exact_length_does_not_extend_array(self):
         """Position == len(session_answers) must not silently extend the array."""
-        from database import client
-
         exact_length = len(self.session_answers)
         response = self.client.patch(
             f"{session_answers.router.prefix}/{self.session_id}/update-multiple-answers",
@@ -236,7 +234,7 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
         assert response.status_code == 400
 
         # Verify array was not extended
-        session = client.quiz.sessions.find_one({"_id": self.session_id})
+        session = get_quiz_db().sessions.find_one({"_id": self.session_id})
         assert len(session["session_answers"]) == exact_length
 
     # --- US-005: Malformed session_answers test coverage ---
@@ -244,10 +242,10 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
     def test_batch_update_missing_session_answers_field_returns_404(self):
         """Session document with no session_answers field returns 404."""
         doc_id = str(ObjectId())
-        db_client.quiz.sessions.insert_one(
+        get_quiz_db().sessions.insert_one(
             {"_id": doc_id, "user_id": "test_user", "quiz_id": "test_quiz"}
         )
-        self.addCleanup(lambda: db_client.quiz.sessions.delete_one({"_id": doc_id}))
+        self.addCleanup(lambda: get_quiz_db().sessions.delete_one({"_id": doc_id}))
 
         response = self.client.patch(
             f"{session_answers.router.prefix}/{doc_id}/update-multiple-answers",
@@ -259,7 +257,7 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
     def test_batch_update_null_session_answers_returns_404(self):
         """Session document with session_answers: None returns 404."""
         doc_id = str(ObjectId())
-        db_client.quiz.sessions.insert_one(
+        get_quiz_db().sessions.insert_one(
             {
                 "_id": doc_id,
                 "user_id": "test_user",
@@ -267,7 +265,7 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
                 "session_answers": None,
             }
         )
-        self.addCleanup(lambda: db_client.quiz.sessions.delete_one({"_id": doc_id}))
+        self.addCleanup(lambda: get_quiz_db().sessions.delete_one({"_id": doc_id}))
 
         response = self.client.patch(
             f"{session_answers.router.prefix}/{doc_id}/update-multiple-answers",
@@ -279,7 +277,7 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
     def test_batch_update_non_array_session_answers_returns_404(self):
         """Session document with non-array session_answers (e.g., 'corrupted') returns 404."""
         doc_id = str(ObjectId())
-        db_client.quiz.sessions.insert_one(
+        get_quiz_db().sessions.insert_one(
             {
                 "_id": doc_id,
                 "user_id": "test_user",
@@ -287,7 +285,7 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
                 "session_answers": "corrupted",
             }
         )
-        self.addCleanup(lambda: db_client.quiz.sessions.delete_one({"_id": doc_id}))
+        self.addCleanup(lambda: get_quiz_db().sessions.delete_one({"_id": doc_id}))
 
         response = self.client.patch(
             f"{session_answers.router.prefix}/{doc_id}/update-multiple-answers",
@@ -371,7 +369,7 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
         # Create a minimal session via direct insert (bypasses BaseTestCase setup
         # to avoid unrelated DB calls that would confuse spy assertions)
         doc_id = str(ObjectId())
-        db_client.quiz.sessions.insert_one(
+        get_quiz_db().sessions.insert_one(
             {
                 "_id": doc_id,
                 "user_id": "spy_test_user",
@@ -381,7 +379,7 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
                 ],
             }
         )
-        self.addCleanup(lambda: db_client.quiz.sessions.delete_one({"_id": doc_id}))
+        self.addCleanup(lambda: get_quiz_db().sessions.delete_one({"_id": doc_id}))
 
         # Patch at CLASS level — pymongo Database.__getitem__ returns a NEW
         # Collection object on every access, so instance-level patching would

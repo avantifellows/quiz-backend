@@ -6,7 +6,7 @@ from schemas import EventType
 from datetime import datetime, timedelta
 import time
 from settings import Settings
-from database import client as mongo_client
+from database import get_quiz_db
 
 
 settings = Settings()
@@ -102,7 +102,7 @@ class SessionsTestCase(SessionsBaseTestCase):
         future_end = (datetime.utcnow() + timedelta(hours=1)).strftime(
             "%Y-%m-%d %I:%M:%S %p"
         )
-        mongo_client.quiz.quizzes.update_one(
+        get_quiz_db().quizzes.update_one(
             {"_id": quiz_id},
             {
                 "$set": {
@@ -134,7 +134,7 @@ class SessionsTestCase(SessionsBaseTestCase):
         past_end = (datetime.utcnow() - timedelta(hours=1)).strftime(
             "%Y-%m-%d %I:%M:%S %p"
         )
-        mongo_client.quiz.quizzes.update_one(
+        get_quiz_db().quizzes.update_one(
             {"_id": quiz_id},
             {"$set": {"metadata.session_end_time": past_end}},
         )
@@ -168,7 +168,7 @@ class SessionsTestCase(SessionsBaseTestCase):
 
         # Cross-check with the source question document (direct DB, because /questions is sanitized in Phase 3)
         question_id = self.homework_session["session_answers"][0]["question_id"]
-        q = mongo_client.quiz.questions.find_one({"_id": question_id})
+        q = get_quiz_db().questions.find_one({"_id": question_id})
         assert reveal_payload["correct_answer"] == (q or {}).get("correct_answer")
 
     def test_reveal_endpoint_blocks_non_homework_quiz(self):
@@ -701,7 +701,7 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert r.status_code == 200
 
         past = datetime.utcnow() - timedelta(seconds=100)
-        mongo_client.quiz.sessions.update_one(
+        get_quiz_db().sessions.update_one(
             {"_id": sid},
             {"$set": {"events.0.created_at": past, "events.0.updated_at": past}},
         )

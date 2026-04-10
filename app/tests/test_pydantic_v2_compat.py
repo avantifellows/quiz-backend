@@ -15,7 +15,7 @@ import json
 from bson import ObjectId
 from .base import BaseTestCase, SessionsBaseTestCase
 from routers import quizzes, sessions, session_answers, questions, forms
-from database import client as mongo_client
+from database import get_quiz_db
 from settings import Settings
 
 settings = Settings()
@@ -201,7 +201,7 @@ class SessionUserIdCoercionTestCase(BaseTestCase):
         session_id = r.json()["_id"]
 
         # Verify directly in DB
-        db_session = mongo_client.quiz.sessions.find_one({"_id": session_id})
+        db_session = get_quiz_db().sessions.find_one({"_id": session_id})
         assert db_session is not None
         assert db_session["user_id"] == "456"
         assert isinstance(db_session["user_id"], str)
@@ -428,10 +428,10 @@ class BackwardsCompatibilityTestCase(BaseTestCase):
             "metadata": {"quiz_type": "assessment"},
         }
         # Insert questions and quiz directly
-        mongo_client.quiz.questions.insert_many(
+        get_quiz_db().questions.insert_many(
             legacy_quiz["question_sets"][0]["questions"]
         )
-        mongo_client.quiz.quizzes.insert_one(legacy_quiz)
+        get_quiz_db().quizzes.insert_one(legacy_quiz)
 
         # GET /quiz should trigger backwards compatibility backfill
         r = self.client.get(f"{quizzes.router.prefix}/{quiz_id}")
@@ -478,10 +478,10 @@ class BackwardsCompatibilityTestCase(BaseTestCase):
             "num_graded_questions": 1,
             "metadata": {"quiz_type": "assessment"},
         }
-        mongo_client.quiz.questions.insert_many(
+        get_quiz_db().questions.insert_many(
             legacy_quiz["question_sets"][0]["questions"]
         )
-        mongo_client.quiz.quizzes.insert_one(legacy_quiz)
+        get_quiz_db().quizzes.insert_one(legacy_quiz)
 
         r = self.client.get(f"{quizzes.router.prefix}/{quiz_id}")
         assert r.status_code == 200
