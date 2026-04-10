@@ -27,9 +27,9 @@ COMPRESS_MIN_THRESHOLD = 1000  # if more than 1000 bytes (~1KB), compress
 async def lifespan(app):
     init_db()
     # Verify connectivity — fail fast on bad credentials/DNS/network
-    database._client.admin.command("ping")
+    await database._client.admin.command("ping")
     yield
-    close_db()
+    await close_db()
 
 
 def create_app():

@@ -1,8 +1,7 @@
-from pymongo import MongoClient
+from pymongo import AsyncMongoClient
 from settings import get_mongo_settings
 
 _client = None
-client = None  # Backwards compat for routers; use get_quiz_db() in new code.
 
 
 def get_configured_db_name():
@@ -10,10 +9,10 @@ def get_configured_db_name():
 
 
 def init_db():
-    global _client, client
+    global _client
     if _client is None:
         mongo_settings = get_mongo_settings()
-        _client = MongoClient(
+        _client = AsyncMongoClient(
             mongo_settings.mongo_auth_credentials,
             # Connection Pool Settings
             maxPoolSize=mongo_settings.mongo_max_pool_size,
@@ -26,7 +25,6 @@ def init_db():
             retryWrites=True,
             retryReads=True,
         )
-        client = _client
 
 
 def get_quiz_db():
@@ -35,9 +33,8 @@ def get_quiz_db():
     return _client[get_configured_db_name()]
 
 
-def close_db():
-    global _client, client
+async def close_db():
+    global _client
     if _client is not None:
-        _client.close()
+        await _client.close()
         _client = None
-        client = None
