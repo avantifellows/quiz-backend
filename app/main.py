@@ -1,13 +1,26 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from routers import questions, quizzes, session_answers, sessions, organizations, forms
+from database import init_db
 import random
 import string
 import time
 from logger_config import setup_logger
 
 logger = setup_logger()
+
+# Initialize the database client before importing routers,
+# since routers bind database.client at import time.
+init_db()
+
+from routers import (  # noqa: E402
+    questions,
+    quizzes,
+    session_answers,
+    sessions,
+    organizations,
+    forms,
+)
 
 COMPRESS_MIN_THRESHOLD = 1000  # if more than 1000 bytes (~1KB), compress
 
