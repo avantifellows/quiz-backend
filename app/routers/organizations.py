@@ -30,9 +30,9 @@ async def create_organization(organization: Organization):
 
     # check if API key exists
     db = get_quiz_db()
-    if (db.organization.find_one({"key": key})) is None:
+    if (await db.organization.find_one({"key": key})) is None:
         organization["key"] = key
-        new_organization = db.organization.insert_one(organization)
+        new_organization = await db.organization.insert_one(organization)
         if new_organization.acknowledged:
             logger.info(f"Inserted new organization with API key: {key}")
         else:
@@ -41,7 +41,7 @@ async def create_organization(organization: Organization):
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to insert new organization",
             )
-        created_organization = db.organization.find_one(
+        created_organization = await db.organization.find_one(
             {"_id": new_organization.inserted_id}
         )
 
@@ -62,7 +62,7 @@ async def check_auth_token(api_key: str):
     logger.info(f"Authenticating API key: {api_key}")
     db = get_quiz_db()
     if (
-        org := db.organization.find_one(
+        org := await db.organization.find_one(
             {"key": api_key},
         )
     ) is not None:

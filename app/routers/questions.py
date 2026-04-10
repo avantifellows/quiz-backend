@@ -19,7 +19,7 @@ def _hide_answers_in_place(question: dict) -> None:
 async def get_question(question_id: str, include_answers: bool = Query(False)):
     logger.info(f"Fetching question with ID: {question_id}")
     db = get_quiz_db()
-    if (question := db.questions.find_one({"_id": question_id})) is not None:
+    if (question := await db.questions.find_one({"_id": question_id})) is not None:
         logger.info(f"Found question with ID: {question_id}")
         if not include_answers:
             _hide_answers_in_place(question)
@@ -54,7 +54,8 @@ async def get_questions(
         pipeline.append({"$limit": limit})
 
     db = get_quiz_db()
-    if (questions := list(db.questions.aggregate(pipeline))) is not None:
+    cursor = await db.questions.aggregate(pipeline)
+    if (questions := await cursor.to_list(length=None)) is not None:
         logger.info(
             f"Found {len(questions)} questions with question_set_id: {question_set_id}"
         )
