@@ -43,6 +43,7 @@ jobs:
       - name: Run Test Cases
         env:
           MONGO_AUTH_CREDENTIALS: mongodb://localhost:27017
+          MONGO_DB_NAME: quiz_test
         # command to run tests and generate coverage metrics
         run: |
           coverage run --rcfile=.coveragerc -m pytest

@@ -1,57 +1,95 @@
+import os
 import unittest
 import json
+from pathlib import Path
+
+from pymongo import MongoClient
 from fastapi.testclient import TestClient
-from main import app
-from database import client as mongo_client
 from routers import quizzes, sessions, organizations
+
+# Resolve fixture directory relative to this file so tests work regardless of CWD
+_DUMMY_DATA = Path(__file__).resolve().parent / "dummy_data"
+
+# Safe test database name — must never be "quiz" (the production DB)
+_TEST_DB_NAME = "quiz_test"
+
+
+def _guard_db_name(db_name: str) -> None:
+    """Refuse to operate if the effective DB name is the production DB."""
+    if db_name == "quiz":
+        raise RuntimeError(
+            "Refusing to run test cleanup against the production 'quiz' database. "
+            "Set MONGO_DB_NAME to a safe test database name."
+        )
 
 
 class BaseTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.client = TestClient(app)
+        # 1. Force a safe test DB name BEFORE any app imports that read settings
+        os.environ["MONGO_DB_NAME"] = _TEST_DB_NAME
+
+        # 2. Create a sync admin client for direct DB operations in tests
+        from settings import get_mongo_settings
+
+        mongo_settings = get_mongo_settings()
+        cls._admin_client = MongoClient(mongo_settings.mongo_auth_credentials)
+        cls._admin_db = cls._admin_client[_TEST_DB_NAME]
+
+        # 3. Import and construct the app (triggers lifespan on TestClient enter)
+        from main import create_app
+
+        app = create_app()
+        cls._test_client_ctx = TestClient(app)
+        cls.client = cls._test_client_ctx.__enter__()
+
+    @classmethod
+    def tearDownClass(cls):
+        # Exit TestClient context — triggers lifespan shutdown (close_db)
+        cls._test_client_ctx.__exit__(None, None, None)
+        # Close the sync admin client
+        cls._admin_client.close()
+
+    @property
+    def db(self):
+        """Sync admin database handle for direct DB operations in tests."""
+        return self.__class__._admin_db
 
     def setUp(self):
-        # Drop all collections in the quiz database before each test
-        # to ensure test isolation
-        db = mongo_client.quiz
-        for collection_name in db.list_collection_names():
-            db.drop_collection(collection_name)
+        _guard_db_name(_TEST_DB_NAME)
+        # Drop all collections in the test database before each test
+        for collection_name in self.db.list_collection_names():
+            self.db.drop_collection(collection_name)
+
         # Set up for organizations
-        self.organization_data = json.load(
-            open("app/tests/dummy_data/organization.json")
-        )
+        self.organization_data = json.load(open(_DUMMY_DATA / "organization.json"))
         self.organization_api_key, self.organization = self.post_and_get_organization(
             self.organization_data
         )
 
         # short homework quiz
         self.short_homework_quiz_data = json.load(
-            open("app/tests/dummy_data/short_homework_quiz.json")
+            open(_DUMMY_DATA / "short_homework_quiz.json")
         )
         self.short_homework_quiz_id, self.short_homework_quiz = self.post_and_get_quiz(
             self.short_homework_quiz_data
         )
 
         # homework quiz
-        self.homework_quiz_data = json.load(
-            open("app/tests/dummy_data/homework_quiz.json")
-        )
+        self.homework_quiz_data = json.load(open(_DUMMY_DATA / "homework_quiz.json"))
         self.homework_quiz_id, self.homework_quiz = self.post_and_get_quiz(
             self.homework_quiz_data
         )
 
         # timed quiz
-        self.timed_quiz_data = json.load(
-            open("app/tests/dummy_data/assessment_timed.json")
-        )
+        self.timed_quiz_data = json.load(open(_DUMMY_DATA / "assessment_timed.json"))
         self.timed_quiz_id, self.timed_quiz = self.post_and_get_quiz(
             self.timed_quiz_data
         )
 
         # assessment quiz with multiple question sets
         self.multi_qset_quiz_data = json.load(
-            open("app/tests/dummy_data/multiple_question_set_quiz.json")
+            open(_DUMMY_DATA / "multiple_question_set_quiz.json")
         )
         self.multi_qset_quiz_id, self.multi_qset_quiz = self.post_and_get_quiz(
             self.multi_qset_quiz_data
@@ -59,7 +97,7 @@ class BaseTestCase(unittest.TestCase):
 
         # omr quiz with multiple question sets (same content as above)
         self.multi_qset_omr_data = json.load(
-            open("app/tests/dummy_data/multiple_question_set_omr_quiz.json")
+            open(_DUMMY_DATA / "multiple_question_set_omr_quiz.json")
         )
         self.multi_qset_omr_id, self.multi_qset_omr = self.post_and_get_quiz(
             self.multi_qset_omr_data
@@ -67,7 +105,7 @@ class BaseTestCase(unittest.TestCase):
 
         # quiz with partial marking
         self.partial_mark_data = json.load(
-            open("app/tests/dummy_data/partial_marking_assessment.json")
+            open(_DUMMY_DATA / "partial_marking_assessment.json")
         )
         self.partial_mark_quiz_id, self.partial_mark_quiz = self.post_and_get_quiz(
             self.partial_mark_data
@@ -75,11 +113,17 @@ class BaseTestCase(unittest.TestCase):
 
         # quiz with matrix matching
         self.matrix_match_data = json.load(
-            open("app/tests/dummy_data/matrix_matching_assessment.json")
+            open(_DUMMY_DATA / "matrix_matching_assessment.json")
         )
         self.matrix_match_quiz_id, self.matrix_match_quiz = self.post_and_get_quiz(
             self.matrix_match_data
         )
+
+    def tearDown(self):
+        _guard_db_name(_TEST_DB_NAME)
+        # Clear test database after each test for isolation
+        for collection_name in self.db.list_collection_names():
+            self.db.drop_collection(collection_name)
 
     def post_and_get_quiz(self, quiz_data):
         """helper function to add quiz to db and retrieve it"""

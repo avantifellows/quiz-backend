@@ -1,8 +1,7 @@
 import json
 from .base import BaseTestCase
-from ..routers import quizzes, questions
+from routers import quizzes, questions
 from settings import Settings
-from ..database import client as mongo_client
 
 settings = Settings()
 
@@ -244,14 +243,14 @@ class QuizTestCase(BaseTestCase):
     def test_get_quiz_include_answers_respects_display_solution_false(self):
         # Update the embedded (bucketed) quiz payload so we can verify the endpoint clears it.
         embedded_q_id = self.multi_qset_quiz["question_sets"][0]["questions"][0]["_id"]
-        mongo_client.quiz.quizzes.update_one(
+        self.db.quizzes.update_one(
             {
                 "_id": self.multi_qset_quiz_id,
                 "question_sets._id": self.multi_qset_quiz["question_sets"][0]["_id"],
             },
             {"$set": {"question_sets.0.questions.0.solution": ["example-solution"]}},
         )
-        mongo_client.quiz.quizzes.update_one(
+        self.db.quizzes.update_one(
             {"_id": self.multi_qset_quiz_id},
             {"$set": {"display_solution": False}},
         )
@@ -334,15 +333,15 @@ class QuizTestCase(BaseTestCase):
     def test_single_page_mode_clears_solutions_when_display_solution_false(self):
         # Ensure at least one question has a non-empty solution in the questions collection
         qset_id = self.multi_qset_quiz["question_sets"][0]["_id"]
-        q = mongo_client.quiz.questions.find_one({"question_set_id": qset_id})
+        q = self.db.questions.find_one({"question_set_id": qset_id})
         assert q is not None
-        mongo_client.quiz.questions.update_one(
+        self.db.questions.update_one(
             {"_id": q["_id"]},
             {"$set": {"solution": ["example-solution"]}},
         )
 
         # Set quiz policy to hide solutions
-        mongo_client.quiz.quizzes.update_one(
+        self.db.quizzes.update_one(
             {"_id": self.multi_qset_quiz_id},
             {"$set": {"display_solution": False}},
         )

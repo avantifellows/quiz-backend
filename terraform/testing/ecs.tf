@@ -55,6 +55,10 @@ resource "aws_ecs_task_definition" "quiz_backend" {
         {
           name  = "MONGO_AUTH_CREDENTIALS"
           value = var.mongo_auth_credentials
+        },
+        {
+          name  = "MONGO_DB_NAME"
+          value = var.mongo_db_name
         }
       ]
 

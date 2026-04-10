@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-FastAPI-based REST API for a mobile-friendly quiz engine. Manages quizzes, questions, sessions, and user answers with support for various question types (single-choice, multi-choice, subjective, numerical, matrix-match). Built with Python 3.12, Pydantic v2, and PyMongo. Uses MongoDB. Deployed on ECS Fargate (testing/production).
+FastAPI-based REST API for a mobile-friendly quiz engine. Manages quizzes, questions, sessions, and user answers with support for various question types (single-choice, multi-choice, subjective, numerical, matrix-match). Built with Python 3.12, Pydantic v2, and PyMongo AsyncMongoClient (pymongo 4.16.0). Uses MongoDB. Deployed on ECS Fargate (testing/production).
 
 ## Common Commands
 
@@ -35,7 +35,8 @@ pre-commit run --all-files  # manual run
 - `app/routers/` - API route handlers (quizzes, questions, sessions, session_answers, organizations, forms)
 - `app/models.py` - Pydantic v2 request/response models (ConfigDict, model_validate, model_dump)
 - `app/schemas.py` - Enums (QuestionType, QuizType, NavigationMode) and custom types (PyObjectId with Pydantic v2 core schema)
-- `app/database.py` - MongoDB connection setup with connection pooling
+- `app/database.py` - MongoDB async connection (AsyncMongoClient) with `init_db()`, `close_db()`, `get_quiz_db()` accessor
+- `app/settings.py` - `Settings` (non-Mongo) and `MongoSettings` (Mongo-specific, lazy via `get_mongo_settings()`)
 - `app/scripts/` - Database migration scripts
 - `Dockerfile` - Container image (ARM64/Graviton, 4 Uvicorn workers)
 - `terraform/` - ECS Fargate infrastructure (testing + prod environments)
@@ -70,17 +71,46 @@ PATCH  /session_answers/{session_id}/update-multiple-answers
 ### Quiz Types
 `assessment`, `homework`, `omr` (OMR-assessment), `form`
 
+## App Architecture
+
+### App Factory & Lifespan
+- `main.py` uses `create_app()` factory with `lifespan` async context manager
+- Startup: `init_db()` + `await _client.admin.command("ping")` (fail-fast connectivity check)
+- Shutdown: `await close_db()` (closes AsyncMongoClient)
+- `app = create_app()` at module scope for `main:app` deployment entrypoint
+
+### Database Seam
+- `database.py` is side-effect free — no client creation at import time
+- All routers use `db = get_quiz_db()` inside each handler (not at module scope)
+- Async DB patterns: `await find_one()`, `await insert_one()`, `await update_one()`; `find()` returns AsyncCursor (no await), use `await cursor.to_list(length=None)`; `await aggregate()` returns AsyncCursor
+- `MongoSettings` in `settings.py` reads env vars lazily via `get_mongo_settings()` — never called at module scope
+
 ## Testing
 
 Tests use real MongoDB (local or CI service). `MONGO_AUTH_CREDENTIALS` must be set (app fails with RuntimeError if unset). Test fixtures in `app/tests/dummy_data/` (JSON files for various quiz types).
 
 Base test classes in `app/tests/base.py`:
-- `BaseTestCase` - sets up organizations and quiz types
+- `BaseTestCase` - sets up organizations and quiz types; uses sync `MongoClient` admin handle (`self.db`) for direct DB ops
 - `SessionsBaseTestCase` - extends with session data
+- Test harness forces `MONGO_DB_NAME=quiz_test` before app construction; `_guard_db_name()` refuses cleanup if DB is `quiz`
+- `TestClient` used as context manager so lifespan startup/shutdown runs
+- Test files use `self.db` (sync) for direct DB assertions — never `get_quiz_db()` (async)
+- Fixture paths use `Path(__file__).resolve().parent / "dummy_data"` — no CWD assumption
+
+### Running Tests
+```bash
+# Set env vars first (database.py does not load .env automatically)
+export MONGO_AUTH_CREDENTIALS='mongodb://127.0.0.1:27017'
+pytest                                    # all tests
+pytest app/tests/test_quizzes.py          # single file
+# Or with .env file (note: use set -a if .env has special chars like &)
+set -a; source .env; set +a; pytest
+```
 
 ## Environment Variables
 
 Required: `MONGO_AUTH_CREDENTIALS` - MongoDB connection URI
+Optional: `MONGO_DB_NAME` (default: `quiz`), `MONGO_MAX_POOL_SIZE` (default: 20), `MONGO_MIN_POOL_SIZE` (default: 5)
 
 Copy `.env.example` to `.env` for local development.
 

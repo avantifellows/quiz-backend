@@ -16,6 +16,11 @@ variable "mongo_auth_credentials" {
   sensitive   = true
 }
 
+variable "mongo_db_name" {
+  description = "MongoDB database name"
+  type        = string
+}
+
 variable "app_port" {
   description = "Port the application runs on"
   type        = number

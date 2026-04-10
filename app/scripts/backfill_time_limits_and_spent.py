@@ -20,7 +20,7 @@ import time
 from datetime import datetime, timedelta
 from typing import Optional
 
-from pymongo import UpdateOne
+from pymongo import MongoClient, UpdateOne
 from bson import ObjectId
 
 import sys
@@ -29,7 +29,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
     sys.path.append(ROOT)
 
-from database import client  # noqa: E402
+from settings import get_mongo_settings  # noqa: E402
 from schemas import EventType  # noqa: E402
 
 
@@ -106,7 +106,9 @@ def compute_time_spent_from_events(
 
 
 def main():
-    db = client.quiz
+    mongo_settings = get_mongo_settings()
+    local_client = MongoClient(mongo_settings.mongo_auth_credentials)
+    db = local_client[mongo_settings.mongo_db_name]
     sessions = db.sessions
     quizzes = db.quizzes
 

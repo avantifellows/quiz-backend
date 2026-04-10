@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
-from database import client
+from database import get_quiz_db
 from models import UpdateSessionAnswer
 from utils import remove_optional_unset_args
 from logger_config import get_logger
@@ -71,6 +71,7 @@ async def update_session_answers_at_specific_positions(
             )
 
     # Lightweight DB read: fetch only metadata instead of full session document
+    db = get_quiz_db()
     pipeline = [
         {"$match": {"_id": session_id}},
         {
@@ -89,7 +90,8 @@ async def update_session_answers_at_specific_positions(
             }
         },
     ]
-    result = list(client.quiz.sessions.aggregate(pipeline))
+    cursor = await db.sessions.aggregate(pipeline)
+    result = await cursor.to_list(length=None)
     if len(result) == 0:
         session_id_error_message = f"Received multiple session_answer update request, but provided session with id {session_id} not found"
         logger.error(session_id_error_message)
@@ -134,7 +136,7 @@ async def update_session_answers_at_specific_positions(
 
     # bump session-level updated_at whenever any answer changes
     setQuery["updated_at"] = datetime.utcnow()
-    result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
+    result = await db.sessions.update_one({"_id": session_id}, {"$set": setQuery})
     if result.modified_count == 0:
         error_message = f"Failed to update multiple session answers for session: {session_id} (user: {user_id} and quiz: {quiz_id})"
         logger.error(error_message)
@@ -184,7 +186,8 @@ async def update_session_answer_in_a_session(
     session_answer = jsonable_encoder(session_answer)
 
     # check if the session exists
-    session = client.quiz.sessions.find_one({"_id": session_id})
+    db = get_quiz_db()
+    session = await db.sessions.find_one({"_id": session_id})
     if session is None:
         logger.error(
             f"Received session_answer update request, but provided session with id {session_id} not found"
@@ -228,7 +231,7 @@ async def update_session_answer_in_a_session(
     # update the document in the session_answers collection
     # bump session-level updated_at whenever any answer changes
     setQuery["updated_at"] = datetime.utcnow()
-    result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
+    result = await db.sessions.update_one({"_id": session_id}, {"$set": setQuery})
     if result.modified_count == 0:
         logger.error(
             f"Failed to update session answer for session: {session_id} (user: {user_id} and quiz: {quiz_id}), position: {position_index}"
@@ -249,6 +252,7 @@ async def get_session_answer_from_a_session(session_id: str, position_index: int
     logger.info(
         f"Getting session answer for session: {session_id}, position: {position_index}"
     )
+    db = get_quiz_db()
     pipeline = [
         {
             "$match": {  # match the session with the provided session_id
@@ -264,7 +268,8 @@ async def get_session_answer_from_a_session(session_id: str, position_index: int
             }
         },
     ]
-    aggregation_result = list(client.quiz.sessions.aggregate(pipeline))
+    cursor = await db.sessions.aggregate(pipeline)
+    aggregation_result = await cursor.to_list(length=None)
     if len(aggregation_result) == 0:
         logger.error(
             f"Either session_id {session_id} is wrong or position_index {position_index} is out of bounds"
