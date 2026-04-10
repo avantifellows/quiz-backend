@@ -1,12 +1,12 @@
 import json
 import pytest
 from .base import SessionsBaseTestCase
-from ..routers import quizzes, sessions, session_answers
-from ..schemas import EventType
+from routers import quizzes, sessions, session_answers
+from schemas import EventType
 from datetime import datetime, timedelta
 import time
 from settings import Settings
-from ..database import client as mongo_client
+from database import client as mongo_client
 
 
 settings = Settings()

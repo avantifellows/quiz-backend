@@ -1,8 +1,8 @@
 import json
 from .base import BaseTestCase
-from ..routers import quizzes, questions
+from routers import quizzes, questions
 from settings import Settings
-from ..database import client as mongo_client
+from database import client as mongo_client
 
 settings = Settings()
 

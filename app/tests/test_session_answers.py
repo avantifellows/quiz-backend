@@ -4,7 +4,7 @@ from bson import ObjectId
 from pymongo.collection import Collection
 from database import client as db_client
 from .base import SessionsBaseTestCase
-from ..routers import session_answers
+from routers import session_answers
 
 
 class SessionAnswerTestCase(SessionsBaseTestCase):

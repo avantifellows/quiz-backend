@@ -1,8 +1,8 @@
 import unittest
 from bson import ObjectId
 from fastapi.encoders import jsonable_encoder
-from ..models import Organization, QuestionSet
-from ..main import app
+from models import Organization, QuestionSet
+from main import app
 
 
 class PyObjectIdValidationTestCase(unittest.TestCase):

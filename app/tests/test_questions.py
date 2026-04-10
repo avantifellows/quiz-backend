@@ -1,5 +1,5 @@
 from .base import BaseTestCase
-from ..routers import questions
+from routers import questions
 from settings import Settings
 
 settings = Settings()

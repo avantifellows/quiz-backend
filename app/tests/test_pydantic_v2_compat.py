@@ -14,8 +14,8 @@ Proves the v1-to-v2 migration preserves all API contracts:
 import json
 from bson import ObjectId
 from .base import BaseTestCase, SessionsBaseTestCase
-from ..routers import quizzes, sessions, session_answers, questions, forms
-from ..database import client as mongo_client
+from routers import quizzes, sessions, session_answers, questions, forms
+from database import client as mongo_client
 from settings import Settings
 
 settings = Settings()
