@@ -59,6 +59,22 @@ resource "aws_ecs_task_definition" "quiz_backend" {
         {
           name  = "MONGO_DB_NAME"
           value = var.mongo_db_name
+        },
+        {
+          name  = "CACHE_ENABLED"
+          value = "false"
+        },
+        {
+          name  = "REDIS_URL"
+          value = "redis://localhost:6379/0"
+        },
+        {
+          name  = "REDIS_MAX_CONNECTIONS"
+          value = "10"
+        },
+        {
+          name  = "CACHE_NAMESPACE"
+          value = "v1"
         }
       ]
 
@@ -77,6 +93,40 @@ resource "aws_ecs_task_definition" "quiz_backend" {
         timeout     = 5
         retries     = 3
         startPeriod = 60
+      }
+    },
+    {
+      name      = "redis"
+      image     = "redis:7.2.5-alpine"
+      essential = false
+
+      portMappings = [
+        {
+          containerPort = 6379
+          protocol      = "tcp"
+        }
+      ]
+
+      memory            = 128
+      memoryReservation = 64
+
+      command = ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+
+      healthCheck = {
+        command     = ["CMD", "redis-cli", "ping"]
+        interval    = 30
+        timeout     = 5
+        retries     = 3
+        startPeriod = 10
+      }
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.quiz_backend.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "redis"
+        }
       }
     }
   ])
