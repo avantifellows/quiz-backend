@@ -27,4 +27,4 @@ class OrganizationsTestCase(BaseTestCase):
         response = self.client.get("/organizations/authenticate/invalid_key")
         assert response.status_code == status.HTTP_404_NOT_FOUND
         response = response.json()
-        assert response["detail"] == "org with key invalid_key not found"
+        assert response["detail"] == "organization not found"

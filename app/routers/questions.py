@@ -1,7 +1,10 @@
+from copy import deepcopy
+
 from fastapi import APIRouter, status, HTTPException, Query
 from database import get_quiz_db
 from models import QuestionResponse
 from logger_config import get_logger
+from cache import cache_get, cache_set, cache_key
 
 router = APIRouter(prefix="/questions", tags=["Questions"])
 logger = get_logger()
@@ -18,18 +21,25 @@ def _hide_answers_in_place(question: dict) -> None:
 @router.get("/{question_id}", response_model=QuestionResponse)
 async def get_question(question_id: str, include_answers: bool = Query(False)):
     logger.info(f"Fetching question with ID: {question_id}")
-    db = get_quiz_db()
-    if (question := await db.questions.find_one({"_id": question_id})) is not None:
-        logger.info(f"Found question with ID: {question_id}")
-        if not include_answers:
-            _hide_answers_in_place(question)
-        return question
 
-    logger.error(f"Question {question_id} not found")
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Question {question_id} not found",
-    )
+    key = cache_key("question", question_id)
+    question = await cache_get(key)
+    if question is None:
+        db = get_quiz_db()
+        question = await db.questions.find_one({"_id": question_id})
+        if question is None:
+            logger.error(f"Question {question_id} not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Question {question_id} not found",
+            )
+        await cache_set(key, question, ttl_seconds=3600)
+
+    logger.info(f"Found question with ID: {question_id}")
+    question = deepcopy(question)
+    if not include_answers:
+        _hide_answers_in_place(question)
+    return question
 
 
 @router.get("/")
@@ -42,33 +52,34 @@ async def get_questions(
     logger.info(
         f"Fetching questions with question_set_id: {question_set_id} with skip: {skip} and limit: {limit}"
     )
-    pipeline = [
-        {"$match": {"question_set_id": question_set_id}},
-        {"$sort": {"_id": 1}},
-    ]
 
-    if skip:
-        pipeline.append({"$skip": skip})
+    normalized_skip = str(skip if skip else 0)
+    normalized_limit = str(limit if limit else "all")
+    key = cache_key("questions", "qset", question_set_id, "skip", normalized_skip, "limit", normalized_limit)
+    questions = await cache_get(key)
 
-    if limit:
-        pipeline.append({"$limit": limit})
+    if questions is None:
+        pipeline = [
+            {"$match": {"question_set_id": question_set_id}},
+            {"$sort": {"_id": 1}},
+        ]
 
-    db = get_quiz_db()
-    cursor = await db.questions.aggregate(pipeline)
-    if (questions := await cursor.to_list(length=None)) is not None:
-        logger.info(
-            f"Found {len(questions)} questions with question_set_id: {question_set_id}"
-        )
-        if not include_answers:
-            for q in questions:
-                _hide_answers_in_place(q)
-        return questions
+        if skip:
+            pipeline.append({"$skip": skip})
 
-    error_message = (
-        f"No questions found belonging to question_set_id: {question_set_id}"
+        if limit:
+            pipeline.append({"$limit": limit})
+
+        db = get_quiz_db()
+        cursor = await db.questions.aggregate(pipeline)
+        questions = await cursor.to_list(length=None)
+        await cache_set(key, questions, ttl_seconds=3600)
+
+    logger.info(
+        f"Found {len(questions)} questions with question_set_id: {question_set_id}"
     )
-    logger.error(error_message)
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=error_message,
-    )
+    questions = deepcopy(questions)
+    if not include_answers:
+        for q in questions:
+            _hide_answers_in_place(q)
+    return questions
