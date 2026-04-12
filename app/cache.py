@@ -4,6 +4,8 @@ import redis.asyncio as redis
 from fastapi.encoders import jsonable_encoder
 from logger_config import get_logger
 from settings import get_cache_settings
+from database import get_quiz_db
+from services.quiz_fixups import apply_quiz_backwards_compatibility_fixup
 
 logger = get_logger()
 
@@ -181,3 +183,25 @@ async def cache_set(key: str, value, ttl_seconds: int = 3600):
                 f"event=cache op=set result=error family={family} "
                 f"key_ref={key} error={type(e).__name__}"
             )
+
+
+async def get_cached_quiz(quiz_id: str) -> dict | None:
+    """Shared cached quiz loader. Returns the canonical quiz document or None if not found.
+
+    On cache miss: reads from MongoDB, runs backwards-compatibility fixup if needed,
+    caches the result with 1h TTL. Routes handle their own 404 responses.
+    If the fixup DB write-back fails, the HTTPException propagates (500) and the
+    quiz is not cached.
+    """
+    cached = await cache_get(cache_key("quiz", quiz_id))
+    if cached is not None:
+        return cached
+
+    db = get_quiz_db()
+    quiz = await db.quizzes.find_one({"_id": quiz_id})
+    if quiz is None:
+        return None
+
+    await apply_quiz_backwards_compatibility_fixup(quiz_id, quiz)
+    await cache_set(cache_key("quiz", quiz_id), quiz, ttl_seconds=3600)
+    return quiz
