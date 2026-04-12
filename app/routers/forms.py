@@ -1,8 +1,11 @@
+from copy import deepcopy
+
 from fastapi import APIRouter, status, HTTPException, Query
 from database import get_quiz_db
 from models import GetQuizResponse
 from schemas import QuizType
 from logger_config import get_logger
+from cache import get_cached_quiz, cache_get, cache_set, cache_key
 from services.omr import aggregate_and_apply_omr_options
 
 router = APIRouter(prefix="/form", tags=["Form"])
@@ -20,9 +23,9 @@ async def get_form(
     logger.info(
         f"Starting to get form: {form_id} with omr_mode={omr_mode}, single_page_mode={single_page_mode}"
     )
-    db = get_quiz_db()
 
-    if (quiz := await db.quizzes.find_one({"_id": form_id})) is None:
+    quiz = await get_cached_quiz(form_id)
+    if quiz is None:
         logger.warning(f"Requested form {form_id} not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"form {form_id} not found"
@@ -42,18 +45,27 @@ async def get_form(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"form {form_id} not found"
         )
 
+    quiz = deepcopy(quiz)
+
     # Handle single page mode with full text (non-OMR)
     if single_page_mode and not omr_mode:
         logger.info(
             f"Single page mode with full text enabled for form: {form_id}, fetching all questions"
         )
-        # Fetch all questions with full details for each question set
+        db = get_quiz_db()
         for question_set_index, question_set in enumerate(quiz["question_sets"]):
-            all_questions = (
-                await db.questions.find({"question_set_id": question_set["_id"]})
-                .sort("_id", 1)
-                .to_list(length=None)
-            )
+            qset_id = question_set["_id"]
+            qset_cache_key = cache_key("questions", "qset", qset_id)
+            cached_questions = await cache_get(qset_cache_key)
+            if cached_questions is not None:
+                all_questions = cached_questions
+            else:
+                all_questions = (
+                    await db.questions.find({"question_set_id": qset_id})
+                    .sort("_id", 1)
+                    .to_list(length=None)
+                )
+                await cache_set(qset_cache_key, all_questions, ttl_seconds=3600)
             quiz["question_sets"][question_set_index]["questions"] = all_questions
         logger.info(f"Finished fetching all questions for single page mode: {form_id}")
         return quiz
