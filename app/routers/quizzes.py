@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 from fastapi import APIRouter, status, HTTPException, Query
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
@@ -6,6 +8,8 @@ from models import Quiz, GetQuizResponse, CreateQuizResponse
 from settings import Settings
 from schemas import QuizType
 from logger_config import get_logger
+from cache import get_cached_quiz, cache_get, cache_set, cache_key
+from services.omr import aggregate_and_apply_omr_options
 
 router = APIRouter(prefix="/quiz", tags=["Quiz"])
 settings = Settings()
@@ -28,56 +32,6 @@ def _clear_solutions_in_place(quiz: dict) -> None:
     for question_set in quiz.get("question_sets") or []:
         for question in question_set.get("questions") or []:
             question["solution"] = []
-
-
-async def update_quiz_for_backwards_compatibility(quiz_id, quiz):
-    """
-    if given quiz contains question sets that do not have max_questions_allowed_to_attempt key,
-    update the question sets (in-place) with the key and value as len(questions) in that set.
-    Additionally, add a default title and marking scheme for the set.
-    Finally, update the quiz in the database.
-    (NOTE: this is a primitive form of versioning)
-    """
-    is_backwards_compatibile = True
-    for question_set_index, question_set in enumerate(quiz["question_sets"]):
-        if "max_questions_allowed_to_attempt" not in question_set:
-            is_backwards_compatibile = False
-            question_set["max_questions_allowed_to_attempt"] = len(
-                question_set["questions"]
-            )
-            question_set["title"] = "Section A"
-
-        if (
-            "marking_scheme" not in question_set
-            or question_set["marking_scheme"] is None
-        ):
-            is_backwards_compatibile = False
-            question_marking_scheme = question_set["questions"][0]["marking_scheme"]
-            if question_marking_scheme is not None:
-                question_set["marking_scheme"] = question_marking_scheme
-            else:
-                question_set["marking_scheme"] = {
-                    "correct": 1,
-                    "wrong": 0,
-                    "skipped": 0,
-                }  # default
-
-    if is_backwards_compatibile:
-        logger.info("Quiz is already backwards compatible")
-        return
-
-    logger.info("Starting update for backwards compatibility")
-    db = get_quiz_db()
-    update_result = await db.quizzes.update_one({"_id": quiz_id}, {"$set": quiz})
-
-    if not update_result.acknowledged:
-        logger.error("Failed to update quiz for backwards compatibility")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update quiz for backwards compatibility",
-        )
-
-    logger.info("Quiz updated for backwards compatibility")
 
 
 @router.post("/", response_model=CreateQuizResponse)
@@ -171,9 +125,9 @@ async def get_quiz(
     logger.info(
         f"Starting to get quiz: {quiz_id} with omr_mode={omr_mode}, single_page_mode={single_page_mode}, include_answers={include_answers}"
     )
-    db = get_quiz_db()
 
-    if (quiz := await db.quizzes.find_one({"_id": quiz_id})) is None:
+    quiz = await get_cached_quiz(quiz_id)
+    if quiz is None:
         logger.warning(f"Requested quiz {quiz_id} not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"quiz {quiz_id} not found"
@@ -193,20 +147,27 @@ async def get_quiz(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"quiz {quiz_id} not found"
         )
 
-    await update_quiz_for_backwards_compatibility(quiz_id, quiz)
+    quiz = deepcopy(quiz)
 
     # Handle single page mode with full text (non-OMR)
     if single_page_mode and not omr_mode:
         logger.info(
             f"Single page mode with full text enabled for quiz: {quiz_id}, fetching all questions"
         )
-        # Fetch all questions with full details for each question set
+        db = get_quiz_db()
         for question_set_index, question_set in enumerate(quiz["question_sets"]):
-            all_questions = (
-                await db.questions.find({"question_set_id": question_set["_id"]})
-                .sort("_id", 1)
-                .to_list(length=None)
-            )
+            qset_id = question_set["_id"]
+            qset_cache_key = cache_key("questions", "qset", qset_id)
+            cached_questions = await cache_get(qset_cache_key)
+            if cached_questions is not None:
+                all_questions = cached_questions
+            else:
+                all_questions = (
+                    await db.questions.find({"question_set_id": qset_id})
+                    .sort("_id", 1)
+                    .to_list(length=None)
+                )
+                await cache_set(qset_cache_key, all_questions, ttl_seconds=3600)
             quiz["question_sets"][question_set_index]["questions"] = all_questions
         logger.info(f"Finished fetching all questions for single page mode: {quiz_id}")
         if quiz.get("display_solution", True) is False:
@@ -229,53 +190,7 @@ async def get_quiz(
         logger.info(
             f"Quiz has to be rendered in OMR Mode, calculating options count for quiz: {quiz_id}"
         )
-        question_set_ids = [
-            question_set["_id"] for question_set in quiz["question_sets"]
-        ]
-
-        # find questions with given question set ids
-        # count number of options for each question in a qset id
-        # group them together into an optionsArray
-        cursor = await db.questions.aggregate(
-            [
-                {"$match": {"question_set_id": {"$in": question_set_ids}}},
-                {"$sort": {"_id": 1}},  # sort questions based on question_id
-                {
-                    "$project": {
-                        "_id": 0,
-                        "question_set_id": "$question_set_id",
-                        "number_of_options": {"$size": "$options"},
-                    }
-                },
-                {
-                    "$group": {
-                        "_id": "$question_set_id",
-                        "options_count_per_set": {"$push": "$number_of_options"},
-                    }
-                },
-                {"$sort": {"_id": 1}},  # sort sets based on question_set_id
-                {"$project": {"_id": 0, "options_count_per_set": 1}},
-            ]
-        )
-        options_count_across_sets = await cursor.to_list(length=None)
-        for question_set_index, question_set in enumerate(quiz["question_sets"]):
-            updated_subset_without_details = []
-            options_count_per_set = options_count_across_sets[question_set_index][
-                "options_count_per_set"
-            ]
-            for question_index, question in enumerate(question_set["questions"]):
-                if question_index < settings.subset_size:
-                    continue
-
-                # options_count will be zero for subbjective/numerical questions
-                question["options"] = [
-                    {"text": "", "image": None}
-                ] * options_count_per_set[question_index]
-                updated_subset_without_details.append(question)
-
-            quiz["question_sets"][question_set_index]["questions"][
-                settings.subset_size :
-            ] = updated_subset_without_details
+        await aggregate_and_apply_omr_options(quiz, quiz_id)
 
     if quiz.get("display_solution", True) is False:
         _clear_solutions_in_place(quiz)

@@ -18,6 +18,7 @@ from logger_config import get_logger
 from typing import Dict, Optional
 from settings import Settings
 from services.scoring import compute_session_metrics
+from cache import get_cached_quiz, cache_get, cache_set, cache_key
 
 
 def str_to_datetime(value) -> Optional[datetime]:
@@ -138,7 +139,7 @@ async def create_session(session: Session):
     current_session = jsonable_encoder(session)
     db = get_quiz_db()
 
-    quiz = await db.quizzes.find_one({"_id": current_session["quiz_id"]})
+    quiz = await get_cached_quiz(current_session["quiz_id"])
 
     if quiz is None:
         error_message = (
@@ -486,7 +487,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     if new_event == EventType.end_quiz:
         session_metrics = session.get("metrics")
         if not has_ended:
-            quiz = await db.quizzes.find_one({"_id": session["quiz_id"]})
+            quiz = await get_cached_quiz(session["quiz_id"])
             if quiz is None:
                 logger.error(
                     f"Quiz {session['quiz_id']} not found while scoring session {session_id}"
@@ -534,7 +535,7 @@ async def get_session(session_id: str):
     if (session := await db.sessions.find_one({"_id": session_id})) is not None:
         logger.info(f"Found session with id {session_id}")
         if session.get("has_quiz_ended") and session.get("metrics") is None:
-            quiz = await db.quizzes.find_one({"_id": session["quiz_id"]})
+            quiz = await get_cached_quiz(session["quiz_id"])
             if quiz is not None:
                 session_metrics = compute_session_metrics(session, quiz)
                 now = datetime.utcnow()
@@ -607,7 +608,7 @@ async def reveal_correct_answer(
         )
 
     quiz_id = session.get("quiz_id")
-    quiz = await db.quizzes.find_one({"_id": quiz_id})
+    quiz = await get_cached_quiz(quiz_id)
     if quiz is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"quiz {quiz_id} not found"
@@ -641,12 +642,16 @@ async def reveal_correct_answer(
             detail="session answer missing question_id",
         )
 
-    question = await db.questions.find_one({"_id": question_id})
+    q_key = cache_key("question", question_id)
+    question = await cache_get(q_key)
     if question is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"question {question_id} not found",
-        )
+        question = await db.questions.find_one({"_id": question_id})
+        if question is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"question {question_id} not found",
+            )
+        await cache_set(q_key, question, ttl_seconds=3600)
 
     display_solution = quiz.get("display_solution", True) is not False
     response = {

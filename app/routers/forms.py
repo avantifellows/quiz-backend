@@ -1,12 +1,14 @@
+from copy import deepcopy
+
 from fastapi import APIRouter, status, HTTPException, Query
 from database import get_quiz_db
 from models import GetQuizResponse
 from schemas import QuizType
-from settings import Settings
 from logger_config import get_logger
+from cache import get_cached_quiz, cache_get, cache_set, cache_key
+from services.omr import aggregate_and_apply_omr_options
 
 router = APIRouter(prefix="/form", tags=["Form"])
-settings = Settings()
 logger = get_logger()
 
 
@@ -21,9 +23,9 @@ async def get_form(
     logger.info(
         f"Starting to get form: {form_id} with omr_mode={omr_mode}, single_page_mode={single_page_mode}"
     )
-    db = get_quiz_db()
 
-    if (quiz := await db.quizzes.find_one({"_id": form_id})) is None:
+    quiz = await get_cached_quiz(form_id)
+    if quiz is None:
         logger.warning(f"Requested form {form_id} not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"form {form_id} not found"
@@ -43,18 +45,27 @@ async def get_form(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"form {form_id} not found"
         )
 
+    quiz = deepcopy(quiz)
+
     # Handle single page mode with full text (non-OMR)
     if single_page_mode and not omr_mode:
         logger.info(
             f"Single page mode with full text enabled for form: {form_id}, fetching all questions"
         )
-        # Fetch all questions with full details for each question set
+        db = get_quiz_db()
         for question_set_index, question_set in enumerate(quiz["question_sets"]):
-            all_questions = (
-                await db.questions.find({"question_set_id": question_set["_id"]})
-                .sort("_id", 1)
-                .to_list(length=None)
-            )
+            qset_id = question_set["_id"]
+            qset_cache_key = cache_key("questions", "qset", qset_id)
+            cached_questions = await cache_get(qset_cache_key)
+            if cached_questions is not None:
+                all_questions = cached_questions
+            else:
+                all_questions = (
+                    await db.questions.find({"question_set_id": qset_id})
+                    .sort("_id", 1)
+                    .to_list(length=None)
+                )
+                await cache_set(qset_cache_key, all_questions, ttl_seconds=3600)
             quiz["question_sets"][question_set_index]["questions"] = all_questions
         logger.info(f"Finished fetching all questions for single page mode: {form_id}")
         return quiz
@@ -73,53 +84,7 @@ async def get_form(
         logger.info(
             f"Form has to be rendered in OMR Mode, calculating options count for form: {form_id}"
         )
-        question_set_ids = [
-            question_set["_id"] for question_set in quiz["question_sets"]
-        ]
-
-        # find questions with given question set ids
-        # count number of options for each question in a qset id
-        # group them together into an optionsArray
-        cursor = await db.questions.aggregate(
-            [
-                {"$match": {"question_set_id": {"$in": question_set_ids}}},
-                {"$sort": {"_id": 1}},  # sort questions based on question_id
-                {
-                    "$project": {
-                        "_id": 0,
-                        "question_set_id": "$question_set_id",
-                        "number_of_options": {"$size": "$options"},
-                    }
-                },
-                {
-                    "$group": {
-                        "_id": "$question_set_id",
-                        "options_count_per_set": {"$push": "$number_of_options"},
-                    }
-                },
-                {"$sort": {"_id": 1}},  # sort sets based on question_set_id
-                {"$project": {"_id": 0, "options_count_per_set": 1}},
-            ]
-        )
-        options_count_across_sets = await cursor.to_list(length=None)
-        for question_set_index, question_set in enumerate(quiz["question_sets"]):
-            updated_subset_without_details = []
-            options_count_per_set = options_count_across_sets[question_set_index][
-                "options_count_per_set"
-            ]
-            for question_index, question in enumerate(question_set["questions"]):
-                if question_index < settings.subset_size:
-                    continue
-
-                # options_count will be zero for subbjective/numerical questions
-                question["options"] = [
-                    {"text": "", "image": None}
-                ] * options_count_per_set[question_index]
-                updated_subset_without_details.append(question)
-
-            quiz["question_sets"][question_set_index]["questions"][
-                settings.subset_size :
-            ] = updated_subset_without_details
+        await aggregate_and_apply_omr_options(quiz, form_id)
 
     logger.info(f"Finished getting form: {form_id}")
     return quiz

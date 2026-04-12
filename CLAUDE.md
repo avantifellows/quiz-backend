@@ -36,8 +36,10 @@ pre-commit run --all-files  # manual run
 - `app/models.py` - Pydantic v2 request/response models (ConfigDict, model_validate, model_dump)
 - `app/schemas.py` - Enums (QuestionType, QuizType, NavigationMode) and custom types (PyObjectId with Pydantic v2 core schema)
 - `app/database.py` - MongoDB async connection (AsyncMongoClient) with `init_db()`, `close_db()`, `get_quiz_db()` accessor
-- `app/settings.py` - `Settings` (non-Mongo) and `MongoSettings` (Mongo-specific, lazy via `get_mongo_settings()`)
-- `app/scripts/` - Database migration scripts
+- `app/cache.py` - Redis cache client, helpers (`cache_get`, `cache_set`, `cache_key`), shared quiz loader (`get_cached_quiz`)
+- `app/settings.py` - `Settings` (non-Mongo), `MongoSettings` (Mongo-specific), `CacheSettings` (Redis, lazy via `get_cache_settings()`)
+- `app/services/` - Shared service helpers: `quiz_fixups.py` (backwards-compat fixup), `omr.py` (OMR aggregation pipeline), `scoring.py` (session metrics)
+- `app/scripts/` - Database migration scripts (including `backfill_quiz_backwards_compatibility.py`)
 - `Dockerfile` - Container image (ARM64/Graviton, 4 Uvicorn workers)
 - `terraform/` - ECS Fargate infrastructure (testing + prod environments)
 
@@ -75,8 +77,8 @@ PATCH  /session_answers/{session_id}/update-multiple-answers
 
 ### App Factory & Lifespan
 - `main.py` uses `create_app()` factory with `lifespan` async context manager
-- Startup: `init_db()` + `await _client.admin.command("ping")` (fail-fast connectivity check)
-- Shutdown: `await close_db()` (closes AsyncMongoClient)
+- Startup: `init_db()` + `await _client.admin.command("ping")` (fail-fast connectivity check) + `await init_cache()` (best-effort Redis, never blocks startup)
+- Shutdown: `await close_cache()` + `await close_db()`
 - `app = create_app()` at module scope for `main:app` deployment entrypoint
 
 ### Database Seam
@@ -85,6 +87,17 @@ PATCH  /session_answers/{session_id}/update-multiple-answers
 - Async DB patterns: `await find_one()`, `await insert_one()`, `await update_one()`; `find()` returns AsyncCursor (no await), use `await cursor.to_list(length=None)`; `await aggregate()` returns AsyncCursor
 - `MongoSettings` in `settings.py` reads env vars lazily via `get_mongo_settings()` — never called at module scope
 
+### Redis Caching
+- Cache-aside pattern: check cache → on miss read MongoDB → cache result → return
+- `get_cached_quiz(quiz_id)` in `cache.py` is the shared quiz loader — returns canonical quiz with backwards-compat fixup applied. All quiz-reading routes should use this instead of direct `db.quizzes.find_one()`
+- After cache read, `deepcopy()` before applying route-specific transforms (answer hiding, OMR shaping) to prevent mutation of shared cached data
+- Cache keys are namespaced: `cache:{namespace}:{family}:{parts}` — built via `cache_key(family, *parts)`
+- TTLs: 1h for immutable data (quizzes, questions, OMR), 5min for revocable data (org auth)
+- Session data is NEVER cached — sessions and session_answers are always direct MongoDB reads
+- OMR aggregation is in `app/services/omr.py` — shared by quiz and form routes, caches result keyed by sha256 of sorted question_set_ids
+- All cache ops silently fall back on failure — Redis is optional, never required
+- `CacheSettings` follows the same lazy accessor pattern: `get_cache_settings()`, never at module scope
+
 ## Testing
 
 Tests use real MongoDB (local or CI service). `MONGO_AUTH_CREDENTIALS` must be set (app fails with RuntimeError if unset). Test fixtures in `app/tests/dummy_data/` (JSON files for various quiz types).
@@ -92,6 +105,7 @@ Tests use real MongoDB (local or CI service). `MONGO_AUTH_CREDENTIALS` must be s
 Base test classes in `app/tests/base.py`:
 - `BaseTestCase` - sets up organizations and quiz types; uses sync `MongoClient` admin handle (`self.db`) for direct DB ops
 - `SessionsBaseTestCase` - extends with session data
+- `CacheEnabledBaseTestCase` (in `test_cache_integration.py`) - extends `BaseTestCase` with Redis enabled, flushes cache before/after each test. Uses `unittest.skipUnless(_redis_available())` to skip when Redis is not running
 - Test harness forces `MONGO_DB_NAME=quiz_test` before app construction; `_guard_db_name()` refuses cleanup if DB is `quiz`
 - `TestClient` used as context manager so lifespan startup/shutdown runs
 - Test files use `self.db` (sync) for direct DB assertions — never `get_quiz_db()` (async)
@@ -111,6 +125,7 @@ set -a; source .env; set +a; pytest
 
 Required: `MONGO_AUTH_CREDENTIALS` - MongoDB connection URI
 Optional: `MONGO_DB_NAME` (default: `quiz`), `MONGO_MAX_POOL_SIZE` (default: 20), `MONGO_MIN_POOL_SIZE` (default: 5)
+Cache: `CACHE_ENABLED` (default: `false`), `REDIS_URL` (default: `redis://localhost:6379/0`), `REDIS_MAX_CONNECTIONS` (default: 10), `CACHE_NAMESPACE` (default: `v1`)
 
 Copy `.env.example` to `.env` for local development.
 
@@ -119,7 +134,7 @@ Copy `.env.example` to `.env` for local development.
 ### ECS Fargate (Testing + Production)
 - **Testing**: `https://quiz-backend-testing.avantifellows.org` — deploys on CI success on `main`
 - **Production**: `https://quiz-backend.avantifellows.org` — deploys on CI success on `release`
-- ARM64 Graviton, 1 vCPU / 2GB RAM per task, 4 Uvicorn workers
+- ARM64 Graviton, 1 vCPU / 2GB RAM per task, 4 Uvicorn workers, Redis 7.2.5-alpine sidecar (64MB maxmemory, allkeys-lru eviction)
 - Auto-scaling: 1–10 tasks, CPU target-tracking at 50%
 - HTTPS via Cloudflare proxy, DNS CNAME → ALB
 - Infrastructure managed by Terraform in `terraform/testing/` and `terraform/prod/`
