@@ -117,7 +117,9 @@ def main():
             print(f"  ERROR: failed to update quiz {quiz_id}: {e}")
 
     prefix = "[DRY RUN] " if args.dry_run else ""
-    print(f"\n{prefix}Done. total={total} updated={updated} already_compatible={already_compatible} errors={errors}")
+    print(
+        f"\n{prefix}Done. total={total} updated={updated} already_compatible={already_compatible} errors={errors}"
+    )
 
     client.close()
 

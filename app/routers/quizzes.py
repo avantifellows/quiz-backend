@@ -7,6 +7,7 @@ from settings import Settings
 from schemas import QuizType
 from logger_config import get_logger
 from services.quiz_fixups import apply_quiz_backwards_compatibility_fixup
+from services.omr import aggregate_and_apply_omr_options
 
 router = APIRouter(prefix="/quiz", tags=["Quiz"])
 settings = Settings()
@@ -180,53 +181,7 @@ async def get_quiz(
         logger.info(
             f"Quiz has to be rendered in OMR Mode, calculating options count for quiz: {quiz_id}"
         )
-        question_set_ids = [
-            question_set["_id"] for question_set in quiz["question_sets"]
-        ]
-
-        # find questions with given question set ids
-        # count number of options for each question in a qset id
-        # group them together into an optionsArray
-        cursor = await db.questions.aggregate(
-            [
-                {"$match": {"question_set_id": {"$in": question_set_ids}}},
-                {"$sort": {"_id": 1}},  # sort questions based on question_id
-                {
-                    "$project": {
-                        "_id": 0,
-                        "question_set_id": "$question_set_id",
-                        "number_of_options": {"$size": "$options"},
-                    }
-                },
-                {
-                    "$group": {
-                        "_id": "$question_set_id",
-                        "options_count_per_set": {"$push": "$number_of_options"},
-                    }
-                },
-                {"$sort": {"_id": 1}},  # sort sets based on question_set_id
-                {"$project": {"_id": 0, "options_count_per_set": 1}},
-            ]
-        )
-        options_count_across_sets = await cursor.to_list(length=None)
-        for question_set_index, question_set in enumerate(quiz["question_sets"]):
-            updated_subset_without_details = []
-            options_count_per_set = options_count_across_sets[question_set_index][
-                "options_count_per_set"
-            ]
-            for question_index, question in enumerate(question_set["questions"]):
-                if question_index < settings.subset_size:
-                    continue
-
-                # options_count will be zero for subbjective/numerical questions
-                question["options"] = [
-                    {"text": "", "image": None}
-                ] * options_count_per_set[question_index]
-                updated_subset_without_details.append(question)
-
-            quiz["question_sets"][question_set_index]["questions"][
-                settings.subset_size :
-            ] = updated_subset_without_details
+        await aggregate_and_apply_omr_options(quiz, quiz_id)
 
     if quiz.get("display_solution", True) is False:
         _clear_solutions_in_place(quiz)
