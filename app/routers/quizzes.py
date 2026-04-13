@@ -173,8 +173,14 @@ async def create_quiz(quiz: Quiz):
             content={"id": new_quiz_result.inserted_id},
         )
     except Exception:
-        if session is not None:
-            session.abort_transaction()
+        if session is not None and getattr(session, "in_transaction", False):
+            try:
+                session.abort_transaction()
+            except Exception as abort_error:
+                logger.warning(
+                    "Failed to abort quiz creation transaction cleanly: %s",
+                    abort_error,
+                )
         raise
     finally:
         if session is not None:
