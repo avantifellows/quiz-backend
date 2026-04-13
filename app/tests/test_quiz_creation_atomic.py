@@ -71,14 +71,17 @@ class QuizCreationAtomicTestCase(unittest.TestCase):
         dummy_session = _DummySession(on_abort=cleanup_inserted_questions)
 
         def insert_many_with_tracking(documents, session=None):
-            result = original_insert_many(documents)
+            assert session is dummy_session
+            result = original_insert_many(documents, session=session)
             inserted_question_ids.extend(result.inserted_ids)
             return result
 
         def aggregate_without_session(pipeline, session=None):
-            return original_aggregate(pipeline)
+            assert session is dummy_session
+            return original_aggregate(pipeline, session=session)
 
         def fail_quiz_insert(document, session=None):
+            assert session is dummy_session
             raise RuntimeError("Simulated failure after question insert")
 
         with patch.object(
