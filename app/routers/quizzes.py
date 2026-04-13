@@ -95,66 +95,91 @@ async def create_quiz(quiz: Quiz):
 
     logger.info(log_message)
 
-    for question_set_index, question_set in enumerate(quiz["question_sets"]):
-        questions = question_set["questions"]
-        for question_index, _ in enumerate(questions):
-            questions[question_index]["question_set_id"] = question_set["_id"]
+    session = None
+    try:
+        session = client.start_session()
+        session.start_transaction()
 
-        result = client.quiz.questions.insert_many(questions)
-        if result.acknowledged:
-            logger.info(
-                f"Inserted {len(questions)} questions for quiz{log_with_source}{log_with_source_id}"
+        for question_set_index, question_set in enumerate(quiz["question_sets"]):
+            questions = question_set["questions"]
+            for question_index, _ in enumerate(questions):
+                questions[question_index]["question_set_id"] = question_set["_id"]
+
+            result = client.quiz.questions.insert_many(questions, session=session)
+            if result.acknowledged:
+                logger.info(
+                    f"Inserted {len(questions)} questions for quiz{log_with_source}{log_with_source_id}"
+                )
+            else:
+                error_message = f"Failed to insert questions for quiz{log_with_source}{log_with_source_id}"
+                logger.error(error_message)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=error_message,
+                )
+
+            subset_with_details = client.quiz.questions.aggregate(
+                [
+                    {"$match": {"question_set_id": question_set["_id"]}},
+                    {"$sort": {"_id": 1}},
+                    {"$limit": settings.subset_size},
+                ],
+                session=session,
             )
-        else:
-            error_message = f"Failed to insert questions for quiz{log_with_source}{log_with_source_id}"
+
+            subset_without_details = client.quiz.questions.aggregate(
+                [
+                    {"$match": {"question_set_id": question_set["_id"]}},
+                    {"$sort": {"_id": 1}},
+                    {"$skip": settings.subset_size},
+                    {
+                        "$project": {
+                            "graded": 1,
+                            "force_correct": 1,
+                            "type": 1,
+                            "correct_answer": 1,
+                            "question_set_id": 1,
+                            "marking_scheme": 1,
+                        }
+                    },
+                ],
+                session=session,
+            )
+
+            aggregated_questions = list(subset_with_details) + list(
+                subset_without_details
+            )
+            quiz["question_sets"][question_set_index][
+                "questions"
+            ] = aggregated_questions
+
+        new_quiz_result = client.quiz.quizzes.insert_one(quiz, session=session)
+        if not new_quiz_result.acknowledged:
+            error_message = (
+                f"Failed to insert quiz{log_with_source}{log_with_source_id}"
+            )
             logger.error(error_message)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=error_message,
             )
 
-        subset_with_details = client.quiz.questions.aggregate(
-            [
-                {"$match": {"question_set_id": question_set["_id"]}},
-                {"$sort": {"_id": 1}},
-                {"$limit": settings.subset_size},
-            ]
+        session.commit_transaction()
+        logger.info(
+            "Finished creating quiz with id: " + str(new_quiz_result.inserted_id)
         )
 
-        subset_without_details = client.quiz.questions.aggregate(
-            [
-                {"$match": {"question_set_id": question_set["_id"]}},
-                {"$sort": {"_id": 1}},
-                {"$skip": settings.subset_size},
-                {
-                    "$project": {
-                        "graded": 1,
-                        "force_correct": 1,
-                        "type": 1,
-                        "correct_answer": 1,
-                        "question_set_id": 1,
-                        "marking_scheme": 1,
-                    }
-                },
-            ]
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content={"id": new_quiz_result.inserted_id},
         )
-
-        aggregated_questions = list(subset_with_details) + list(subset_without_details)
-        quiz["question_sets"][question_set_index]["questions"] = aggregated_questions
-
-    new_quiz_result = client.quiz.quizzes.insert_one(quiz)
-    if not new_quiz_result.acknowledged:
-        error_message = f"Failed to insert quiz{log_with_source}{log_with_source_id}"
-        logger.error(error_message)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_message,
-        )
-    logger.info("Finished creating quiz with id: " + str(new_quiz_result.inserted_id))
-
-    return JSONResponse(
-        status_code=status.HTTP_201_CREATED, content={"id": new_quiz_result.inserted_id}
-    )
+    except Exception:
+        if session is not None:
+            session.abort_transaction()
+        raise
+    finally:
+        if session is not None:
+            session.end_session()
 
 
 @router.get("/{quiz_id}", response_model=GetQuizResponse)

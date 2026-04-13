@@ -1,4 +1,11 @@
 import json
+import unittest
+from bson import ObjectId
+from pymongo.errors import OperationFailure
+from unittest.mock import patch
+import pytest
+from fastapi.testclient import TestClient
+from main import app
 from .base import BaseTestCase
 from ..routers import quizzes, questions
 from settings import Settings
@@ -365,3 +372,70 @@ class QuizTestCase(BaseTestCase):
                 break
         assert found is not None
         assert found.get("solution") == []
+
+
+class QuizCreationTransactionTestCase(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.client = TestClient(app)
+
+    def test_create_quiz_rolls_back_when_quiz_insert_fails(self):
+        # Skip when Mongo is standalone (transactions require replica set / mongos).
+        probe_session = None
+        probe_id = str(ObjectId())
+        try:
+            probe_session = mongo_client.start_session()
+            probe_session.start_transaction()
+            mongo_client.quiz["tx_probe"].insert_one(
+                {"_id": probe_id},
+                session=probe_session,
+            )
+            probe_session.abort_transaction()
+        except OperationFailure as exc:
+            if exc.code == 20:
+                pytest.skip("MongoDB transactions require replica set or mongos")
+            raise
+        finally:
+            if probe_session is not None:
+                probe_session.end_session()
+            mongo_client.quiz["tx_probe"].delete_one({"_id": probe_id})
+
+        qset_id = str(ObjectId())
+        payload = {
+            "title": "rollback-test-quiz",
+            "question_sets": [
+                {
+                    "_id": qset_id,
+                    "title": "Section A",
+                    "max_questions_allowed_to_attempt": 1,
+                    "questions": [
+                        {
+                            "_id": str(ObjectId()),
+                            "text": "Rollback probe question",
+                            "type": "subjective",
+                            "graded": True,
+                        }
+                    ],
+                }
+            ],
+            "max_marks": 1,
+            "num_graded_questions": 1,
+            "metadata": {"quiz_type": "homework"},
+        }
+
+        with patch.object(
+            quizzes.client.quiz.quizzes,
+            "insert_one",
+            side_effect=RuntimeError("forced failure after question insert"),
+        ):
+            with self.assertRaises(RuntimeError):
+                self.client.post(quizzes.router.prefix + "/", json=payload)
+
+        assert (
+            mongo_client.quiz.questions.count_documents({"question_set_id": qset_id})
+            == 0
+        )
+        assert (
+            mongo_client.quiz.quizzes.count_documents({"question_sets._id": qset_id})
+            == 0
+        )
