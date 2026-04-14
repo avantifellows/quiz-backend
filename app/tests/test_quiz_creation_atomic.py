@@ -14,15 +14,19 @@ class _DummySession:
         self.aborted = False
         self.committed = False
         self.ended = False
+        self.in_transaction = False
 
     def start_transaction(self):
+        self.in_transaction = True
         return None
 
     def commit_transaction(self):
         self.committed = True
+        self.in_transaction = False
 
     def abort_transaction(self):
         self.aborted = True
+        self.in_transaction = False
         self._on_abort()
 
     def end_session(self):
