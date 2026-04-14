@@ -1,6 +1,7 @@
 from fastapi import APIRouter, status, HTTPException, Query
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
+from pymongo.errors import OperationFailure
 from database import client
 from models import Quiz, GetQuizResponse, CreateQuizResponse
 from settings import Settings
@@ -79,6 +80,25 @@ def update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz):
     logger.info("Quiz updated for backwards compatibility")
 
 
+def _is_transaction_not_supported_error(exc: Exception) -> bool:
+    if not isinstance(exc, OperationFailure):
+        return False
+
+    return exc.code == 20 and "Transaction numbers are only allowed" in str(exc)
+
+
+def _cleanup_non_transaction_inserts(
+    inserted_question_ids: list,
+    inserted_quiz_id,
+) -> None:
+    """Best-effort cleanup for standalone Mongo fallback when no transaction is used."""
+    if inserted_question_ids:
+        client.quiz.questions.delete_many({"_id": {"$in": inserted_question_ids}})
+
+    if inserted_quiz_id is not None:
+        client.quiz.quizzes.delete_one({"_id": inserted_quiz_id})
+
+
 @router.post("/", response_model=CreateQuizResponse)
 async def create_quiz(quiz: Quiz):
     quiz = jsonable_encoder(quiz)
@@ -94,97 +114,118 @@ async def create_quiz(quiz: Quiz):
             log_message += log_with_source_id
 
     logger.info(log_message)
-    session = None
-    try:
-        session = client.start_session()
-        session.start_transaction()
+    use_transactions = True
+    while True:
+        session = None
+        inserted_question_ids = []
+        inserted_quiz_id = None
+        try:
+            if use_transactions:
+                session = client.start_session()
+                session.start_transaction()
 
-        for question_set_index, question_set in enumerate(quiz["question_sets"]):
-            questions = question_set["questions"]
-            for question_index, _ in enumerate(questions):
-                questions[question_index]["question_set_id"] = question_set["_id"]
+            for question_set_index, question_set in enumerate(quiz["question_sets"]):
+                questions = question_set["questions"]
+                for question_index, _ in enumerate(questions):
+                    questions[question_index]["question_set_id"] = question_set["_id"]
 
-            result = client.quiz.questions.insert_many(questions, session=session)
-            if result.acknowledged:
-                logger.info(
-                    f"Inserted {len(questions)} questions for quiz{log_with_source}{log_with_source_id}"
+                result = client.quiz.questions.insert_many(questions, session=session)
+                if result.acknowledged:
+                    inserted_question_ids.extend(result.inserted_ids)
+                    logger.info(
+                        f"Inserted {len(questions)} questions for quiz{log_with_source}{log_with_source_id}"
+                    )
+                else:
+                    error_message = f"Failed to insert questions for quiz{log_with_source}{log_with_source_id}"
+                    logger.error(error_message)
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=error_message,
+                    )
+
+                subset_with_details = client.quiz.questions.aggregate(
+                    [
+                        {"$match": {"question_set_id": question_set["_id"]}},
+                        {"$sort": {"_id": 1}},
+                        {"$limit": settings.subset_size},
+                    ],
+                    session=session,
                 )
-            else:
-                error_message = f"Failed to insert questions for quiz{log_with_source}{log_with_source_id}"
+
+                subset_without_details = client.quiz.questions.aggregate(
+                    [
+                        {"$match": {"question_set_id": question_set["_id"]}},
+                        {"$sort": {"_id": 1}},
+                        {"$skip": settings.subset_size},
+                        {
+                            "$project": {
+                                "graded": 1,
+                                "force_correct": 1,
+                                "type": 1,
+                                "correct_answer": 1,
+                                "question_set_id": 1,
+                                "marking_scheme": 1,
+                            }
+                        },
+                    ],
+                    session=session,
+                )
+
+                aggregated_questions = list(subset_with_details) + list(
+                    subset_without_details
+                )
+                quiz["question_sets"][question_set_index][
+                    "questions"
+                ] = aggregated_questions
+
+            new_quiz_result = client.quiz.quizzes.insert_one(quiz, session=session)
+            inserted_quiz_id = new_quiz_result.inserted_id
+            if not new_quiz_result.acknowledged:
+                error_message = (
+                    f"Failed to insert quiz{log_with_source}{log_with_source_id}"
+                )
                 logger.error(error_message)
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=error_message,
                 )
 
-            subset_with_details = client.quiz.questions.aggregate(
-                [
-                    {"$match": {"question_set_id": question_set["_id"]}},
-                    {"$sort": {"_id": 1}},
-                    {"$limit": settings.subset_size},
-                ],
-                session=session,
+            if session is not None:
+                session.commit_transaction()
+            logger.info(
+                "Finished creating quiz with id: " + str(new_quiz_result.inserted_id)
             )
 
-            subset_without_details = client.quiz.questions.aggregate(
-                [
-                    {"$match": {"question_set_id": question_set["_id"]}},
-                    {"$sort": {"_id": 1}},
-                    {"$skip": settings.subset_size},
-                    {
-                        "$project": {
-                            "graded": 1,
-                            "force_correct": 1,
-                            "type": 1,
-                            "correct_answer": 1,
-                            "question_set_id": 1,
-                            "marking_scheme": 1,
-                        }
-                    },
-                ],
-                session=session,
+            return JSONResponse(
+                status_code=status.HTTP_201_CREATED,
+                content={"id": new_quiz_result.inserted_id},
             )
-
-            aggregated_questions = list(subset_with_details) + list(
-                subset_without_details
-            )
-            quiz["question_sets"][question_set_index][
-                "questions"
-            ] = aggregated_questions
-
-        new_quiz_result = client.quiz.quizzes.insert_one(quiz, session=session)
-        if not new_quiz_result.acknowledged:
-            error_message = (
-                f"Failed to insert quiz{log_with_source}{log_with_source_id}"
-            )
-            logger.error(error_message)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=error_message,
-            )
-
-        session.commit_transaction()
-        logger.info(
-            "Finished creating quiz with id: " + str(new_quiz_result.inserted_id)
-        )
-
-        return JSONResponse(
-            status_code=status.HTTP_201_CREATED,
-            content={"id": new_quiz_result.inserted_id},
-        )
-    except Exception:
-        if session is not None and getattr(session, "in_transaction", False):
-            try:
-                session.abort_transaction()
-            except Exception as abort_error:
+        except Exception as exc:
+            if use_transactions and _is_transaction_not_supported_error(exc):
                 logger.warning(
-                    "Failed to abort quiz creation transaction cleanly: %s",
-                    abort_error,
+                    "Mongo transactions are not supported in this environment; retrying quiz creation without a transaction"
                 )
-        raise
-    finally:
-        if session is not None:
-            session.end_session()
+                use_transactions = False
+                continue
+
+            if session is not None and use_transactions:
+                session.abort_transaction()
+            elif not use_transactions and (
+                inserted_question_ids or inserted_quiz_id is not None
+            ):
+                try:
+                    _cleanup_non_transaction_inserts(
+                        inserted_question_ids=inserted_question_ids,
+                        inserted_quiz_id=inserted_quiz_id,
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to cleanup non-transaction quiz creation writes"
+                    )
+            raise
+        finally:
+            if session is not None:
+                session.end_session()
 
 
 @router.get("/{quiz_id}", response_model=GetQuizResponse)
@@ -281,15 +322,19 @@ async def get_quiz(
                         }
                     },
                     {"$sort": {"_id": 1}},  # sort sets based on question_set_id
-                    {"$project": {"_id": 0, "options_count_per_set": 1}},
                 ]
             )
         )
+        options_map = {
+            row["_id"]: row["options_count_per_set"]
+            for row in options_count_across_sets
+        }
+
         for question_set_index, question_set in enumerate(quiz["question_sets"]):
             updated_subset_without_details = []
-            options_count_per_set = options_count_across_sets[question_set_index][
-                "options_count_per_set"
-            ]
+            options_count_per_set = options_map.get(question_set["_id"])
+            if options_count_per_set is None:
+                continue
             for question_index, question in enumerate(question_set["questions"]):
                 if question_index < settings.subset_size:
                     continue

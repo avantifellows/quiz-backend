@@ -217,6 +217,89 @@ class QuizTestCase(BaseTestCase):
                     else:
                         assert question[key] is None
 
+    def test_omr_option_projection_works_when_question_sets_reordered(self):
+        quiz_doc = mongo_client.quiz.quizzes.find_one({"_id": self.multi_qset_omr_id})
+        assert quiz_doc is not None
+        assert len(quiz_doc["question_sets"]) >= 2
+
+        first_set_id = quiz_doc["question_sets"][0]["_id"]
+        second_set_id = quiz_doc["question_sets"][1]["_id"]
+
+        first_set_target_question = list(
+            mongo_client.quiz.questions.find({"question_set_id": first_set_id})
+            .sort("_id", 1)
+            .skip(settings.subset_size)
+            .limit(1)
+        )[0]
+        second_set_target_question = list(
+            mongo_client.quiz.questions.find({"question_set_id": second_set_id})
+            .sort("_id", 1)
+            .skip(settings.subset_size)
+            .limit(1)
+        )[0]
+
+        mongo_client.quiz.questions.update_one(
+            {"_id": first_set_target_question["_id"]},
+            {
+                "$set": {
+                    "options": [
+                        {"text": "A", "image": None},
+                        {"text": "B", "image": None},
+                    ]
+                }
+            },
+        )
+        mongo_client.quiz.questions.update_one(
+            {"_id": second_set_target_question["_id"]},
+            {
+                "$set": {
+                    "options": [
+                        {"text": "A", "image": None},
+                        {"text": "B", "image": None},
+                        {"text": "C", "image": None},
+                        {"text": "D", "image": None},
+                    ]
+                }
+            },
+        )
+
+        reordered_question_sets = [
+            quiz_doc["question_sets"][1],
+            quiz_doc["question_sets"][0],
+        ]
+        mongo_client.quiz.quizzes.update_one(
+            {"_id": self.multi_qset_omr_id},
+            {"$set": {"question_sets": reordered_question_sets}},
+        )
+
+        response = self.client.get(
+            f"{quizzes.router.prefix}/{self.multi_qset_omr_id}",
+            params={"omr_mode": True},
+        )
+        assert response.status_code == 200
+        payload = response.json()
+
+        response_sets_by_id = {
+            question_set["_id"]: question_set
+            for question_set in payload["question_sets"]
+        }
+        assert (
+            len(
+                response_sets_by_id[first_set_id]["questions"][settings.subset_size][
+                    "options"
+                ]
+            )
+            == 2
+        )
+        assert (
+            len(
+                response_sets_by_id[second_set_id]["questions"][settings.subset_size][
+                    "options"
+                ]
+            )
+            == 4
+        )
+
     def test_get_quiz_include_answers_returns_full_questions_and_unsanitized_answers(
         self,
     ):

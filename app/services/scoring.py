@@ -1,6 +1,5 @@
 from typing import Any, Dict, Optional
 
-
 NUMERICAL_FLOAT_TOLERANCE = 0.05
 
 DEFAULT_MARKING_SCHEME_ASSESSMENT = {

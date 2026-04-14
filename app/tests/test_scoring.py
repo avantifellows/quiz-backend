@@ -6,7 +6,12 @@ from services.scoring import compute_session_metrics
 
 class TestScoring(unittest.TestCase):
     def test_assessment_metrics_with_partial_and_ungraded(self):
-        quiz = json.load(open("app/tests/dummy_data/scoring_small_assessment.json"))
+        with open(
+            "app/tests/dummy_data/scoring_small_assessment.json",
+            "r",
+            encoding="utf-8",
+        ) as quiz_file:
+            quiz = json.load(quiz_file)
         session = {
             "session_answers": [
                 {"answer": [0, 2], "marked_for_review": False},
@@ -39,7 +44,12 @@ class TestScoring(unittest.TestCase):
         self.assertEqual(metrics["total_marks"], 5.0)
 
     def test_form_metrics_counts_only(self):
-        quiz = json.load(open("app/tests/dummy_data/scoring_small_form.json"))
+        with open(
+            "app/tests/dummy_data/scoring_small_form.json",
+            "r",
+            encoding="utf-8",
+        ) as quiz_file:
+            quiz = json.load(quiz_file)
         session = {
             "session_answers": [
                 {"answer": "yes", "marked_for_review": False},

@@ -8,7 +8,6 @@ import time
 from settings import Settings
 from ..database import client as mongo_client
 
-
 settings = Settings()
 
 
@@ -191,8 +190,10 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert response["detail"] == "Quiz 00 not found while creating the session"
 
     def test_create_session_with_valid_quiz_id_and_first_session(self):
-        data = open("app/tests/dummy_data/homework_quiz.json")
-        quiz_data = json.load(data)
+        with open(
+            "app/tests/dummy_data/homework_quiz.json", "r", encoding="utf-8"
+        ) as data:
+            quiz_data = json.load(data)
         response = self.client.post(quizzes.router.prefix + "/", json=quiz_data)
         quiz_id = json.loads(response.content)["id"]
         quiz = self.client.get(quizzes.router.prefix + f"/{quiz_id}").json()
@@ -426,8 +427,12 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert isinstance(response.json(), dict)
 
     def test_check_question_order_first_session_and_omr_mode(self):
-        data = open("app/tests/dummy_data/multiple_question_set_omr_quiz.json")
-        quiz_data = json.load(data)
+        with open(
+            "app/tests/dummy_data/multiple_question_set_omr_quiz.json",
+            "r",
+            encoding="utf-8",
+        ) as data:
+            quiz_data = json.load(data)
         response = self.client.post(quizzes.router.prefix + "/", json=quiz_data)
         quiz_id = json.loads(response.content)["id"]
         quiz = self.client.get(quizzes.router.prefix + f"/{quiz_id}").json()
@@ -443,8 +448,12 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert session["question_order"] == list(range(len(session["question_order"])))
 
     def test_check_question_order_first_session_and_not_omr_mode(self):
-        data = open("app/tests/dummy_data/multiple_question_set_quiz.json")
-        quiz_data = json.load(data)
+        with open(
+            "app/tests/dummy_data/multiple_question_set_quiz.json",
+            "r",
+            encoding="utf-8",
+        ) as data:
+            quiz_data = json.load(data)
         response = self.client.post(quizzes.router.prefix + "/", json=quiz_data)
         quiz_id = json.loads(response.content)["id"]
         quiz = self.client.get(quizzes.router.prefix + f"/{quiz_id}").json()

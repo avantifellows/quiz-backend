@@ -15,6 +15,23 @@ COMPRESS_MIN_THRESHOLD = 1000  # if more than 1000 bytes (~1KB), compress
 app = FastAPI()
 
 
+def _safe_request_headers(request: Request) -> dict:
+    """Log only a small, non-sensitive subset of headers."""
+    allowed_header_keys = {
+        "host",
+        "user-agent",
+        "accept",
+        "accept-encoding",
+        "content-type",
+        "content-length",
+    }
+    return {
+        key: value
+        for key, value in request.headers.items()
+        if key.lower() in allowed_header_keys
+    }
+
+
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     """
@@ -26,8 +43,9 @@ async def log_requests(request: Request, call_next):
     """
     # random id for request so that we can track it in logs
     idem = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    safe_headers = _safe_request_headers(request)
     logger.info(
-        f"rid={idem} start request path={request.url.path} method={request.method} headers={request.headers}"
+        f"rid={idem} start request path={request.url.path} method={request.method} headers={safe_headers}"
     )
     start_time = time.time()
     response = await call_next(request)

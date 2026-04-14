@@ -26,14 +26,14 @@ async def create_organization(organization: Organization):
 
     # create an API key
     key = generate_random_string()
-    logger.info(f"Generated API key: {key}")
+    logger.info("Generated API key for new organization")
 
     # check if API key exists
     if (client.quiz.organization.find_one({"key": key})) is None:
         organization["key"] = key
         new_organization = client.quiz.organization.insert_one(organization)
         if new_organization.acknowledged:
-            logger.info(f"Inserted new organization with API key: {key}")
+            logger.info("Inserted new organization")
         else:
             logger.error("Failed to insert new organization")
             raise HTTPException(
@@ -49,7 +49,7 @@ async def create_organization(organization: Organization):
             content=created_organization,
         )
 
-    logger.error(f"API key collision occurred for key: {key}")
+    logger.error("API key collision occurred")
     raise HTTPException(
         status_code=status.HTTP_409_CONFLICT,
         detail=f"API key {key} already exists",
@@ -58,16 +58,16 @@ async def create_organization(organization: Organization):
 
 @router.get("/authenticate/{api_key}", response_model=OrganizationResponse)
 async def check_auth_token(api_key: str):
-    logger.info(f"Authenticating API key: {api_key}")
+    logger.info("Authenticating API key")
     if (
         org := client.quiz.organization.find_one(
             {"key": api_key},
         )
     ) is not None:
-        logger.info(f"Authenticated API key: {api_key}")
+        logger.info("Authenticated API key")
         return org
 
-    logger.error(f"Failed to authenticate API key: {api_key}")
+    logger.error("Failed to authenticate API key")
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail=f"org with key {api_key} not found",

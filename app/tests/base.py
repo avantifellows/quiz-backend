@@ -1,15 +1,36 @@
 import unittest
 import json
+import warnings
 from fastapi.testclient import TestClient
 from mongoengine import connect, disconnect
 from main import app
 from routers import quizzes, sessions, organizations
 
 
+def _load_dummy_data(path):
+    with open(path, "r", encoding="utf-8") as data_file:
+        return json.load(data_file)
+
+
 class BaseTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        connect("mongoenginetest", host="mongomock://127.0.0.1:8000")
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="pkg_resources is deprecated as an API.*",
+                category=DeprecationWarning,
+            )
+            warnings.filterwarnings(
+                "ignore",
+                message=r"Deprecated call to `pkg_resources.declare_namespace\(.*\)`.*",
+                category=DeprecationWarning,
+            )
+            connect(
+                "mongoenginetest",
+                host="mongomock://127.0.0.1:8000",
+                uuidRepresentation="standard",
+            )
         cls.client = TestClient(app)
 
     @classmethod
@@ -18,64 +39,64 @@ class BaseTestCase(unittest.TestCase):
 
     def setUp(self):
         # Set up for organizations
-        self.organization_data = json.load(
-            open("app/tests/dummy_data/organization.json")
+        self.organization_data = _load_dummy_data(
+            "app/tests/dummy_data/organization.json"
         )
         self.organization_api_key, self.organization = self.post_and_get_organization(
             self.organization_data
         )
 
         # short homework quiz
-        self.short_homework_quiz_data = json.load(
-            open("app/tests/dummy_data/short_homework_quiz.json")
+        self.short_homework_quiz_data = _load_dummy_data(
+            "app/tests/dummy_data/short_homework_quiz.json"
         )
         self.short_homework_quiz_id, self.short_homework_quiz = self.post_and_get_quiz(
             self.short_homework_quiz_data
         )
 
         # homework quiz
-        self.homework_quiz_data = json.load(
-            open("app/tests/dummy_data/homework_quiz.json")
+        self.homework_quiz_data = _load_dummy_data(
+            "app/tests/dummy_data/homework_quiz.json"
         )
         self.homework_quiz_id, self.homework_quiz = self.post_and_get_quiz(
             self.homework_quiz_data
         )
 
         # timed quiz
-        self.timed_quiz_data = json.load(
-            open("app/tests/dummy_data/assessment_timed.json")
+        self.timed_quiz_data = _load_dummy_data(
+            "app/tests/dummy_data/assessment_timed.json"
         )
         self.timed_quiz_id, self.timed_quiz = self.post_and_get_quiz(
             self.timed_quiz_data
         )
 
         # assessment quiz with multiple question sets
-        self.multi_qset_quiz_data = json.load(
-            open("app/tests/dummy_data/multiple_question_set_quiz.json")
+        self.multi_qset_quiz_data = _load_dummy_data(
+            "app/tests/dummy_data/multiple_question_set_quiz.json"
         )
         self.multi_qset_quiz_id, self.multi_qset_quiz = self.post_and_get_quiz(
             self.multi_qset_quiz_data
         )
 
         # omr quiz with multiple question sets (same content as above)
-        self.multi_qset_omr_data = json.load(
-            open("app/tests/dummy_data/multiple_question_set_omr_quiz.json")
+        self.multi_qset_omr_data = _load_dummy_data(
+            "app/tests/dummy_data/multiple_question_set_omr_quiz.json"
         )
         self.multi_qset_omr_id, self.multi_qset_omr = self.post_and_get_quiz(
             self.multi_qset_omr_data
         )
 
         # quiz with partial marking
-        self.partial_mark_data = json.load(
-            open("app/tests/dummy_data/partial_marking_assessment.json")
+        self.partial_mark_data = _load_dummy_data(
+            "app/tests/dummy_data/partial_marking_assessment.json"
         )
         self.partial_mark_quiz_id, self.partial_mark_quiz = self.post_and_get_quiz(
             self.partial_mark_data
         )
 
         # quiz with matrix matching
-        self.matrix_match_data = json.load(
-            open("app/tests/dummy_data/matrix_matching_assessment.json")
+        self.matrix_match_data = _load_dummy_data(
+            "app/tests/dummy_data/matrix_matching_assessment.json"
         )
         self.matrix_match_quiz_id, self.matrix_match_quiz = self.post_and_get_quiz(
             self.matrix_match_data

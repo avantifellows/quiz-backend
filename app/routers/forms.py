@@ -99,15 +99,19 @@ async def get_form(
                         }
                     },
                     {"$sort": {"_id": 1}},  # sort sets based on question_set_id
-                    {"$project": {"_id": 0, "options_count_per_set": 1}},
                 ]
             )
         )
+        options_map = {
+            row["_id"]: row["options_count_per_set"]
+            for row in options_count_across_sets
+        }
+
         for question_set_index, question_set in enumerate(quiz["question_sets"]):
             updated_subset_without_details = []
-            options_count_per_set = options_count_across_sets[question_set_index][
-                "options_count_per_set"
-            ]
+            options_count_per_set = options_map.get(question_set["_id"])
+            if options_count_per_set is None:
+                continue
             for question_index, question in enumerate(question_set["questions"]):
                 if question_index < settings.subset_size:
                     continue

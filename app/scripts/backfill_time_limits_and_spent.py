@@ -32,7 +32,6 @@ if ROOT not in sys.path:
 from database import client  # noqa: E402
 from schemas import EventType  # noqa: E402
 
-
 BACKFILL_DAYS = 700
 
 
