@@ -334,7 +334,13 @@ async def get_quiz(
             updated_subset_without_details = []
             options_count_per_set = options_map.get(question_set["_id"])
             if options_count_per_set is None:
-                continue
+                logger.warning(
+                    "Missing OMR options aggregation for quiz %s question_set %s; "
+                    "defaulting option counts to zero.",
+                    quiz_id,
+                    question_set["_id"],
+                )
+                options_count_per_set = [0] * len(question_set["questions"])
             for question_index, question in enumerate(question_set["questions"]):
                 if question_index < settings.subset_size:
                     continue
