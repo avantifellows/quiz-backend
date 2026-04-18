@@ -331,6 +331,64 @@ class QuizTestCase(BaseTestCase):
                     for option in question["options"]:
                         assert "text" in option
 
+    def test_omr_option_projection_order_independent(self):
+        question_sets = [
+            {
+                "_id": "A",
+                "questions": [
+                    {"type": "single-choice", "options": []},
+                    {"type": "single-choice", "options": []},
+                ],
+            },
+            {
+                "_id": "B",
+                "questions": [
+                    {"type": "single-choice", "options": []},
+                    {"type": "single-choice", "options": []},
+                ],
+            },
+        ]
+
+        aggregated_results = [
+            {"question_set_id": "B", "options_count_per_set": [2, 4]},
+            {"question_set_id": "A", "options_count_per_set": [3, 1]},
+        ]
+
+        quizzes.project_omr_option_counts(
+            question_sets=question_sets,
+            aggregated_results=aggregated_results,
+            subset_size=0,
+        )
+
+        result_map = {
+            qset["_id"]: [
+                len(question.get("options") or []) for question in qset["questions"]
+            ]
+            for qset in question_sets
+        }
+
+        assert result_map["A"] == [3, 1]
+        assert result_map["B"] == [2, 4]
+
+    def test_omr_option_projection_raises_on_duplicate_question_set_id(self):
+        question_sets = [
+            {"_id": "A", "questions": [{"type": "single-choice", "options": []}]}
+        ]
+        aggregated_results = [
+            {"question_set_id": "A", "options_count_per_set": [2]},
+            {"question_set_id": "A", "options_count_per_set": [3]},
+        ]
+
+        try:
+            quizzes.project_omr_option_counts(
+                question_sets=question_sets,
+                aggregated_results=aggregated_results,
+                subset_size=0,
+            )
+            assert False, "Expected ValueError for duplicate question_set_id"
+        except ValueError as exc:
+            assert "Duplicate question_set_id" in str(exc)
+
     def test_single_page_mode_clears_solutions_when_display_solution_false(self):
         # Ensure at least one question has a non-empty solution in the questions collection
         qset_id = self.multi_qset_quiz["question_sets"][0]["_id"]

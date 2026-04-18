@@ -12,6 +12,42 @@ settings = Settings()
 logger = get_logger()
 
 
+def project_omr_option_counts(question_sets, aggregated_results, subset_size):
+    """
+    Project option placeholders for OMR mode using deterministic question_set_id mapping.
+    """
+    results_by_qs_id = {}
+    for result in aggregated_results:
+        qset_id = result.get("question_set_id")
+        if qset_id in results_by_qs_id:
+            raise ValueError("Duplicate question_set_id detected in aggregated results")
+        results_by_qs_id[qset_id] = result
+
+    for question_set in question_sets:
+        qset_id = question_set.get("_id")
+        result = results_by_qs_id.get(qset_id)
+        if not result:
+            continue
+
+        options_count_per_set = result.get("options_count_per_set") or []
+        updated_subset_without_details = []
+        for question_index, question in enumerate(question_set.get("questions") or []):
+            if question_index < subset_size:
+                continue
+
+            if question_index >= len(options_count_per_set):
+                updated_subset_without_details.append(question)
+                continue
+
+            # options_count will be zero for subjective/numerical questions.
+            question["options"] = [{"text": "", "image": None}] * options_count_per_set[
+                question_index
+            ]
+            updated_subset_without_details.append(question)
+
+        question_set["questions"][subset_size:] = updated_subset_without_details
+
+
 def _hide_answers_in_quiz_in_place(quiz: dict) -> None:
     """
     Hide answers/solutions from base quiz endpoint.
@@ -250,29 +286,19 @@ async def get_quiz(
                             "options_count_per_set": {"$push": "$number_of_options"},
                         }
                     },
-                    {"$sort": {"_id": 1}},  # sort sets based on question_set_id
-                    {"$project": {"_id": 0, "options_count_per_set": 1}},
+                    {
+                        "$project": {
+                            "_id": 0,
+                            "question_set_id": "$_id",
+                            "options_count_per_set": 1,
+                        }
+                    },
                 ]
             )
         )
-        for question_set_index, question_set in enumerate(quiz["question_sets"]):
-            updated_subset_without_details = []
-            options_count_per_set = options_count_across_sets[question_set_index][
-                "options_count_per_set"
-            ]
-            for question_index, question in enumerate(question_set["questions"]):
-                if question_index < settings.subset_size:
-                    continue
-
-                # options_count will be zero for subbjective/numerical questions
-                question["options"] = [
-                    {"text": "", "image": None}
-                ] * options_count_per_set[question_index]
-                updated_subset_without_details.append(question)
-
-            quiz["question_sets"][question_set_index]["questions"][
-                settings.subset_size :
-            ] = updated_subset_without_details
+        project_omr_option_counts(
+            quiz["question_sets"], options_count_across_sets, settings.subset_size
+        )
 
     if quiz.get("display_solution", True) is False:
         _clear_solutions_in_place(quiz)
