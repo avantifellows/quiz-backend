@@ -40,8 +40,9 @@ def project_omr_option_counts(question_sets, aggregated_results, subset_size):
                 continue
 
             # options_count will be zero for subjective/numerical questions.
-            question["options"] = [{"text": "", "image": None}] * options_count_per_set[
-                question_index
+            question["options"] = [
+                {"text": "", "image": None}
+                for _ in range(options_count_per_set[question_index])
             ]
             updated_subset_without_details.append(question)
 
