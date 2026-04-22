@@ -540,3 +540,9 @@ class UpdateSessionResponse(BaseModel):
 
     class Config:
         schema_extra = {"example": {"time_remaining": 300}}
+
+
+class APIErrorResponse(BaseModel):
+    success: bool = False
+    message: str
+    details: Optional[Union[dict, list, str]] = None
