@@ -12,7 +12,7 @@ router = APIRouter(prefix="/session_answers", tags=["Session Answers"])
 logger = get_logger()
 
 
-@router.patch("/{session_id}/update-multiple-answers", response_model=None)
+@router.patch("/{session_id}/update-multiple-answers", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
 async def update_session_answers_at_specific_positions(
     session_id: str, positions_and_answers: List[Tuple[int, UpdateSessionAnswer]]
 ):
@@ -81,10 +81,10 @@ async def update_session_answers_at_specific_positions(
     logger.info(
         f"Updated multiple session answers for session: {session_id} (user: {user_id} and quiz: {quiz_id})"
     )
-    return JSONResponse(status_code=status.HTTP_200_OK, content=None)
+    return JSONResponse(status_code=status.HTTP_204_NO_CONTENT, content=None)
 
 
-@router.patch("/{session_id}/{position_index}", response_model=None)
+@router.patch("/{session_id}/{position_index}", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
 async def update_session_answer_in_a_session(
     session_id: str, position_index: int, session_answer: UpdateSessionAnswer
 ):
@@ -156,7 +156,7 @@ async def update_session_answer_in_a_session(
     logger.info(
         f"Updated session answer for session: {session_id} (user: {user_id} and quiz: {quiz_id}), position: {position_index}"
     )
-    return JSONResponse(status_code=status.HTTP_200_OK, content=None)
+    return JSONResponse(status_code=status.HTTP_204_NO_CONTENT, content=None)
 
 
 @router.get("/{session_id}/{position_index}", response_model=None)
