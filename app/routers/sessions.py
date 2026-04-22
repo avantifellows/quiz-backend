@@ -129,7 +129,7 @@ async def quiz_preflight(
     )
 
 
-@router.post("/", response_model=SessionResponse)
+@router.post("/", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
 async def create_session(session: Session):
     logger.info(
         f"Creating new session for user: {session.user_id} and quiz: {session.quiz_id}"
@@ -319,7 +319,7 @@ async def create_session(session: Session):
     )
 
 
-@router.patch("/{session_id}", response_model=UpdateSessionResponse)
+@router.patch("/{session_id}", response_model=UpdateSessionResponse, status_code=status.HTTP_200_OK)
 async def update_session(session_id: str, session_updates: UpdateSession):
     """
     session is updated whenever

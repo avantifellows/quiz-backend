@@ -19,7 +19,7 @@ def generate_random_string(length: int = settings.api_key_length):
     )
 
 
-@router.post("/", response_model=OrganizationResponse)
+@router.post("/", response_model=OrganizationResponse, status_code=status.HTTP_201_CREATED)
 async def create_organization(organization: Organization):
     logger.info("Creating new organization")
     organization = jsonable_encoder(organization)
