@@ -79,7 +79,7 @@ def update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz):
     logger.info("Quiz updated for backwards compatibility")
 
 
-@router.post("/", response_model=CreateQuizResponse)
+@router.post("/", response_model=CreateQuizResponse, status_code=status.HTTP_201_CREATED)
 async def create_quiz(quiz: Quiz):
     quiz = jsonable_encoder(quiz)
 
