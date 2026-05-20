@@ -1,7 +1,11 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from routers import questions, quizzes, session_answers, sessions, organizations, forms
+from models import APIErrorResponse
 from mangum import Mangum
 import random
 import string
@@ -13,6 +17,40 @@ logger = setup_logger()
 COMPRESS_MIN_THRESHOLD = 1000  # if more than 1000 bytes (~1KB), compress
 
 app = FastAPI()
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """Handle standard HTTP exceptions."""
+    logger.warning(f"HTTP error: {exc.detail} (status_code={exc.status_code})")
+    content = APIErrorResponse(
+        success=False, message=exc.detail, details=None
+    ).dict()
+    return JSONResponse(status_code=exc.status_code, content=content)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Handle Pydantic validation errors."""
+    logger.warning(f"Validation error: {exc.errors()}")
+    content = APIErrorResponse(
+        success=False, message="Validation failed", details=exc.errors()
+    ).dict()
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=content
+    )
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    """Handle all other unhandled exceptions."""
+    logger.error(f"Unhandled exception: {str(exc)}", exc_info=True)
+    content = APIErrorResponse(
+        success=False, message="Internal server error", details=None
+    ).dict()
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=content
+    )
 
 
 @app.middleware("http")

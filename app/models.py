@@ -1,6 +1,7 @@
+from __future__ import annotations
 from typing import Optional, List, Union
 from bson import ObjectId
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, constr, conlist, conint
 from schemas import (
     QuestionType,
     PyObjectId,
@@ -17,7 +18,7 @@ answerType = Union[List[int], List[str], float, int, str, dict, None]
 
 class Organization(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    name: str
+    name: constr(min_length=1)
 
     class Config:
         allow_population_by_field_name = True
@@ -134,7 +135,7 @@ class Question(BaseModel):
     """Model for the body of the request that creates a question"""
 
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    text: str
+    text: constr(min_length=1)
     type: QuestionType
     instructions: Optional[str] = None
     image: Optional[Image] = None
@@ -215,7 +216,7 @@ class QuestionResponse(Question):
 
 class QuestionSet(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    questions: List[Question]
+    questions: conlist(Question, min_items=1)
     title: Optional[str] = None
     description: Optional[str] = None
     max_questions_allowed_to_attempt: int
@@ -232,10 +233,10 @@ class Quiz(BaseModel):
     """Model for the body of the request that creates a quiz"""
 
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    title: Optional[str]
-    question_sets: List[QuestionSet]
-    max_marks: int
-    num_graded_questions: int
+    title: constr(min_length=1)
+    question_sets: conlist(QuestionSet, min_items=1)
+    max_marks: conint(ge=1)
+    num_graded_questions: conint(ge=1)
     shuffle: bool = False
     num_attempts_allowed: int = 1
     time_limit: Optional[QuizTimeLimit] = None
@@ -539,3 +540,9 @@ class UpdateSessionResponse(BaseModel):
 
     class Config:
         schema_extra = {"example": {"time_remaining": 300}}
+
+
+class APIErrorResponse(BaseModel):
+    success: bool = False
+    message: str
+    details: Optional[Union[dict, list, str]] = None
