@@ -7,9 +7,7 @@ on:
     types: [completed]
     branches: [main]
 
-  # Temporary: for testing on the feature branch. Remove after first successful deploy.
-  push:
-    branches: [docs/migration-lambda-to-ecs]
+  pull_request:
 
 env:
   AWS_REGION: ap-south-1
@@ -22,18 +20,20 @@ env:
 jobs:
   deploy:
     name: Build & Deploy
+    environment:
+      name: Staging
     runs-on: ubuntu-latest
     # For workflow_run: only deploy if CI succeeded
-    # For push: always run
+    # For pull_request: require the Staging environment approval above
     if: >-
-      github.event_name == 'push' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # workflow_run uses the head SHA from the CI run; push uses the current SHA
+          # workflow_run uses the head SHA from the CI run; pull_request uses GitHub's merge ref.
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Configure AWS credentials

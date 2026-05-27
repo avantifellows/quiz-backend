@@ -142,6 +142,7 @@ class Question(BaseModel):
     max_char_limit: Optional[int] = None
     matrix_size: Optional[List[int]] = None  # for matrix match question
     matrix_rows: Optional[List[str]] = None  # for matrix rating/numerical questions
+    matrix_columns: Optional[List[str]] = None  # for matrix-subjective-grid questions
     correct_answer: Union[List[int], List[str], float, int, dict, None] = None
     graded: bool = True
     force_correct: bool = False
