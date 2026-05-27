@@ -63,3 +63,26 @@ class TestScoring(unittest.TestCase):
         self.assertEqual(metrics["total_answered"], 1)
         self.assertEqual(metrics["total_skipped"], 1)
         self.assertEqual(metrics["total_marks"], 0.0)
+
+    def test_form_metrics_count_matrix_subjective_grid_as_answered(self):
+        quiz = json.load(open("app/tests/dummy_data/scoring_small_form.json"))
+        quiz["question_sets"][0]["questions"][0]["type"] = "matrix-subjective-grid"
+        session = {
+            "session_answers": [
+                {
+                    "answer": {
+                        "CUET": {
+                            "Category": "OBC",
+                            "Score / percentile": "88 percentile",
+                        }
+                    },
+                    "marked_for_review": False,
+                },
+                {"answer": None, "marked_for_review": False},
+            ]
+        }
+
+        metrics = compute_session_metrics(session, quiz)
+
+        self.assertEqual(metrics["total_answered"], 1)
+        self.assertEqual(metrics["total_skipped"], 1)

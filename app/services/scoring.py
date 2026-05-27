@@ -123,6 +123,19 @@ def _evaluate_answer(
                     result["is_correct"] = has_response
                 else:
                     result["is_correct"] = False
+            elif question_type == "matrix-subjective-grid":
+                if isinstance(user_answer, dict):
+                    has_response = any(
+                        isinstance(row, dict)
+                        and any(
+                            isinstance(val, str) and val.strip() != ""
+                            for val in row.values()
+                        )
+                        for row in user_answer.values()
+                    )
+                    result["is_correct"] = has_response
+                else:
+                    result["is_correct"] = False
             elif question_type == "subjective":
                 # NOTE: Matching legacy FE/ETL behavior: any non-empty response counts as correct.
                 if isinstance(user_answer, str) and user_answer.strip() != "":

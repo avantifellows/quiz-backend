@@ -28,6 +28,7 @@ class QuestionType(Enum):
     matrix_rating = "matrix-rating"
     matrix_numerical = "matrix-numerical"
     matrix_subjective = "matrix-subjective"
+    matrix_subjective_grid = "matrix-subjective-grid"
 
 
 class NavigationMode(Enum):
