@@ -243,6 +243,7 @@ class Quiz(BaseModel):
     review_immediate: Optional[bool] = True
     display_solution: Optional[bool] = True
     show_scores: Optional[bool] = True
+    require_all_questions: Optional[bool] = False
     navigation_mode: NavigationMode = "linear"
     instructions: Optional[str] = None
     language: QuizLanguage = "en"
