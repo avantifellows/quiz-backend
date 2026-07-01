@@ -15,7 +15,7 @@ from models import (
 )
 from datetime import datetime
 from logger_config import get_logger
-from typing import Dict, Optional
+from typing import Any, Dict, List, Optional
 from settings import Settings
 from services.scoring import compute_session_metrics
 
@@ -70,6 +70,54 @@ def shuffle_question_order(quiz, shuffle=False):
 
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
 logger = get_logger()
+
+
+def _is_required_form_answer_complete(question: Dict[str, Any], answer: Any) -> bool:
+    if answer is None:
+        return False
+
+    question_type = question.get("type")
+    if question_type == "subjective":
+        return isinstance(answer, str) and answer.strip() != ""
+
+    if question_type in ["numerical-integer", "numerical-float"]:
+        return isinstance(answer, (int, float))
+
+    if question_type in ["matrix-rating", "matrix-numerical", "matrix-subjective"]:
+        if not isinstance(answer, dict):
+            return False
+        matrix_rows = question.get("matrix_rows") or []
+        if len(matrix_rows) == 0:
+            return False
+        if question_type == "matrix-subjective":
+            filled_rows = [
+                value
+                for value in answer.values()
+                if isinstance(value, str) and value.strip() != ""
+            ]
+            return len(filled_rows) == len(matrix_rows)
+        return len(answer.keys()) == len(matrix_rows)
+
+    return isinstance(answer, list) and len(answer) > 0
+
+
+def _get_incomplete_required_form_positions(
+    quiz: Dict[str, Any], session: Dict[str, Any]
+) -> List[int]:
+    positions = []
+    session_answers = session.get("session_answers") or []
+    position = 0
+    for question_set in quiz.get("question_sets") or []:
+        for question in question_set.get("questions") or []:
+            answer = (
+                session_answers[position].get("answer")
+                if position < len(session_answers)
+                else None
+            )
+            if not _is_required_form_answer_complete(question, answer):
+                positions.append(position)
+            position += 1
+    return positions
 
 
 def _time_elapsed_secs(dt_1, dt_2) -> float:
@@ -492,6 +540,21 @@ async def update_session(session_id: str, session_updates: UpdateSession):
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"quiz {session['quiz_id']} not found",
                 )
+            if (
+                (quiz.get("metadata") or {}).get("quiz_type") == QuizType.form.value
+                and quiz.get("require_all_questions") is True
+            ):
+                incomplete_positions = _get_incomplete_required_form_positions(
+                    quiz, session
+                )
+                if incomplete_positions:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail={
+                            "message": "all required form questions must be answered before submission",
+                            "missing_positions": incomplete_positions,
+                        },
+                    )
             session_metrics = compute_session_metrics(session, quiz)
         session_update_query.setdefault("$set", {}).update(
             {
