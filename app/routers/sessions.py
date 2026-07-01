@@ -540,10 +540,9 @@ async def update_session(session_id: str, session_updates: UpdateSession):
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"quiz {session['quiz_id']} not found",
                 )
-            if (
-                (quiz.get("metadata") or {}).get("quiz_type") == QuizType.form.value
-                and quiz.get("require_all_questions") is True
-            ):
+            if (quiz.get("metadata") or {}).get(
+                "quiz_type"
+            ) == QuizType.form.value and quiz.get("require_all_questions") is True:
                 incomplete_positions = _get_incomplete_required_form_positions(
                     quiz, session
                 )
