@@ -1,10 +1,16 @@
 from fastapi import APIRouter, status, HTTPException, Query
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
+from pydantic import BaseModel
 from database import client
 from models import Quiz, GetQuizResponse, CreateQuizResponse
 from settings import Settings
 from schemas import QuizType
+from services.cms_ingest import (
+    fetch_assembled_test,
+    map_cms_test_to_quiz,
+    CmsIngestError,
+)
 from logger_config import get_logger
 
 router = APIRouter(prefix="/quiz", tags=["Quiz"])
@@ -79,14 +85,14 @@ def update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz):
     logger.info("Quiz updated for backwards compatibility")
 
 
-@router.post("/", response_model=CreateQuizResponse)
-async def create_quiz(quiz: Quiz):
-    quiz = jsonable_encoder(quiz)
-
+def _insert_quiz_with_questions(quiz: dict) -> str:
+    """Insert a quiz (already jsonable-encoded) and its questions into Mongo, returning
+    the new quiz id. Shared by the direct create endpoint and the CMS-ingest endpoint.
+    """
     log_message = "Starting quiz creation"
     log_with_source = ""
     log_with_source_id = ""
-    if "metadata" in quiz and "source" in quiz["metadata"]:
+    if "metadata" in quiz and quiz["metadata"] and "source" in quiz["metadata"]:
         log_with_source = f" with source {quiz['metadata']['source']}"
         log_message += log_with_source
         if "source_id" in quiz["metadata"]:
@@ -151,9 +157,69 @@ async def create_quiz(quiz: Quiz):
             detail=error_message,
         )
     logger.info("Finished creating quiz with id: " + str(new_quiz_result.inserted_id))
+    return new_quiz_result.inserted_id
 
+
+class CmsQuizIngestRequest(BaseModel):
+    """Body for POST /quiz/from-cms — identifies a chapter test in the new CMS."""
+
+    test_id: int
+    curriculum_id: int
+    grade_id: int
+    quiz_type: str = QuizType.assessment.value
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "test_id": 504,
+                "curriculum_id": 1,
+                "grade_id": 1,
+                "quiz_type": "assessment",
+            }
+        }
+
+
+@router.post("/", response_model=CreateQuizResponse)
+async def create_quiz(quiz: Quiz):
+    quiz = jsonable_encoder(quiz)
+    quiz_id = _insert_quiz_with_questions(quiz)
+    return JSONResponse(status_code=status.HTTP_201_CREATED, content={"id": quiz_id})
+
+
+@router.post("/from-cms", status_code=status.HTTP_201_CREATED)
+async def create_quiz_from_cms(request: CmsQuizIngestRequest):
+    """Fetch an assembled chapter test from the new CMS, map it into a native quiz, and
+    store it. Returns the new quiz id plus any non-fatal mapping warnings."""
+    logger.info(
+        f"CMS ingest: test {request.test_id} (curriculum {request.curriculum_id}, "
+        f"grade {request.grade_id})"
+    )
+    try:
+        assembled = fetch_assembled_test(
+            request.test_id, request.curriculum_id, request.grade_id
+        )
+        quiz_dict, warnings = map_cms_test_to_quiz(
+            assembled, quiz_type=request.quiz_type
+        )
+    except CmsIngestError as exc:
+        logger.error(f"CMS ingest failed for test {request.test_id}: {exc}")
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+
+    # Validate + fill defaults (ids, etc.) through the same model the direct endpoint uses.
+    quiz = jsonable_encoder(Quiz(**quiz_dict))
+    quiz_id = _insert_quiz_with_questions(quiz)
+
+    if warnings:
+        logger.warning(
+            f"CMS ingest for test {request.test_id} produced warnings: {warnings}"
+        )
     return JSONResponse(
-        status_code=status.HTTP_201_CREATED, content={"id": new_quiz_result.inserted_id}
+        status_code=status.HTTP_201_CREATED,
+        content={
+            "id": quiz_id,
+            "source_id": str(request.test_id),
+            "warnings": warnings,
+        },
     )
 
 
