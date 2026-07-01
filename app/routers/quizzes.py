@@ -131,6 +131,7 @@ async def create_quiz(quiz: Quiz):
                         "graded": 1,
                         "force_correct": 1,
                         "type": 1,
+                        "matrix_rows": 1,
                         "correct_answer": 1,
                         "question_set_id": 1,
                         "marking_scheme": 1,
