@@ -89,16 +89,31 @@ def _is_required_form_answer_complete(question: Dict[str, Any], answer: Any) -> 
         matrix_rows = question.get("matrix_rows") or []
         if len(matrix_rows) == 0:
             return False
-        if question_type == "matrix-subjective":
-            filled_rows = [
-                value
-                for value in answer.values()
-                if isinstance(value, str) and value.strip() != ""
-            ]
-            return len(filled_rows) == len(matrix_rows)
-        return len(answer.keys()) == len(matrix_rows)
+        row_values = [answer.get(row) for row in matrix_rows]
+        if question_type in ["matrix-subjective", "matrix-numerical"]:
+            return all(
+                isinstance(value, str) and value.strip() != "" for value in row_values
+            )
+        return all(isinstance(value, int) for value in row_values)
 
     return isinstance(answer, list) and len(answer) > 0
+
+
+def _hydrate_required_form_matrix_rows(quiz: Dict[str, Any]) -> None:
+    for question_set_index, question_set in enumerate(quiz.get("question_sets") or []):
+        questions = question_set.get("questions") or []
+        has_missing_matrix_rows = any(
+            question.get("type")
+            in ["matrix-rating", "matrix-numerical", "matrix-subjective"]
+            and not question.get("matrix_rows")
+            for question in questions
+        )
+        if has_missing_matrix_rows:
+            quiz["question_sets"][question_set_index]["questions"] = list(
+                client.quiz.questions.find(
+                    {"question_set_id": question_set["_id"]}
+                ).sort("_id", 1)
+            )
 
 
 def _get_incomplete_required_form_positions(
@@ -543,6 +558,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
             if (quiz.get("metadata") or {}).get(
                 "quiz_type"
             ) == QuizType.form.value and quiz.get("require_all_questions") is True:
+                _hydrate_required_form_matrix_rows(quiz)
                 incomplete_positions = _get_incomplete_required_form_positions(
                     quiz, session
                 )
