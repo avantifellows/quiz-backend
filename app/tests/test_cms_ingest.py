@@ -176,6 +176,35 @@ class TestCmsMapper(unittest.TestCase):
         self.assertEqual(questions[1]["type"], "numerical-float")
         self.assertEqual(questions[1]["correct_answer"], 3.14)
 
+    def test_integer_type_maps_to_numerical_integer(self):
+        # The CMS uses subtype "integer_type" for integer-answer questions (distinct from
+        # "numerical_answer"); it must map to numerical-integer, not fall through to the
+        # unknown-subtype single-choice default.
+        assembled = _test_with_problems(
+            problems=[
+                _problem(
+                    710,
+                    "integer_type",
+                    {"text": "count?", "options": [], "answer": ["9"], "solutions": []},
+                ),
+            ],
+            sections=[
+                {
+                    "type": "integer_type",
+                    "name": "Integers",
+                    "compulsory": {
+                        "problems": [{"id": 710, "pos_marks": [4], "neg_marks": [0]}]
+                    },
+                }
+            ],
+        )
+
+        quiz, warnings = map_cms_test_to_quiz(assembled)
+        question = quiz["question_sets"][0]["questions"][0]
+        self.assertEqual(question["type"], "numerical-integer")
+        self.assertEqual(question["correct_answer"], 9)
+        self.assertFalse(any("unknown subtype" in w for w in warnings))
+
     def test_numerical_range_warns_and_stores_low(self):
         assembled = _test_with_problems(
             problems=[

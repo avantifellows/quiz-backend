@@ -152,7 +152,10 @@ def _map_problem(
         "source_id": str(problem_id),
     }
 
-    if subtype == "numerical_answer":
+    # numerical_answer and integer_type are both free-numeric-entry (no options); the CMS
+    # stores the answer as a single value (integer_type is always an integer). Map both to
+    # numerical-integer/float from the answer value.
+    if subtype in ("numerical_answer", "integer_type"):
         if not answers:
             warnings.append(
                 f"problem {problem_id}: numerical with no answer -> ungraded"
