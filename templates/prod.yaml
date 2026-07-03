@@ -6,6 +6,15 @@ Parameters:
   MongoAuthCredentials:
     Type: String
     Description: Credentials to connect to the MongoDB instance
+  CmsServiceEndpoint:
+    Type: String
+    Default: ""
+    Description: Base URL of nex-gen-cms, used by /quiz/from-cms ingest
+  CmsServiceToken:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Bearer token for the CMS /api/service/* routes
 
 Resources:
   Function:
@@ -20,6 +29,8 @@ Resources:
       Environment:
         Variables:
           MONGO_AUTH_CREDENTIALS: !Ref MongoAuthCredentials
+          CMS_SERVICE_ENDPOINT: !Ref CmsServiceEndpoint
+          CMS_SERVICE_TOKEN: !Ref CmsServiceToken
       Events:
         Api:
           Type: HttpApi
