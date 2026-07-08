@@ -55,6 +55,14 @@ resource "aws_ecs_task_definition" "quiz_backend" {
         {
           name  = "MONGO_AUTH_CREDENTIALS"
           value = var.mongo_auth_credentials
+        },
+        {
+          name  = "CMS_SERVICE_ENDPOINT"
+          value = var.cms_service_endpoint
+        },
+        {
+          name  = "CMS_SERVICE_TOKEN"
+          value = var.cms_service_token
         }
       ]
 
