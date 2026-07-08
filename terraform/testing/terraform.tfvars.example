@@ -5,6 +5,11 @@ aws_region             = "ap-south-1"
 environment            = "testing"
 mongo_auth_credentials = "mongodb+srv://USER:PASS@cluster.mongodb.net/quiz-staging?retryWrites=true&w=majority"
 
+# New CMS (nex-gen-cms) service API — used by POST /quiz/from-cms to fetch tests.
+# cms_service_token MUST match the CMS's STAGING CMS_SERVICE_TOKEN, else ingest 401s.
+cms_service_endpoint = "https://staging-new-cms.avantifellows.org"
+cms_service_token    = "your-staging-cms-service-token"
+
 # ECS Configuration
 desired_count = 1
 task_cpu      = 1024  # 1 vCPU
