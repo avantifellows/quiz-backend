@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import APIRouter, status, HTTPException, Query
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
@@ -221,6 +223,78 @@ async def create_quiz_from_cms(request: CmsQuizIngestRequest):
             "source_id": str(request.test_id),
             "warnings": warnings,
         },
+    )
+
+
+class QuizPatchRequest(BaseModel):
+    """Body for PATCH /quiz/{quiz_id} — field-scoped update of the session-editable
+    settings on an existing quiz doc. Only the fields that are sent are changed; the
+    LMS session-edit flow decides which to send."""
+
+    title: Optional[str] = None
+    shuffle: Optional[bool] = None
+    show_scores: Optional[bool] = None
+    # "show answers immediately after submission" (off during concurrent testing)
+    review_immediate: Optional[bool] = None
+    # metadata.session_end_time, format: %Y-%m-%d %I:%M:%S %p
+    session_end_time: Optional[str] = None
+
+
+@router.patch("/{quiz_id}")
+async def patch_quiz(quiz_id: str, request: QuizPatchRequest):
+    """Patch session-editable settings on an existing quiz in place (same _id).
+
+    Called by the LMS when a quiz session is edited so the display/scoring settings
+    on the quiz doc stay in sync, without rebuilding the quiz or its questions.
+    """
+    quiz_collection = client.quiz.quizzes
+
+    existing = quiz_collection.find_one({"_id": quiz_id}, {"_id": 1, "metadata": 1})
+    if existing is None:
+        logger.warning(f"Requested quiz {quiz_id} not found for patch")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"quiz {quiz_id} not found"
+        )
+
+    set_ops = {}
+    updated = []
+    for field in ("title", "shuffle", "show_scores", "review_immediate"):
+        value = getattr(request, field)
+        if value is not None:
+            set_ops[field] = value
+            updated.append(field)
+    if request.session_end_time is not None:
+        updated.append("session_end_time")
+        # A dotted $set ("metadata.session_end_time") raises when metadata is
+        # explicitly null (Mongo can't traverse a null intermediate), so write the
+        # whole subdoc in that case. An absent metadata is fine with dot-notation.
+        if existing.get("metadata") is None:
+            set_ops["metadata"] = {"session_end_time": request.session_end_time}
+        else:
+            set_ops["metadata.session_end_time"] = request.session_end_time
+
+    if not set_ops:
+        return JSONResponse(
+            status_code=status.HTTP_200_OK, content={"id": quiz_id, "updated": []}
+        )
+
+    result = quiz_collection.update_one({"_id": quiz_id}, {"$set": set_ops})
+    if not result.acknowledged:
+        error_message = f"Failed to patch quiz {quiz_id}"
+        logger.error(error_message)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error_message
+        )
+    if result.matched_count == 0:
+        # Deleted between the existence check and the write.
+        logger.warning(f"Quiz {quiz_id} vanished before patch could apply")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"quiz {quiz_id} not found"
+        )
+    logger.info(f"Patched quiz {quiz_id}: {updated}")
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={"id": quiz_id, "updated": updated},
     )
 
 

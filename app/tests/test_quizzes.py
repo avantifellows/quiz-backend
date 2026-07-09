@@ -365,3 +365,78 @@ class QuizTestCase(BaseTestCase):
                 break
         assert found is not None
         assert found.get("solution") == []
+
+    def test_patch_quiz_updates_session_editable_fields(self):
+        quiz_id = self.homework_quiz_id
+        resp = self.client.patch(
+            f"{quizzes.router.prefix}/{quiz_id}",
+            json={
+                "title": "Renamed by LMS",
+                "shuffle": True,
+                "show_scores": False,
+                "review_immediate": False,
+                "session_end_time": "2026-04-15 02:00:00 PM",
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["id"] == quiz_id
+        assert set(body["updated"]) == {
+            "title",
+            "shuffle",
+            "show_scores",
+            "review_immediate",
+            "session_end_time",
+        }
+
+        doc = mongo_client.quiz.quizzes.find_one({"_id": quiz_id})
+        assert doc["title"] == "Renamed by LMS"
+        assert doc["shuffle"] is True
+        assert doc["show_scores"] is False
+        assert doc["review_immediate"] is False
+        assert doc["metadata"]["session_end_time"] == "2026-04-15 02:00:00 PM"
+
+    def test_patch_quiz_session_end_time_when_metadata_is_null(self):
+        # A quiz doc can carry metadata: null (the GET route guards for it). A dotted
+        # $set would raise on the null intermediate; the endpoint must handle it.
+        quiz_id = self.homework_quiz_id
+        mongo_client.quiz.quizzes.update_one(
+            {"_id": quiz_id}, {"$set": {"metadata": None}}
+        )
+
+        resp = self.client.patch(
+            f"{quizzes.router.prefix}/{quiz_id}",
+            json={"session_end_time": "2026-04-15 02:00:00 PM"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["updated"] == ["session_end_time"]
+
+        doc = mongo_client.quiz.quizzes.find_one({"_id": quiz_id})
+        assert doc["metadata"] == {"session_end_time": "2026-04-15 02:00:00 PM"}
+
+    def test_patch_quiz_only_touches_provided_fields(self):
+        quiz_id = self.short_homework_quiz_id
+        before = mongo_client.quiz.quizzes.find_one({"_id": quiz_id})
+
+        resp = self.client.patch(
+            f"{quizzes.router.prefix}/{quiz_id}", json={"shuffle": True}
+        )
+        assert resp.status_code == 200
+        assert resp.json()["updated"] == ["shuffle"]
+
+        after = mongo_client.quiz.quizzes.find_one({"_id": quiz_id})
+        assert after["shuffle"] is True
+        # untouched field stays as it was
+        assert after["title"] == before["title"]
+
+    def test_patch_quiz_with_no_fields_is_a_noop(self):
+        quiz_id = self.homework_quiz_id
+        resp = self.client.patch(f"{quizzes.router.prefix}/{quiz_id}", json={})
+        assert resp.status_code == 200
+        assert resp.json()["updated"] == []
+
+    def test_patch_quiz_returns_404_for_unknown_id(self):
+        resp = self.client.patch(
+            f"{quizzes.router.prefix}/does-not-exist", json={"shuffle": True}
+        )
+        assert resp.status_code == 404
