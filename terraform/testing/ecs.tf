@@ -77,7 +77,7 @@ resource "aws_ecs_task_definition" "quiz_backend" {
 
       healthCheck = {
         command     = ["CMD-SHELL", "curl -f http://localhost:${var.app_port}/health || exit 1"]
-        interval    = 30
+        interval    = 5
         timeout     = 5
         retries     = 3
         startPeriod = 60

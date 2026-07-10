@@ -19,6 +19,10 @@ env:
   TASK_DEFINITION_FAMILY: quiz-backend-prod
   CONTAINER_NAME: quiz-backend
 
+concurrency:
+  group: ecs-prod
+  cancel-in-progress: false
+
 jobs:
   deploy:
     name: Build & Deploy
@@ -111,6 +115,7 @@ jobs:
           service: ${{ env.ECS_SERVICE }}
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
+          wait-max-delay-seconds: 15
 
       - name: Verify deployment
         run: |
@@ -133,15 +138,15 @@ jobs:
             exit 0
           fi
 
-          echo "Waiting 15s for ALB target registration..."
-          sleep 15
-
-          echo "Hitting health endpoint..."
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
-            https://quiz-backend.avantifellows.org/health)
-          echo "Health check returned: $HTTP_STATUS"
-          if [ "$HTTP_STATUS" != "200" ]; then
-            echo "Smoke test failed! Expected 200, got $HTTP_STATUS"
-            exit 1
-          fi
-          echo "Smoke test passed."
+          for ATTEMPT in {1..5}; do
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+              https://quiz-backend.avantifellows.org/health || true)
+            echo "Health check attempt $ATTEMPT returned: $HTTP_STATUS"
+            if [ "$HTTP_STATUS" = "200" ]; then
+              echo "Smoke test passed."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Smoke test failed! Expected 200."
+          exit 1

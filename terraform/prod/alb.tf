@@ -21,10 +21,12 @@ resource "aws_lb_target_group" "quiz_backend" {
   vpc_id      = data.aws_vpc.default.id
   target_type = "ip" # Required for Fargate
 
+  deregistration_delay = 5
+
   health_check {
     enabled             = true
     healthy_threshold   = 2
-    interval            = 30
+    interval            = 5
     matcher             = "200"
     path                = "/health"
     port                = "traffic-port"
