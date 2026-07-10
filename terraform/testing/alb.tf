@@ -31,7 +31,7 @@ resource "aws_lb_target_group" "quiz_backend" {
     path                = "/health"
     port                = "traffic-port"
     protocol            = "HTTP"
-    timeout             = 5
+    timeout             = 2
     unhealthy_threshold = 3
   }
 
