@@ -1,4 +1,6 @@
+import copy
 import json
+from unittest.mock import patch
 from .base import BaseTestCase
 from ..routers import quizzes, questions
 from settings import Settings
@@ -367,7 +369,9 @@ class QuizTestCase(BaseTestCase):
         assert found.get("solution") == []
 
     def test_patch_quiz_updates_session_editable_fields(self):
-        quiz_id = self.homework_quiz_id
+        # Timed quiz (time_limit.max = 200s): the stored session_end_time is the supplied
+        # window end PLUS the quiz duration (answer-visibility time), not the raw window end.
+        quiz_id = self.timed_quiz_id
         resp = self.client.patch(
             f"{quizzes.router.prefix}/{quiz_id}",
             json={
@@ -375,7 +379,7 @@ class QuizTestCase(BaseTestCase):
                 "shuffle": True,
                 "show_scores": False,
                 "review_immediate": False,
-                "session_end_time": "2026-04-15 02:00:00 PM",
+                "session_end_time": "2026-04-15T14:00:00",
             },
         )
         assert resp.status_code == 200
@@ -394,7 +398,19 @@ class QuizTestCase(BaseTestCase):
         assert doc["shuffle"] is True
         assert doc["show_scores"] is False
         assert doc["review_immediate"] is False
-        assert doc["metadata"]["session_end_time"] == "2026-04-15 02:00:00 PM"
+        # 14:00:00 + 200s = 14:03:20
+        assert doc["metadata"]["session_end_time"] == "2026-04-15T14:03:20"
+
+    def test_patch_quiz_session_end_time_untimed_quiz_has_no_offset(self):
+        # An untimed quiz (time_limit None) adds no duration; the value is just normalized.
+        quiz_id = self.homework_quiz_id
+        resp = self.client.patch(
+            f"{quizzes.router.prefix}/{quiz_id}",
+            json={"session_end_time": "2026-04-15T14:00:00"},
+        )
+        assert resp.status_code == 200
+        doc = mongo_client.quiz.quizzes.find_one({"_id": quiz_id})
+        assert doc["metadata"]["session_end_time"] == "2026-04-15T14:00:00"
 
     def test_patch_quiz_session_end_time_when_metadata_is_null(self):
         # A quiz doc can carry metadata: null (the GET route guards for it). A dotted
@@ -406,13 +422,27 @@ class QuizTestCase(BaseTestCase):
 
         resp = self.client.patch(
             f"{quizzes.router.prefix}/{quiz_id}",
-            json={"session_end_time": "2026-04-15 02:00:00 PM"},
+            json={"session_end_time": "2026-04-15T14:00:00"},
         )
         assert resp.status_code == 200
         assert resp.json()["updated"] == ["session_end_time"]
 
         doc = mongo_client.quiz.quizzes.find_one({"_id": quiz_id})
-        assert doc["metadata"] == {"session_end_time": "2026-04-15 02:00:00 PM"}
+        # untimed quiz -> no offset, value normalized to isoformat
+        assert doc["metadata"] == {"session_end_time": "2026-04-15T14:00:00"}
+
+    def test_patch_quiz_session_end_time_accepts_12h_format(self):
+        # The LMS emits the legacy 12-hour "%I:%M:%S %p" format; it must parse and still get
+        # the duration offset (else the answer-review gate silently opens at the window end).
+        quiz_id = self.timed_quiz_id  # time_limit.max = 200s
+        resp = self.client.patch(
+            f"{quizzes.router.prefix}/{quiz_id}",
+            json={"session_end_time": "2026-04-15 02:00:00 PM"},
+        )
+        assert resp.status_code == 200
+        doc = mongo_client.quiz.quizzes.find_one({"_id": quiz_id})
+        # 14:00:00 + 200s = 14:03:20
+        assert doc["metadata"]["session_end_time"] == "2026-04-15T14:03:20"
 
     def test_patch_quiz_only_touches_provided_fields(self):
         quiz_id = self.short_homework_quiz_id
@@ -438,5 +468,185 @@ class QuizTestCase(BaseTestCase):
     def test_patch_quiz_returns_404_for_unknown_id(self):
         resp = self.client.patch(
             f"{quizzes.router.prefix}/does-not-exist", json={"shuffle": True}
+        )
+        assert resp.status_code == 404
+
+    # ---- CMS from-cms create: answer-visibility time ----
+
+    def _cms_quiz_dict(self, **overrides):
+        """A quiz dict shaped like map_cms_test_to_quiz's output (1 set, 2 questions), built
+        off the homework fixture. `overrides` shallow-merge onto the top level."""
+        quiz = copy.deepcopy(self.homework_quiz_data)
+        quiz.update(overrides)
+        return quiz
+
+    def test_create_from_cms_stores_answer_visibility_time(self):
+        quiz_dict = self._cms_quiz_dict(time_limit={"min": 0, "max": 200})
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(quiz_dict, [])
+        ):
+            resp = self.client.post(
+                f"{quizzes.router.prefix}/from-cms",
+                json={
+                    "test_id": 504,
+                    "curriculum_id": 1,
+                    "grade_id": 1,
+                    "session_end_time": "2026-04-15T14:00:00",
+                },
+            )
+        assert resp.status_code == 201
+        doc = mongo_client.quiz.quizzes.find_one({"_id": resp.json()["id"]})
+        # 14:00:00 + 200s duration = 14:03:20
+        assert doc["metadata"]["session_end_time"] == "2026-04-15T14:03:20"
+
+    def test_create_from_cms_without_session_end_time_leaves_it_unset(self):
+        quiz_dict = self._cms_quiz_dict(time_limit={"min": 0, "max": 200})
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(quiz_dict, [])
+        ):
+            resp = self.client.post(
+                f"{quizzes.router.prefix}/from-cms",
+                json={"test_id": 504, "curriculum_id": 1, "grade_id": 1},
+            )
+        assert resp.status_code == 201
+        doc = mongo_client.quiz.quizzes.find_one({"_id": resp.json()["id"]})
+        assert doc["metadata"].get("session_end_time") is None
+
+    # ---- regenerate in place (PUT /quiz/{id}/from-cms) ----
+
+    def test_regenerate_preserves_ids_and_refreshes_content(self):
+        quiz_id, _ = self.post_and_get_quiz(copy.deepcopy(self.homework_quiz_data))
+        # Session-edit sets these on the quiz doc; regenerate must not reset them.
+        self.client.patch(
+            f"{quizzes.router.prefix}/{quiz_id}",
+            json={"title": "LMS Session Name", "show_scores": False},
+        )
+        before = mongo_client.quiz.quizzes.find_one({"_id": quiz_id})
+        old_qids = [q["_id"] for q in before["question_sets"][0]["questions"]]
+
+        # Corrected test: same structure, changed content + content-metadata.
+        new_quiz = self._cms_quiz_dict()
+        new_quiz["title"] = "CMS Test Title"  # must NOT overwrite the session name
+        new_quiz["question_sets"][0]["questions"][0]["text"] = "CORRECTED text"
+        new_quiz["metadata"]["subject"] = "Physics"  # content metadata -> refreshes
+        new_quiz["metadata"]["grade"] = "99"  # session-editable metadata -> preserved
+
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(new_quiz, [])
+        ):
+            resp = self.client.put(
+                f"{quizzes.router.prefix}/{quiz_id}/from-cms",
+                json={"test_id": 504, "curriculum_id": 1, "grade_id": 1},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["regenerated"] is True
+
+        after = mongo_client.quiz.quizzes.find_one({"_id": quiz_id})
+        # quiz + question ids preserved (attempts stay linked)
+        assert after["_id"] == quiz_id
+        assert [q["_id"] for q in after["question_sets"][0]["questions"]] == old_qids
+        # question content refreshed in the questions collection
+        assert (
+            mongo_client.quiz.questions.find_one({"_id": old_qids[0]})["text"]
+            == "CORRECTED text"
+        )
+        # session-editable settings preserved
+        assert after["title"] == "LMS Session Name"
+        assert after["show_scores"] is False
+        assert after["metadata"]["grade"] == "8"  # old value kept, not the CMS "99"
+        # content metadata refreshed from the corrected test
+        assert after["metadata"]["subject"] == "Physics"
+
+    def test_regenerate_recomputes_session_end_time_with_supplied_window(self):
+        quiz_id, _ = self.post_and_get_quiz(copy.deepcopy(self.homework_quiz_data))
+        new_quiz = self._cms_quiz_dict(time_limit={"min": 0, "max": 200})
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(new_quiz, [])
+        ):
+            resp = self.client.put(
+                f"{quizzes.router.prefix}/{quiz_id}/from-cms",
+                json={
+                    "test_id": 504,
+                    "curriculum_id": 1,
+                    "grade_id": 1,
+                    "session_end_time": "2026-04-15T14:00:00",
+                },
+            )
+        assert resp.status_code == 200
+        doc = mongo_client.quiz.quizzes.find_one({"_id": quiz_id})
+        assert doc["metadata"]["session_end_time"] == "2026-04-15T14:03:20"
+
+    def test_regenerate_preserves_session_end_time_when_not_supplied(self):
+        quiz_id, _ = self.post_and_get_quiz(copy.deepcopy(self.homework_quiz_data))
+        self.client.patch(
+            f"{quizzes.router.prefix}/{quiz_id}",
+            json={"session_end_time": "2026-04-15T14:00:00"},  # untimed -> stored as-is
+        )
+        new_quiz = self._cms_quiz_dict()
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(new_quiz, [])
+        ):
+            resp = self.client.put(
+                f"{quizzes.router.prefix}/{quiz_id}/from-cms",
+                json={"test_id": 504, "curriculum_id": 1, "grade_id": 1},
+            )
+        assert resp.status_code == 200
+        doc = mongo_client.quiz.quizzes.find_one({"_id": quiz_id})
+        assert doc["metadata"]["session_end_time"] == "2026-04-15T14:00:00"
+
+    def test_regenerate_refuses_structure_change(self):
+        quiz_id, _ = self.post_and_get_quiz(copy.deepcopy(self.homework_quiz_data))
+        before = mongo_client.quiz.quizzes.find_one({"_id": quiz_id})
+
+        new_quiz = self._cms_quiz_dict()  # add a 3rd question -> structure differs
+        new_quiz["question_sets"][0]["questions"].append(
+            copy.deepcopy(new_quiz["question_sets"][0]["questions"][0])
+        )
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(new_quiz, [])
+        ):
+            resp = self.client.put(
+                f"{quizzes.router.prefix}/{quiz_id}/from-cms",
+                json={"test_id": 504, "curriculum_id": 1, "grade_id": 1},
+            )
+        assert resp.status_code == 409
+        after = mongo_client.quiz.quizzes.find_one({"_id": quiz_id})
+        # nothing was written
+        assert len(after["question_sets"][0]["questions"]) == len(
+            before["question_sets"][0]["questions"]
+        )
+
+    def test_regenerate_refuses_when_question_identity_changes(self):
+        # Same set/question counts, but a position is now a DIFFERENT problem (source_id
+        # changed) — a reorder or delete+add. Blindly reusing the old _id would mis-score
+        # attempts, so this must 409 with no write.
+        seed = copy.deepcopy(self.homework_quiz_data)
+        for idx, q in enumerate(seed["question_sets"][0]["questions"]):
+            q["source_id"] = f"cms-{idx}"
+        quiz_id, _ = self.post_and_get_quiz(seed)
+        before = mongo_client.quiz.quizzes.find_one({"_id": quiz_id})
+        old_q0_id = before["question_sets"][0]["questions"][0]["_id"]
+
+        new_quiz = copy.deepcopy(seed)
+        new_quiz["question_sets"][0]["questions"][0]["source_id"] = "cms-999"
+
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(new_quiz, [])
+        ):
+            resp = self.client.put(
+                f"{quizzes.router.prefix}/{quiz_id}/from-cms",
+                json={"test_id": 504, "curriculum_id": 1, "grade_id": 1},
+            )
+        assert resp.status_code == 409
+        # no write happened — the question keeps its original source_id
+        assert (
+            mongo_client.quiz.questions.find_one({"_id": old_q0_id})["source_id"]
+            == "cms-0"
+        )
+
+    def test_regenerate_returns_404_for_unknown_id(self):
+        resp = self.client.put(
+            f"{quizzes.router.prefix}/does-not-exist/from-cms",
+            json={"test_id": 504, "curriculum_id": 1, "grade_id": 1},
         )
         assert resp.status_code == 404
