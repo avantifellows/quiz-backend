@@ -331,6 +331,86 @@ class QuizTestCase(BaseTestCase):
                     for option in question["options"]:
                         assert "text" in option
 
+    def test_create_quiz_rejects_string_answer_for_single_choice(self):
+        """correct_answer must be a list of ints for single-choice, not a string"""
+        invalid_quiz = {
+            "question_sets": [
+                {
+                    "title": "Section A",
+                    "max_questions_allowed_to_attempt": 1,
+                    "questions": [
+                        {
+                            "text": "Pick one",
+                            "type": "single-choice",
+                            "options": [
+                                {"text": "Option 1"},
+                                {"text": "Option 2"},
+                            ],
+                            "correct_answer": "wrong_type",
+                            "graded": True,
+                        }
+                    ],
+                }
+            ],
+            "max_marks": 1,
+            "num_graded_questions": 1,
+            "metadata": {"quiz_type": "homework"},
+        }
+        response = self.client.post(quizzes.router.prefix + "/", json=invalid_quiz)
+        assert response.status_code == 422
+
+    def test_create_quiz_rejects_list_answer_for_numerical_integer(self):
+        """correct_answer must be int or str for numerical-integer, not a list"""
+        invalid_quiz = {
+            "question_sets": [
+                {
+                    "title": "Section A",
+                    "max_questions_allowed_to_attempt": 1,
+                    "questions": [
+                        {
+                            "text": "What is 2+2?",
+                            "type": "numerical-integer",
+                            "options": [],
+                            "correct_answer": [4],
+                            "graded": True,
+                        }
+                    ],
+                }
+            ],
+            "max_marks": 1,
+            "num_graded_questions": 1,
+            "metadata": {"quiz_type": "assessment"},
+        }
+        response = self.client.post(quizzes.router.prefix + "/", json=invalid_quiz)
+        assert response.status_code == 422
+
+    def test_create_quiz_allows_none_answer_for_ungraded_question(self):
+        """correct_answer can be None for any question type when ungraded"""
+        valid_quiz = {
+            "question_sets": [
+                {
+                    "title": "Section A",
+                    "max_questions_allowed_to_attempt": 1,
+                    "questions": [
+                        {
+                            "text": "Pick one",
+                            "type": "single-choice",
+                            "options": [
+                                {"text": "Option 1"},
+                                {"text": "Option 2"},
+                            ],
+                            "graded": False,
+                        }
+                    ],
+                }
+            ],
+            "max_marks": 0,
+            "num_graded_questions": 0,
+            "metadata": {"quiz_type": "homework"},
+        }
+        response = self.client.post(quizzes.router.prefix + "/", json=valid_quiz)
+        assert response.status_code == 201
+
     def test_single_page_mode_clears_solutions_when_display_solution_false(self):
         # Ensure at least one question has a non-empty solution in the questions collection
         qset_id = self.multi_qset_quiz["question_sets"][0]["_id"]
