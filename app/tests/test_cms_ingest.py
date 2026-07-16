@@ -272,7 +272,7 @@ class TestCmsMapper(unittest.TestCase):
         self.assertEqual(question["type"], "numerical-float")
         self.assertEqual(question["correct_answer"], 5.5)
 
-    def test_comprehension_inlines_paragraph(self):
+    def test_comprehension_inlines_paragraph_and_maps_numerical_answer(self):
         assembled = _test_with_problems(
             problems=[
                 _problem(
@@ -280,8 +280,8 @@ class TestCmsMapper(unittest.TestCase):
                     "comprehension",
                     {
                         "text": "Q on passage",
-                        "options": ["A", "B"],
-                        "answer": ["1"],
+                        "options": None,
+                        "answer": ["24.00"],
                         "solutions": [],
                     },
                     paragraph={"id": 9, "body": "PASSAGE. "},
@@ -300,8 +300,39 @@ class TestCmsMapper(unittest.TestCase):
 
         quiz, warnings = map_cms_test_to_quiz(assembled)
         question = quiz["question_sets"][0]["questions"][0]
-        self.assertEqual(question["type"], "single-choice")
+        self.assertEqual(question["type"], "numerical-float")
+        self.assertEqual(question["correct_answer"], 24.0)
+        self.assertEqual(question["options"], [])
         self.assertTrue(question["text"].startswith("PASSAGE. "))
+
+    def test_invalid_comprehension_answer_names_problem(self):
+        assembled = _test_with_problems(
+            problems=[
+                _problem(
+                    801,
+                    "comprehension",
+                    {
+                        "text": "Q on passage",
+                        "options": None,
+                        "answer": ["not-a-number"],
+                        "solutions": [],
+                    },
+                    paragraph={"id": 9, "body": "PASSAGE. "},
+                )
+            ],
+            sections=[
+                {
+                    "type": "comprehension",
+                    "name": "",
+                    "compulsory": {
+                        "problems": [{"id": 801, "pos_marks": [4], "neg_marks": [1]}]
+                    },
+                }
+            ],
+        )
+
+        with self.assertRaisesRegex(CmsIngestError, "problem 801"):
+            map_cms_test_to_quiz(assembled)
 
     def test_marks_cascade_from_section_when_problem_ref_unset(self):
         assembled = _test_with_problems(
