@@ -15,7 +15,8 @@ Contract (locked with the CMS owner — see task lms-cms-tests):
   the structure (subjects -> sections -> compulsory/optional problem refs) and marks at
   four levels (test / subject / section / problem). `problems` is a flat list of
   fully-resolved problems (text, options, answer, paragraph) joined to their refs by id.
-- Answers are 1-based option numbers; the quiz engine wants 0-based indices.
+- Choice answers are 1-based option numbers; the quiz engine wants 0-based indices.
+  Numerical and comprehension answers are numeric values.
 - Marks cascade problem-ref -> section -> subject -> test; the lowest level that sets
   marks wins. `pos_marks[0]` -> correct, `neg_marks[0]` -> wrong (as a negative).
 
@@ -39,6 +40,9 @@ Deliberate divergences from legacy (new-CMS data makes these strictly better):
 - NUMERICAL RANGE [low, high] stores the midpoint (low+high)/2 (the engine grades numerics
   with a fixed tolerance, so the midpoint is the least-biased point answer), not the low
   bound. True range grading is a later engine change.
+- COMPREHENSION problems are numerical-answer questions in the new CMS. Their paragraph
+  is inlined into the question text and their answer is mapped to numerical-integer or
+  numerical-float. The legacy CMS's single-choice comprehension contract is unchanged.
 
 Unknown problem subtypes fail the ingestion (like legacy's ValueError) rather than being
 silently mapped to single-choice — a wrong question type in a live quiz is worse than a
@@ -54,15 +58,14 @@ from settings import Settings
 
 settings = Settings()
 
-# CMS problem subtype -> quiz-engine question type. numerical_answer / integer_type
-# resolve to numerical-integer/float at map time based on the answer value.
+# CMS choice subtype -> quiz-engine question type. Numerical subtypes resolve to
+# numerical-integer/float at map time based on the answer value.
 CHOICE_TYPE_MAP = {
     "mcq_single_answer": "single-choice",
     "mcq_multiple_answer": "multi-choice",
     "matrix_match": "single-choice",  # single-answer; table baked into the question HTML
-    "comprehension": "single-choice",  # 1:1, paragraph self-carried on the problem
 }
-NUMERIC_SUBTYPES = ("numerical_answer", "integer_type")
+NUMERIC_SUBTYPES = ("numerical_answer", "integer_type", "comprehension")
 
 # Instruction blurbs shown at the top of a question set, keyed on the set's question type
 # (ported from QuizInterface.QUESTION_SET_TYPE_INSTRUCTION_MAPPING).
@@ -200,9 +203,9 @@ def _map_problem(
         },
     }
 
-    # numerical_answer and integer_type are both free-numeric-entry (no options); the CMS
-    # stores the answer as a single value or a [low, high] range. Map both to
-    # numerical-integer/float from the answer value.
+    # Numerical, integer, and new-CMS comprehension problems are free-numeric-entry (no
+    # options); the CMS stores the answer as a single value or a [low, high] range. Map
+    # them to numerical-integer/float from the answer value.
     if subtype in NUMERIC_SUBTYPES:
         if not answers:
             warnings.append(
@@ -248,16 +251,22 @@ def _numerical_answer(answers: List[Any], problem_id: Any, warnings: List[str]):
     to its midpoint (the engine grades numerics with a fixed tolerance, so the midpoint is
     the least-biased point answer); a single value is used as-is. Returns int or float.
     """
-    if len(answers) >= 2 and str(answers[0]) != str(answers[1]):
-        low, high = float(answers[0]), float(answers[1])
-        midpoint = (low + high) / 2
-        warnings.append(
-            f"problem {problem_id}: numerical range [{answers[0]}, {answers[1]}] stored as "
-            f"midpoint {midpoint} (engine grades a point +/- tolerance, not a range)"
-        )
-        return midpoint if midpoint != int(midpoint) else int(midpoint)
-    value = str(answers[0])
-    return float(value) if "." in value else int(value)
+    try:
+        if len(answers) >= 2 and str(answers[0]) != str(answers[1]):
+            low, high = float(answers[0]), float(answers[1])
+            midpoint = (low + high) / 2
+            warnings.append(
+                f"problem {problem_id}: numerical range [{answers[0]}, {answers[1]}] "
+                f"stored as midpoint {midpoint} (engine grades a point +/- tolerance, "
+                "not a range)"
+            )
+            return midpoint if midpoint != int(midpoint) else int(midpoint)
+        value = str(answers[0])
+        return float(value) if "." in value else int(value)
+    except (TypeError, ValueError) as exc:
+        raise CmsIngestError(
+            f"problem {problem_id}: invalid numerical answer {answers!r}"
+        ) from exc
 
 
 def _partial_scheme(max_options: int) -> List[Dict[str, Any]]:
