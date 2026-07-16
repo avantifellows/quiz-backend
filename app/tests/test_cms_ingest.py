@@ -98,6 +98,76 @@ class TestCmsMapper(unittest.TestCase):
         self.assertEqual(quiz["max_marks"], 4)
         self.assertEqual(quiz["num_graded_questions"], 1)
 
+    def test_chapter_name_mapped_from_assembled_payload(self):
+        # The assembled problem carries chapter_name (multilingual list) + chapter_id;
+        # both must land on question metadata so chapter-level analytics can be built.
+        assembled = _test_with_problems(
+            problems=[
+                _problem(
+                    506,
+                    "mcq_single_answer",
+                    {
+                        "text": "Q?",
+                        "options": ["A", "B", "C", "D"],
+                        "answer": ["1"],
+                        "solutions": [{"type": "text", "value": ""}],
+                    },
+                    chapter_id=34,
+                    chapter_name=[
+                        {"chapter": "मोल अवधारणा", "lang_code": "hi"},
+                        {"chapter": "Mole Concept", "lang_code": "en"},
+                    ],
+                )
+            ],
+            sections=[
+                {
+                    "type": "mcq_single_answer",
+                    "name": "",
+                    "compulsory": {
+                        "problems": [{"id": 506, "pos_marks": [4], "neg_marks": [1]}]
+                    },
+                }
+            ],
+        )
+
+        quiz, _ = map_cms_test_to_quiz(assembled)
+        meta = quiz["question_sets"][0]["questions"][0]["metadata"]
+        # picks the English name out of the multilingual list, not the first entry
+        self.assertEqual(meta["chapter"], "Mole Concept")
+        self.assertEqual(meta["chapter_id"], "34")
+
+    def test_missing_chapter_is_none(self):
+        # A problem with no chapter_name must leave chapter None (no crash) — the ETL
+        # fallback (etl-data-flow PR #116) resolves it at sync time in that case.
+        assembled = _test_with_problems(
+            problems=[
+                _problem(
+                    506,
+                    "mcq_single_answer",
+                    {
+                        "text": "Q?",
+                        "options": ["A", "B", "C", "D"],
+                        "answer": ["1"],
+                        "solutions": [{"type": "text", "value": ""}],
+                    },
+                )
+            ],
+            sections=[
+                {
+                    "type": "mcq_single_answer",
+                    "name": "",
+                    "compulsory": {
+                        "problems": [{"id": 506, "pos_marks": [4], "neg_marks": [1]}]
+                    },
+                }
+            ],
+        )
+
+        quiz, _ = map_cms_test_to_quiz(assembled)
+        meta = quiz["question_sets"][0]["questions"][0]["metadata"]
+        self.assertIsNone(meta["chapter"])
+        self.assertIsNone(meta["chapter_id"])
+
     def test_multi_choice_partial_ladder(self):
         assembled = _test_with_problems(
             problems=[

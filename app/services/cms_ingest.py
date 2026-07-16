@@ -155,12 +155,29 @@ def _solutions(meta_data: Dict[str, Any]) -> List[str]:
     return out
 
 
+def _chapter_name(problem: Dict[str, Any]) -> Optional[str]:
+    """The assembled problem's `chapter_name` is a multilingual list
+    ([{"chapter": .., "lang_code": ..}]); return the English chapter name.
+
+    The downstream quiz-results ETL groups question responses by this chapter
+    name to build chapter-level analytics, so it must be a plain string.
+    """
+    entries = problem.get("chapter_name") or []
+    for entry in entries:
+        if entry.get("lang_code") == "en" and entry.get("chapter"):
+            return entry["chapter"]
+    return (entries[0].get("chapter") or None) if entries else None
+
+
 def _problem_metadata(problem: Dict[str, Any], subject_name: str) -> Dict[str, Any]:
     return {
         # subject_name is the plain, resolved subject name from the test structure;
         # the problem's own `Subject.name` is a multilingual list, so we don't use it.
         "subject": subject_name or None,
         "grade": str(problem["grade_id"]) if problem.get("grade_id") else None,
+        # chapter (name) mirrors subject: the assembled payload gives a multilingual
+        # list, flattened to the English name; chapter_id rides alongside it.
+        "chapter": _chapter_name(problem),
         "chapter_id": str(problem["chapter_id"]) if problem.get("chapter_id") else None,
         "topic_id": str(problem["topic_id"]) if problem.get("topic_id") else None,
         "difficulty": problem.get("difficulty_level") or None,
