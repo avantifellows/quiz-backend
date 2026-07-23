@@ -172,3 +172,7 @@ deployment/.env.staging
 deployment/.env.production
 
 app/scripts/dump
+
+# Local tool repos
+pral/
+ralph/
