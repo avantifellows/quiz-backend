@@ -1,15 +1,18 @@
 name: Deploy to ECS Testing
 
 on:
+  # Deploy same-repository PRs directly. Fork PRs cannot access AWS secrets.
+  pull_request:
+
   # Primary trigger: runs after CI workflow completes on main
   workflow_run:
     workflows: ["CI"]
     types: [completed]
     branches: [main]
 
-  # Temporary: for testing on the feature branch. Remove after first successful deploy.
-  push:
-    branches: [docs/migration-lambda-to-ecs]
+concurrency:
+  group: ecs-testing
+  cancel-in-progress: true
 
 env:
   AWS_REGION: ap-south-1
@@ -22,18 +25,17 @@ env:
 jobs:
   deploy:
     name: Build & Deploy
-    runs-on: ubuntu-latest
-    # For workflow_run: only deploy if CI succeeded
-    # For push: always run
+    runs-on: ubuntu-24.04-arm
+    # Never expose AWS credentials to code from fork PRs.
     if: >-
-      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # workflow_run uses the head SHA from the CI run; push uses the current SHA
+          # workflow_run uses the head SHA from the CI run; pull_request uses the PR merge SHA
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Configure AWS credentials
@@ -46,9 +48,6 @@ jobs:
       - name: Login to Amazon ECR
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -71,8 +70,8 @@ jobs:
           tags: |
             ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.vars.outputs.sha }}
             ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:buildcache
+          cache-to: type=registry,ref=${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
           provenance: false
 
       - name: Fetch current task definition
@@ -111,6 +110,7 @@ jobs:
           service: ${{ env.ECS_SERVICE }}
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
+          wait-max-delay-seconds: 15
 
       - name: Verify deployment
         run: |
@@ -133,15 +133,15 @@ jobs:
             exit 0
           fi
 
-          echo "Waiting 15s for ALB target registration..."
-          sleep 15
-
-          echo "Hitting health endpoint..."
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
-            https://quiz-backend-testing.avantifellows.org/health)
-          echo "Health check returned: $HTTP_STATUS"
-          if [ "$HTTP_STATUS" != "200" ]; then
-            echo "Smoke test failed! Expected 200, got $HTTP_STATUS"
-            exit 1
-          fi
-          echo "Smoke test passed."
+          for ATTEMPT in {1..5}; do
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+              https://quiz-backend-testing.avantifellows.org/health || true)
+            echo "Health check attempt $ATTEMPT returned: $HTTP_STATUS"
+            if [ "$HTTP_STATUS" = "200" ]; then
+              echo "Smoke test passed."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Smoke test failed! Expected 200."
+          exit 1
