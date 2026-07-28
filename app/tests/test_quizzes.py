@@ -516,7 +516,8 @@ class QuizTestCase(BaseTestCase):
 
     def test_create_from_cms_applies_session_settings(self):
         """The PM's advanced-settings choices must land on the quiz doc: the quiz-taking
-        frontend reads shuffle/show_scores/review_immediate from there, not the session."""
+        frontend reads shuffle/show_scores/review_immediate from there, not the session.
+        """
         quiz_dict = self._cms_quiz_dict()
         # The mapper hardcodes shuffle=False and leaves the other two to the model defaults,
         # so all three differ from what's requested below.
