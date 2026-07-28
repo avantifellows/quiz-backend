@@ -512,6 +512,104 @@ class QuizTestCase(BaseTestCase):
         doc = mongo_client.quiz.quizzes.find_one({"_id": resp.json()["id"]})
         assert doc["metadata"].get("session_end_time") is None
 
+    # ---- CMS from-cms create: session settings ----
+
+    def test_create_from_cms_applies_session_settings(self):
+        """The PM's advanced-settings choices must land on the quiz doc: the quiz-taking
+        frontend reads shuffle/show_scores/review_immediate from there, not the session."""
+        quiz_dict = self._cms_quiz_dict()
+        # The mapper hardcodes shuffle=False and leaves the other two to the model defaults,
+        # so all three differ from what's requested below.
+        quiz_dict["shuffle"] = False
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(quiz_dict, [])
+        ):
+            resp = self.client.post(
+                f"{quizzes.router.prefix}/from-cms",
+                json={
+                    "test_id": 504,
+                    "curriculum_id": 1,
+                    "grade_id": 1,
+                    "shuffle": True,
+                    "show_scores": False,
+                    "review_immediate": False,
+                },
+            )
+        assert resp.status_code == 201
+        doc = mongo_client.quiz.quizzes.find_one({"_id": resp.json()["id"]})
+        assert doc["shuffle"] is True
+        assert doc["show_scores"] is False
+        assert doc["review_immediate"] is False
+
+    def test_create_from_cms_without_settings_keeps_defaults(self):
+        """Omitted settings leave the mapper/model defaults alone — the field-scoped body
+        must not coerce None onto the doc."""
+        quiz_dict = self._cms_quiz_dict()
+        quiz_dict["shuffle"] = False
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(quiz_dict, [])
+        ):
+            resp = self.client.post(
+                f"{quizzes.router.prefix}/from-cms",
+                json={"test_id": 504, "curriculum_id": 1, "grade_id": 1},
+            )
+        assert resp.status_code == 201
+        doc = mongo_client.quiz.quizzes.find_one({"_id": resp.json()["id"]})
+        assert doc["shuffle"] is False
+        assert doc["show_scores"] is True
+        assert doc["review_immediate"] is True
+
+    def test_create_from_cms_applies_a_single_setting_in_isolation(self):
+        """shuffle alone must not disturb the other two."""
+        quiz_dict = self._cms_quiz_dict()
+        quiz_dict["shuffle"] = False
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(quiz_dict, [])
+        ):
+            resp = self.client.post(
+                f"{quizzes.router.prefix}/from-cms",
+                json={
+                    "test_id": 504,
+                    "curriculum_id": 1,
+                    "grade_id": 1,
+                    "shuffle": True,
+                },
+            )
+        assert resp.status_code == 201
+        doc = mongo_client.quiz.quizzes.find_one({"_id": resp.json()["id"]})
+        assert doc["shuffle"] is True
+        assert doc["show_scores"] is True
+        assert doc["review_immediate"] is True
+
+    def test_regenerate_ignores_settings_in_body_and_keeps_doc_values(self):
+        """Regenerate preserves whatever the session-edit flow last set, even if the body
+        carries settings — the create and regenerate paths share one request model."""
+        quiz_id, _ = self.post_and_get_quiz(copy.deepcopy(self.homework_quiz_data))
+        self.client.patch(
+            f"{quizzes.router.prefix}/{quiz_id}",
+            json={"shuffle": True, "show_scores": False},
+        )
+
+        new_quiz = self._cms_quiz_dict()
+        new_quiz["shuffle"] = False
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(new_quiz, [])
+        ):
+            resp = self.client.put(
+                f"{quizzes.router.prefix}/{quiz_id}/from-cms",
+                json={
+                    "test_id": 504,
+                    "curriculum_id": 1,
+                    "grade_id": 1,
+                    "shuffle": False,
+                    "show_scores": True,
+                },
+            )
+        assert resp.status_code == 200
+        after = mongo_client.quiz.quizzes.find_one({"_id": quiz_id})
+        assert after["shuffle"] is True
+        assert after["show_scores"] is False
+
     # ---- regenerate in place (PUT /quiz/{id}/from-cms) ----
 
     def test_regenerate_preserves_ids_and_refreshes_content(self):

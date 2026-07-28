@@ -176,6 +176,16 @@ def _insert_quiz_with_questions(quiz: dict) -> str:
     return new_quiz_result.inserted_id
 
 
+# Display/scoring settings the LMS session form owns, stored on the quiz doc rather than
+# derived from the CMS test. Supplied on CREATE (see CmsQuizIngestRequest) and preserved
+# across a regenerate — a re-ingest refreshes content, never these.
+_SESSION_EDITABLE_QUIZ_SETTINGS = ("shuffle", "show_scores", "review_immediate")
+# ...plus the title, which regenerate must also keep (the LMS names the session, and the CMS
+# test name would otherwise clobber a renamed session). Not settable via the create body:
+# create takes the title straight from the mapped CMS test.
+_SESSION_EDITABLE_QUIZ_FIELDS = ("title",) + _SESSION_EDITABLE_QUIZ_SETTINGS
+
+
 class CmsQuizIngestRequest(BaseModel):
     """Body for POST /quiz/from-cms and PUT /quiz/{id}/from-cms — identifies a chapter test
     in the new CMS, plus the optional session window end used to derive answer-visibility.
@@ -191,6 +201,19 @@ class CmsQuizIngestRequest(BaseModel):
     # untimed quizzes / callers that don't gate review can omit it.
     session_end_time: Optional[str] = None
 
+    # Session-level display/scoring settings chosen by the PM in the LMS session form. The
+    # CMS test carries no notion of these, so the mapper emits hardcoded defaults
+    # (shuffle=False) and the Quiz model fills the rest (review_immediate/show_scores=True).
+    # Without them on CREATE, a PM who ticked "shuffle" got a quiz that never shuffled and
+    # one who unticked "show answers" got answers shown immediately, since the quiz-taking
+    # frontend reads all three off the quiz doc, not the session row. Omitted (None) means
+    # "leave the default" — on regenerate these are ignored in favour of the values already
+    # on the doc (see _SESSION_EDITABLE_QUIZ_FIELDS).
+    shuffle: Optional[bool] = None
+    show_scores: Optional[bool] = None
+    # "show answers immediately after submission" in the LMS form.
+    review_immediate: Optional[bool] = None
+
     class Config:
         schema_extra = {
             "example": {
@@ -199,6 +222,9 @@ class CmsQuizIngestRequest(BaseModel):
                 "grade_id": 1,
                 "quiz_type": "assessment",
                 "session_end_time": "2026-04-15T14:00:00",
+                "shuffle": True,
+                "show_scores": True,
+                "review_immediate": False,
             }
         }
 
@@ -239,6 +265,14 @@ async def create_quiz_from_cms(request: CmsQuizIngestRequest):
             request.session_end_time, quiz_dict.get("time_limit")
         )
 
+    # Apply the PM's session settings over the mapper's defaults. The quiz-taking frontend
+    # reads these off the quiz doc, so skipping them here silently discards the choice made
+    # in the LMS form. Only fields explicitly supplied are overridden.
+    for field in _SESSION_EDITABLE_QUIZ_SETTINGS:
+        value = getattr(request, field)
+        if value is not None:
+            quiz_dict[field] = value
+
     # Validate + fill defaults (ids, etc.) through the same model the direct endpoint uses.
     quiz = jsonable_encoder(Quiz(**quiz_dict))
     quiz_id = _insert_quiz_with_questions(quiz)
@@ -257,10 +291,6 @@ async def create_quiz_from_cms(request: CmsQuizIngestRequest):
     )
 
 
-# Session-editable settings that live on the quiz doc (not the CMS source). Regenerate must
-# preserve these across a re-ingest — they were set by the LMS session-edit flow, not by the
-# test content, so re-pulling the test must not reset them.
-_SESSION_EDITABLE_QUIZ_FIELDS = ("title", "shuffle", "show_scores", "review_immediate")
 _SESSION_EDITABLE_METADATA_FIELDS = ("grade", "single_page_header_text")
 
 
