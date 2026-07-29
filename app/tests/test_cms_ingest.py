@@ -811,7 +811,10 @@ class TestMultilingualContent(unittest.TestCase):
                     lang_versions=[
                         {
                             "lang_code": "en",
-                            "meta_data": {"text": "Unpaired electrons?", "answer": ["3"]},
+                            "meta_data": {
+                                "text": "Unpaired electrons?",
+                                "answer": ["3"],
+                            },
                         }
                     ],
                 )
