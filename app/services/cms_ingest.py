@@ -14,7 +14,10 @@ Contract (locked with the CMS owner — see task lms-cms-tests):
 - Assembled shape: {"test": Test, "problems": [Problem, ...]}. `test.type_params` carries
   the structure (subjects -> sections -> compulsory/optional problem refs) and marks at
   four levels (test / subject / section / problem). `problems` is a flat list of
-  fully-resolved problems (text, options, answer, paragraph) joined to their refs by id.
+  fully-resolved problems joined to their refs by id. Since the CMS added multilingual
+  problems, each problem's content (text, options, answer, solutions) lives per language
+  in `lang_versions[{lang_code, meta_data}]`; the top-level `meta_data` is retained but
+  empty. We ingest the English version — see `_problem_meta`.
 - Choice answers are 1-based option numbers; the quiz engine wants 0-based indices.
   Numerical and comprehension answers are numeric values.
 - Marks cascade problem-ref -> section -> subject -> test; the lowest level that sets
@@ -66,6 +69,11 @@ CHOICE_TYPE_MAP = {
     "matrix_match": "single-choice",  # single-answer; table baked into the question HTML
 }
 NUMERIC_SUBTYPES = ("numerical_answer", "integer_type", "comprehension")
+
+# Language whose content we ingest. The CMS authors every problem in English (mandatory)
+# and regional languages are optional additions, so English is the only complete version
+# and the quiz engine has no per-language question storage to put the others in.
+CMS_PRIMARY_LANG = "en"
 
 # Instruction blurbs shown at the top of a question set, keyed on the set's question type
 # (ported from QuizInterface.QUESTION_SET_TYPE_INSTRUCTION_MAPPING).
@@ -169,6 +177,24 @@ def _chapter_name(problem: Dict[str, Any]) -> Optional[str]:
     return (entries[0].get("chapter") or None) if entries else None
 
 
+def _problem_meta(problem: Dict[str, Any]) -> Dict[str, Any]:
+    """Resolve a problem's content (text / options / answer / solutions).
+
+    Since nex-gen-cms PR #170 (multilingual problems) the content lives per language in
+    `lang_versions[]`, and the flat top-level `meta_data` is still present but empty
+    ({"text": "", "options": null, "answer": null}). Reading the flat copy therefore
+    yields a structurally valid quiz whose questions are all blank — which is exactly
+    what shipped to students before this was caught, so prefer the English lang version
+    and fall back to the flat copy only for pre-#170 payloads.
+    """
+    for version in problem.get("lang_versions") or []:
+        if version.get("lang_code") == CMS_PRIMARY_LANG:
+            meta = version.get("meta_data")
+            if meta:
+                return meta
+    return problem.get("meta_data") or {}
+
+
 def _problem_metadata(problem: Dict[str, Any], subject_name: str) -> Dict[str, Any]:
     return {
         # subject_name is the plain, resolved subject name from the test structure;
@@ -196,7 +222,7 @@ def _map_problem(
     base marking_scheme (correct/wrong from the marks cascade; no partial — that is set at
     the set level once the set's type is known). Returns (question, warnings)."""
     warnings: List[str] = []
-    meta = problem.get("meta_data") or {}
+    meta = _problem_meta(problem)
     subtype = problem.get("subtype") or ""
     answers = meta.get("answer") or []
     problem_id = problem.get("id")

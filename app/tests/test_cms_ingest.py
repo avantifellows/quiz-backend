@@ -674,5 +674,171 @@ class TestCmsMapper(unittest.TestCase):
         self.assertIn("+4.0", description)
 
 
+class TestMultilingualContent(unittest.TestCase):
+    """Since nex-gen-cms added multilingual problems, content lives per language in
+    `lang_versions[]` and the flat top-level `meta_data` is present but empty. Reading
+    the flat copy produces a structurally valid quiz with every question blank, which
+    reached students before it was caught — so pin the resolution order here.
+    """
+
+    @staticmethod
+    def _single_choice_section():
+        return [
+            {
+                "type": "mcq_single_answer",
+                "name": "",
+                "compulsory": {
+                    "problems": [{"id": 506, "pos_marks": [4], "neg_marks": [1]}]
+                },
+            }
+        ]
+
+    def test_reads_english_lang_version_when_flat_meta_data_is_empty(self):
+        assembled = _test_with_problems(
+            problems=[
+                _problem(
+                    506,
+                    "mcq_single_answer",
+                    {"text": "", "options": None, "answer": None, "solutions": None},
+                    lang_versions=[
+                        {
+                            "lang_code": "en",
+                            "meta_data": {
+                                "text": "Avanti?",
+                                "options": ["A", "B", "C", "D"],
+                                "answer": ["2"],
+                                "solutions": [{"type": "text", "value": "because"}],
+                            },
+                        }
+                    ],
+                )
+            ],
+            sections=self._single_choice_section(),
+        )
+
+        quiz, warnings = map_cms_test_to_quiz(assembled)
+
+        question = quiz["question_sets"][0]["questions"][0]
+        self.assertEqual(question["text"], "Avanti?")
+        self.assertEqual([o["text"] for o in question["options"]], ["A", "B", "C", "D"])
+        self.assertEqual(question["correct_answer"], [1])
+        self.assertTrue(question["graded"])
+        self.assertEqual(question["solution"], ["because"])
+        self.assertEqual(warnings, [])
+
+    def test_prefers_english_over_regional_languages(self):
+        assembled = _test_with_problems(
+            problems=[
+                _problem(
+                    506,
+                    "mcq_single_answer",
+                    {"text": "", "options": None, "answer": None},
+                    lang_versions=[
+                        {
+                            "lang_code": "hi",
+                            "meta_data": {
+                                "text": "हिंदी",
+                                "options": ["क", "ख", "ग", "घ"],
+                                "answer": ["4"],
+                            },
+                        },
+                        {
+                            "lang_code": "en",
+                            "meta_data": {
+                                "text": "Avanti?",
+                                "options": ["A", "B", "C", "D"],
+                                "answer": ["2"],
+                            },
+                        },
+                    ],
+                )
+            ],
+            sections=self._single_choice_section(),
+        )
+
+        quiz, _ = map_cms_test_to_quiz(assembled)
+
+        question = quiz["question_sets"][0]["questions"][0]
+        self.assertEqual(question["text"], "Avanti?")
+        self.assertEqual(question["correct_answer"], [1])
+
+    def test_falls_back_to_flat_meta_data_for_pre_multilingual_payloads(self):
+        """Older payloads carry no lang_versions at all — keep ingesting them."""
+        assembled = _test_with_problems(
+            problems=[
+                _problem(
+                    506,
+                    "mcq_single_answer",
+                    {"text": "Legacy?", "options": ["A", "B"], "answer": ["1"]},
+                )
+            ],
+            sections=self._single_choice_section(),
+        )
+
+        quiz, _ = map_cms_test_to_quiz(assembled)
+
+        question = quiz["question_sets"][0]["questions"][0]
+        self.assertEqual(question["text"], "Legacy?")
+        self.assertEqual(question["correct_answer"], [0])
+
+    def test_falls_back_when_english_lang_version_is_empty(self):
+        """An empty `en` meta_data must not shadow a populated flat copy."""
+        assembled = _test_with_problems(
+            problems=[
+                _problem(
+                    506,
+                    "mcq_single_answer",
+                    {"text": "Flat?", "options": ["A", "B"], "answer": ["2"]},
+                    lang_versions=[{"lang_code": "en", "meta_data": {}}],
+                )
+            ],
+            sections=self._single_choice_section(),
+        )
+
+        quiz, _ = map_cms_test_to_quiz(assembled)
+
+        question = quiz["question_sets"][0]["questions"][0]
+        self.assertEqual(question["text"], "Flat?")
+        self.assertEqual(question["correct_answer"], [1])
+
+    def test_numerical_answer_comes_from_lang_version(self):
+        assembled = _test_with_problems(
+            problems=[
+                _problem(
+                    777,
+                    "integer_type",
+                    {"text": "", "answer": None},
+                    lang_versions=[
+                        {
+                            "lang_code": "en",
+                            "meta_data": {
+                                "text": "Unpaired electrons?",
+                                "answer": ["3"],
+                            },
+                        }
+                    ],
+                )
+            ],
+            sections=[
+                {
+                    "type": "integer_type",
+                    "name": "",
+                    "compulsory": {
+                        "problems": [{"id": 777, "pos_marks": [4], "neg_marks": [1]}]
+                    },
+                }
+            ],
+        )
+
+        quiz, warnings = map_cms_test_to_quiz(assembled)
+
+        question = quiz["question_sets"][0]["questions"][0]
+        self.assertEqual(question["type"], "numerical-integer")
+        self.assertEqual(question["text"], "Unpaired electrons?")
+        self.assertEqual(question["correct_answer"], 3)
+        self.assertTrue(question["graded"])
+        self.assertEqual(warnings, [])
+
+
 if __name__ == "__main__":
     unittest.main()
