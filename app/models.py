@@ -484,7 +484,7 @@ class Session(BaseModel):
     @classmethod
     def coerce_user_id_to_str(cls, v):
         """Preserve Pydantic v1 behavior: accept int input and coerce to str."""
-        return str(v)
+        return str(v) if type(v) is int else v
 
     has_quiz_ended: bool = False
     time_limit_max: Optional[

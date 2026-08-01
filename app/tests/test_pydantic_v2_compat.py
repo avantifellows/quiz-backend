@@ -206,6 +206,15 @@ class SessionUserIdCoercionTestCase(BaseTestCase):
         assert db_session["user_id"] == "456"
         assert isinstance(db_session["user_id"], str)
 
+    def test_create_session_rejects_invalid_user_id_types(self):
+        for user_id in (None, []):
+            with self.subTest(user_id=user_id):
+                r = self.client.post(
+                    sessions.router.prefix + "/",
+                    json={"quiz_id": self.homework_quiz["_id"], "user_id": user_id},
+                )
+                assert r.status_code == 422
+
 
 # ---------------------------------------------------------------------------
 # AC-4: Quiz create/read — correct_answer shapes
