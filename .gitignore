@@ -176,3 +176,4 @@ app/scripts/dump
 # Local tool repos
 pral/
 ralph/
+.ralph/
