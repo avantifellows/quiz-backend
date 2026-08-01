@@ -65,3 +65,11 @@ class EventType(str, Enum):
     resume_quiz = "resume-quiz"
     end_quiz = "end-quiz"
     dummy_event = "dummy-event"
+
+
+class QuizSource(str, Enum):
+    """Where a quiz's content originated. Stamped onto quiz/question `source` (also an
+    analytics dimension in BigQuery). Distinct from the legacy free-text values
+    ("cms" = old CMS, "gsheet-form", etc.) so old and new CMS stay distinguishable."""
+
+    nex_gen_cms = "nex-gen-cms"  # new CMS (nex-gen-cms) assembled chapter-test JSON
