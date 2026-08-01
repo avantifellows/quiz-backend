@@ -245,6 +245,25 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert len(response["events"]) > 0
         assert response["is_first"] is False
 
+    def test_create_session_rejects_incomplete_previous_session(self):
+        self.client.patch(
+            f"{sessions.router.prefix}/{self.timed_quiz_session_id}",
+            json={"event": EventType.start_quiz.value},
+        )
+        mongo_client.quiz.sessions.update_one(
+            {"_id": self.timed_quiz_session_id},
+            {"$unset": {"session_answers": ""}},
+        )
+        response = self.client.post(
+            sessions.router.prefix + "/",
+            json={
+                "quiz_id": self.timed_quiz["_id"],
+                "user_id": self.timed_quiz_session["user_id"],
+            },
+        )
+
+        assert response.status_code == 500
+
     def test_create_session_with_valid_quiz_id_and_previous_session(self):
         self.session_id = self.homework_session["_id"]
         self.session_answers = self.homework_session["session_answers"]

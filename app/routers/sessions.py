@@ -320,12 +320,24 @@ async def create_session(session: Session):
         logger.info(
             f"Some meaningful event has occurred in last_session, creating new session for user: {session.user_id} and quiz: {session.quiz_id} with {session.omr_mode} as omr_mode"
         )
+        if not isinstance(last_session.get("question_order"), list) or not isinstance(
+            last_session.get("session_answers"), list
+        ):
+            error_message = (
+                f"Previous session {last_session['_id']} has invalid question data"
+            )
+            logger.error(error_message)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=error_message,
+            )
+
         current_session["is_first"] = False
         current_session["events"] = last_session.get("events", [])
         current_session["time_remaining"] = last_session.get("time_remaining", None)
         current_session["has_quiz_ended"] = last_session.get("has_quiz_ended", False)
         current_session["metrics"] = last_session.get("metrics", None)
-        current_session["question_order"] = last_session.get("question_order") or []
+        current_session["question_order"] = last_session["question_order"]
         current_session["time_limit_max"] = last_session.get("time_limit_max", None)
         # Keep precomputed timing fields consistent with copied events.
         current_session["start_quiz_time"] = last_session.get("start_quiz_time", None)
@@ -333,7 +345,7 @@ async def create_session(session: Session):
         current_session["total_time_spent"] = last_session.get("total_time_spent", None)
 
         # restore the answers from the last (previous) sessions
-        session_answers_of_the_last_session = last_session.get("session_answers") or []
+        session_answers_of_the_last_session = last_session["session_answers"]
 
         for _, session_answer in enumerate(session_answers_of_the_last_session):
             # note: we retain created_at key in session_answer
