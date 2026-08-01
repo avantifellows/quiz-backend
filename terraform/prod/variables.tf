@@ -55,3 +55,14 @@ variable "cloudflare_zone_name" {
   description = "Cloudflare zone name (e.g. avantifellows.org)"
   type        = string
 }
+
+variable "cms_service_endpoint" {
+  description = "Base URL of the new CMS (nex-gen-cms) service API, used for test ingest (e.g. https://new-cms.avantifellows.org)"
+  type        = string
+}
+
+variable "cms_service_token" {
+  description = "Bearer token for the new CMS service API. Must match the CMS's CMS_SERVICE_TOKEN for this environment, or /quiz/from-cms will 401."
+  type        = string
+  sensitive   = true
+}

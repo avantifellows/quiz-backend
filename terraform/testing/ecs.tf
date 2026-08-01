@@ -55,6 +55,14 @@ resource "aws_ecs_task_definition" "quiz_backend" {
         {
           name  = "MONGO_AUTH_CREDENTIALS"
           value = var.mongo_auth_credentials
+        },
+        {
+          name  = "CMS_SERVICE_ENDPOINT"
+          value = var.cms_service_endpoint
+        },
+        {
+          name  = "CMS_SERVICE_TOKEN"
+          value = var.cms_service_token
         }
       ]
 
@@ -69,8 +77,8 @@ resource "aws_ecs_task_definition" "quiz_backend" {
 
       healthCheck = {
         command     = ["CMD-SHELL", "curl -f http://localhost:${var.app_port}/health || exit 1"]
-        interval    = 30
-        timeout     = 5
+        interval    = 5
+        timeout     = 2
         retries     = 3
         startPeriod = 60
       }

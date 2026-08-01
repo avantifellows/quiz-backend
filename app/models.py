@@ -123,7 +123,10 @@ class QuizMetadata(BaseModel):
     topic: Optional[str] = None
     source: Optional[str] = None
     source_id: Optional[str] = None
-    session_end_time: Optional[str] = None  # format: %Y-%m-%d %I:%M:%S %p
+    # Answer-visibility time (ISO wall-clock): when review_immediate is false, the frontend
+    # defers answer review until now > this. Derived as session window end + quiz duration
+    # (services.quiz_time), so students still mid-test don't get early access.
+    session_end_time: Optional[str] = None
     next_step_url: Optional[str] = None  # URL to redirect to after quiz completion
     next_step_text: Optional[str] = None  # Text to display on the next step button
     next_step_autostart: Optional[bool] = False  # Whether next step should auto-start
@@ -311,6 +314,7 @@ class Quiz(BaseModel):
     review_immediate: Optional[bool] = True
     display_solution: Optional[bool] = True
     show_scores: Optional[bool] = True
+    require_all_questions: Optional[bool] = False
     navigation_mode: NavigationMode = "linear"
     instructions: Optional[str] = None
     language: QuizLanguage = "en"
