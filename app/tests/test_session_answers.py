@@ -324,3 +324,40 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
         assert targeted_answer["answer"] == new_answer
         assert targeted_answer["visited"] == self.session_answers[0]["visited"]
         assert untouched_answer == self.session_answers[1]
+
+    def test_batch_update_clears_answer_with_null(self):
+        db_client.quiz.sessions.update_one(
+            {"_id": self.session_id},
+            {"$set": {"session_answers.0.answer": [0]}},
+        )
+
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/update-multiple-answers",
+            json=[[0, {"answer": None}]],
+        )
+
+        assert response.status_code == 200
+        answer = self.client.get(
+            f"{session_answers.router.prefix}/{self.session_id}/0"
+        ).json()
+        assert answer["answer"] is None
+
+    def test_batch_update_accepts_mixed_answer_shapes(self):
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/update-multiple-answers",
+            json=[
+                [0, {"answer": 42}],
+                [1, {"answer": {"row1": "A"}, "visited": True}],
+            ],
+        )
+
+        assert response.status_code == 200
+        first_answer = self.client.get(
+            f"{session_answers.router.prefix}/{self.session_id}/0"
+        ).json()
+        second_answer = self.client.get(
+            f"{session_answers.router.prefix}/{self.session_id}/1"
+        ).json()
+        assert first_answer["answer"] == 42
+        assert second_answer["answer"] == {"row1": "A"}
+        assert second_answer["visited"] is True
