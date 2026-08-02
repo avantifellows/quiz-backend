@@ -13,6 +13,11 @@ _LOCAL_MONGO_HOSTS = {"localhost", "127.0.0.1", "::1"}
 
 
 def _assert_safe_test_database(uri):
+    if os.getenv("ALLOW_TEST_DATABASE_RESET") != "1":
+        raise RuntimeError(
+            "Refusing to reset MongoDB without ALLOW_TEST_DATABASE_RESET=1"
+        )
+
     try:
         hosts = {host.lower() for host, _ in parse_uri(uri)["nodelist"]}
     except (ConfigurationError, InvalidURI) as exc:
