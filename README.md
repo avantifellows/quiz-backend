@@ -150,7 +150,7 @@ The backend is deployed on **ECS Fargate** (ARM64/Graviton) for both testing and
 - **Testing** (`quiz-backend-testing.avantifellows.org`): deploys on CI success on `main` via `.github/workflows/deploy_ecs_testing.yml`
 - **Production** (`quiz-backend.avantifellows.org`): deploys on CI success on `release` via `.github/workflows/deploy_ecs_prod.yml`
 
-Infrastructure is managed by Terraform in `terraform/testing/` and `terraform/prod/`. Make sure to set all the environment variables mentioned in [`docs/ENV.md`](docs/ENV.md) in your GitHub repository environments.
+Infrastructure is managed by Terraform in `terraform/testing/` and `terraform/prod/`. Configure ECS application variables in the corresponding gitignored `terraform.tfvars`, using `terraform.tfvars.example` as the template. See [`docs/ENV.md`](docs/ENV.md) for details.
 
 ## Tests
 Tests run against a real MongoDB instance (local or CI service). Make sure MongoDB is running locally and `MONGO_AUTH_CREDENTIALS` is set (via `.env` or environment export) before running tests.
