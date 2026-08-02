@@ -147,7 +147,9 @@ quiz-backend/
 ├── docs/                         # Documentation
 │   ├── ENV.md                    # Environment variables
 │   ├── quiz-prod-m10_Schema_Documentation.md
-│   └── MIGRATION_LAMBDA_TO_ECS.md
+│   └── plans/
+│       └── archive/
+│           └── MIGRATION_LAMBDA_TO_ECS.md
 ├── terraform/                    # ECS Fargate infrastructure
 │   ├── shared/state-backend/     # S3 + DynamoDB backend bootstrap
 │   ├── testing/                  # Testing environment

@@ -37,7 +37,7 @@
 
 ## Overview
 
-This plan implements the Lambda to ECS Fargate migration outlined in `docs/MIGRATION_LAMBDA_TO_ECS.md` for a testing environment.
+This plan implements the Lambda to ECS Fargate migration outlined in `docs/plans/archive/MIGRATION_LAMBDA_TO_ECS.md` for a testing environment.
 
 ### Key Decisions
 
