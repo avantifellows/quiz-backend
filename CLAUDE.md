@@ -17,9 +17,9 @@ FastAPI-based REST API for a mobile-friendly quiz engine. Manages quizzes, quest
 pip install -r app/requirements.txt
 
 # Run tests
-pytest                      # all tests
-pytest app/tests/test_quizzes.py  # single file
-pytest -k "test_name"       # single test by name
+ALLOW_TEST_DATABASE_RESET=1 pytest                      # all tests
+ALLOW_TEST_DATABASE_RESET=1 pytest app/tests/test_quizzes.py  # single file
+ALLOW_TEST_DATABASE_RESET=1 pytest -k "test_name"       # single test by name
 
 # Pre-commit hooks (auto-runs on commit)
 pre-commit install          # install hooks
@@ -72,7 +72,7 @@ PATCH  /session_answers/{session_id}/update-multiple-answers
 
 ## Testing
 
-Tests use real MongoDB (local or CI service). `MONGO_AUTH_CREDENTIALS` must be set (app fails with RuntimeError if unset). Test fixtures in `app/tests/dummy_data/` (JSON files for various quiz types).
+Tests use real MongoDB (local or CI service) and clear its `quiz` database. `MONGO_AUTH_CREDENTIALS` must point to a disposable test instance, and each test command must set `ALLOW_TEST_DATABASE_RESET=1`. Test fixtures are in `app/tests/dummy_data/`.
 
 Base test classes in `app/tests/base.py`:
 - `BaseTestCase` - sets up organizations and quiz types

@@ -484,7 +484,7 @@ API docs at `http://127.0.0.1:8000/docs`
 ### Framework
 
 - **Pytest** for test execution
-- **Real MongoDB** (local or CI service) for test database
+- **Real MongoDB** (local or CI service) for a disposable test database; the suite clears its `quiz` database and requires the one-shot `ALLOW_TEST_DATABASE_RESET=1` opt-in
 - Test fixtures in `app/tests/dummy_data/`
 
 ### Base Test Classes
@@ -498,16 +498,16 @@ API docs at `http://127.0.0.1:8000/docs`
 
 ```bash
 # All tests
-pytest
+ALLOW_TEST_DATABASE_RESET=1 pytest
 
 # Single file
-pytest app/tests/test_quizzes.py
+ALLOW_TEST_DATABASE_RESET=1 pytest app/tests/test_quizzes.py
 
 # Single test by name
-pytest -k "test_name"
+ALLOW_TEST_DATABASE_RESET=1 pytest -k "test_name"
 
 # With coverage
-coverage run --rcfile=.coveragerc -m pytest
+ALLOW_TEST_DATABASE_RESET=1 coverage run --rcfile=.coveragerc -m pytest
 coverage xml
 ```
 
@@ -733,7 +733,7 @@ Both ECS environments have: Terraform IaC, S3 remote state, CI/CD pipelines, cus
 ./startServerMac.sh
 
 # Run tests
-pytest
+ALLOW_TEST_DATABASE_RESET=1 pytest
 
 # Format code
 black app/
