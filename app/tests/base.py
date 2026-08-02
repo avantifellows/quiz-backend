@@ -1,9 +1,28 @@
 import unittest
 import json
+import os
 from fastapi.testclient import TestClient
+from pymongo.errors import ConfigurationError, InvalidURI
+from pymongo.uri_parser import parse_uri
 from main import app
 from database import client as mongo_client
 from routers import quizzes, sessions, organizations
+
+
+_LOCAL_MONGO_HOSTS = {"localhost", "127.0.0.1", "::1"}
+
+
+def _assert_safe_test_database(uri):
+    try:
+        hosts = {host.lower() for host, _ in parse_uri(uri)["nodelist"]}
+    except (ConfigurationError, InvalidURI) as exc:
+        raise RuntimeError("Tests require a valid local MongoDB URI") from exc
+
+    if not hosts or not hosts.issubset(_LOCAL_MONGO_HOSTS):
+        host_list = ", ".join(sorted(hosts)) or "unknown"
+        raise RuntimeError(
+            f"Refusing to reset a non-local MongoDB instance: {host_list}"
+        )
 
 
 class BaseTestCase(unittest.TestCase):
@@ -12,6 +31,7 @@ class BaseTestCase(unittest.TestCase):
         cls.client = TestClient(app)
 
     def setUp(self):
+        _assert_safe_test_database(os.environ["MONGO_AUTH_CREDENTIALS"])
         # Drop all collections in the quiz database before each test
         # to ensure test isolation
         db = mongo_client.quiz
