@@ -67,9 +67,9 @@ Python 3.9 is approaching end-of-life, and the current dependency pins (from 202
 
 ### Out of scope for this PR
 
-- PyMongo Async migration (covered in `pymongo-async-migration-plan.md`)
-- Database access seam normalization (covered in `pymongo-async-migration-plan.md`)
-- Test harness redesign (covered in `pymongo-async-migration-plan.md`)
+- PyMongo Async migration
+- Database access seam normalization
+- Test harness redesign
 - Standalone maintenance scripts that already create their own local sync `MongoClient`, except `app/scripts/backfill_time_limits_and_spent.py`, which is in scope for shared bootstrap/import compatibility only
 - Broader performance work outside the dependency upgrades
 
@@ -654,4 +654,4 @@ This order removes dead code first, then upgrades the language and framework sta
 
 ---
 
-> **Next step:** After this PR merges, continue with `pymongo-async-migration-plan.md`.
+> **Next step:** Continue the async MongoDB migration in a follow-up PR.
