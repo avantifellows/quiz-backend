@@ -150,22 +150,16 @@ The backend is deployed on **ECS Fargate** (ARM64/Graviton) for both testing and
 - **Testing** (`quiz-backend-testing.avantifellows.org`): deploys on CI success on `main` via `.github/workflows/deploy_ecs_testing.yml`
 - **Production** (`quiz-backend.avantifellows.org`): deploys on CI success on `release` via `.github/workflows/deploy_ecs_prod.yml`
 
-Infrastructure is managed by Terraform in `terraform/testing/` and `terraform/prod/`. Environment variables (`MONGO_AUTH_CREDENTIALS`, `MONGO_DB_NAME`) are configured in the ECS task definitions via Terraform — see `terraform/*/ecs.tf` and [`docs/ENV.md`](docs/ENV.md) for details.
+Infrastructure is managed by Terraform in `terraform/testing/` and `terraform/prod/`. Configure ECS application variables in the corresponding gitignored `terraform.tfvars`, using `terraform.tfvars.example` as the template. See [`docs/ENV.md`](docs/ENV.md) for details.
 
 ## Tests
-Tests run against a real MongoDB instance (local or CI service). The test harness forces `MONGO_DB_NAME=quiz_test` automatically, so tests never touch a production database.
-
-Make sure MongoDB is running locally and set the required environment variables before running tests:
+Tests run against a real MongoDB instance (local or CI service) and clear the `quiz_test` database. The test harness forces `MONGO_DB_NAME=quiz_test`, but `MONGO_AUTH_CREDENTIALS` must still point to a disposable local instance. Opt in to the reset only for the test command:
 
 ```bash
-# Option 1: source .env (use set -a to export all variables)
-set -a; source .env; set +a; pytest
-
-# Option 2: export manually
-export MONGO_AUTH_CREDENTIALS='mongodb://127.0.0.1:27017'
-export MONGO_DB_NAME='quiz_test'
-pytest
+ALLOW_TEST_DATABASE_RESET=1 pytest
 ```
+
+Do not add `ALLOW_TEST_DATABASE_RESET` to `.env`.
 
 ## Logs
 

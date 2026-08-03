@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 
 from pymongo import MongoClient
+from pymongo.errors import ConfigurationError, InvalidURI
+from pymongo.uri_parser import parse_uri
 from fastapi.testclient import TestClient
 from routers import quizzes, sessions, organizations
 
@@ -12,6 +14,7 @@ _DUMMY_DATA = Path(__file__).resolve().parent / "dummy_data"
 
 # Safe test database name — must never be "quiz" (the production DB)
 _TEST_DB_NAME = "quiz_test"
+_LOCAL_MONGO_HOSTS = {"localhost", "127.0.0.1", "::1"}
 
 
 def _guard_db_name(db_name: str) -> None:
@@ -23,43 +26,65 @@ def _guard_db_name(db_name: str) -> None:
         )
 
 
+def _assert_safe_test_database(uri):
+    if os.getenv("ALLOW_TEST_DATABASE_RESET") != "1":
+        raise RuntimeError(
+            "Refusing to reset MongoDB without ALLOW_TEST_DATABASE_RESET=1"
+        )
+
+    try:
+        hosts = {host.lower() for host, _ in parse_uri(uri)["nodelist"]}
+    except (ConfigurationError, InvalidURI) as exc:
+        raise RuntimeError("Tests require a valid local MongoDB URI") from exc
+
+    if not hosts or not hosts.issubset(_LOCAL_MONGO_HOSTS):
+        host_list = ", ".join(sorted(hosts)) or "unknown"
+        raise RuntimeError(
+            f"Refusing to reset a non-local MongoDB instance: {host_list}"
+        )
+
+
 class BaseTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # 1. Force a safe test DB name BEFORE any app imports that read settings
         os.environ["MONGO_DB_NAME"] = _TEST_DB_NAME
 
-        # 2. Create a sync admin client for direct DB operations in tests
+        # 2. Validate the exact database target before constructing either client
         from settings import get_mongo_settings
 
         mongo_settings = get_mongo_settings()
-        cls._admin_client = MongoClient(mongo_settings.mongo_auth_credentials)
-        cls._admin_db = cls._admin_client[_TEST_DB_NAME]
+        _guard_db_name(mongo_settings.mongo_db_name)
+        _assert_safe_test_database(mongo_settings.mongo_auth_credentials)
+        cls._mongo_uri = mongo_settings.mongo_auth_credentials
 
-        # 3. Import and construct the app (triggers lifespan on TestClient enter)
+        # 3. Create a sync admin client for direct DB operations in tests
+        cls._admin_client = MongoClient(mongo_settings.mongo_auth_credentials)
+        cls.addClassCleanup(cls._admin_client.close)
+        cls._admin_db = cls._admin_client[mongo_settings.mongo_db_name]
+
+        # 4. Import and construct the app (triggers lifespan on TestClient enter)
         from main import create_app
 
         app = create_app()
         cls._test_client_ctx = TestClient(app)
         cls.client = cls._test_client_ctx.__enter__()
-
-    @classmethod
-    def tearDownClass(cls):
-        # Exit TestClient context — triggers lifespan shutdown (close_db)
-        cls._test_client_ctx.__exit__(None, None, None)
-        # Close the sync admin client
-        cls._admin_client.close()
+        cls.addClassCleanup(cls._test_client_ctx.__exit__, None, None, None)
 
     @property
     def db(self):
         """Sync admin database handle for direct DB operations in tests."""
         return self.__class__._admin_db
 
-    def setUp(self):
-        _guard_db_name(_TEST_DB_NAME)
-        # Drop all collections in the test database before each test
+    def _clear_test_database(self):
+        _assert_safe_test_database(self.__class__._mongo_uri)
+        _guard_db_name(self.db.name)
         for collection_name in self.db.list_collection_names():
             self.db.drop_collection(collection_name)
+
+    def setUp(self):
+        self._clear_test_database()
+        self.addCleanup(self._clear_test_database)
 
         # Set up for organizations
         self.organization_data = json.load(open(_DUMMY_DATA / "organization.json"))
@@ -118,12 +143,6 @@ class BaseTestCase(unittest.TestCase):
         self.matrix_match_quiz_id, self.matrix_match_quiz = self.post_and_get_quiz(
             self.matrix_match_data
         )
-
-    def tearDown(self):
-        _guard_db_name(_TEST_DB_NAME)
-        # Clear test database after each test for isolation
-        for collection_name in self.db.list_collection_names():
-            self.db.drop_collection(collection_name)
 
     def post_and_get_quiz(self, quiz_data):
         """helper function to add quiz to db and retrieve it"""

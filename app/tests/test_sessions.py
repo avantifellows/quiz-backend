@@ -38,6 +38,7 @@ class SessionsTestCase(SessionsBaseTestCase):
         )
         assert response.status_code == 200
         session = response.json()
+        assert session["_id"] == self.homework_session_id
         for key in ["quiz_id", "user_id", "omr_mode"]:
             assert session[key] == self.homework_session[key]
 
@@ -204,9 +205,21 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert response.status_code == 201
         session = json.loads(response.content)
         assert session["is_first"] is True
+        assert session["user_id"] == "1"
+        stored_session = self.db.sessions.find_one({"_id": session["_id"]})
+        assert stored_session["user_id"] == "1"
         assert len(session["session_answers"]) == sum(
             len(qset["questions"]) for qset in quiz_data["question_sets"]
         )
+
+    def test_create_session_rejects_invalid_user_id_types(self):
+        for user_id in (None, []):
+            with self.subTest(user_id=user_id):
+                response = self.client.post(
+                    sessions.router.prefix + "/",
+                    json={"quiz_id": self.homework_quiz_id, "user_id": user_id},
+                )
+                assert response.status_code == 422
 
     def test_create_session_with_previous_session_and_no_event(self):
         # second session with no start-quiz event in first session
@@ -246,6 +259,25 @@ class SessionsTestCase(SessionsBaseTestCase):
 
         assert len(response["events"]) > 0
         assert response["is_first"] is False
+
+    def test_create_session_rejects_incomplete_previous_session(self):
+        self.client.patch(
+            f"{sessions.router.prefix}/{self.timed_quiz_session_id}",
+            json={"event": EventType.start_quiz.value},
+        )
+        self.db.sessions.update_one(
+            {"_id": self.timed_quiz_session_id},
+            {"$unset": {"session_answers": ""}},
+        )
+        response = self.client.post(
+            sessions.router.prefix + "/",
+            json={
+                "quiz_id": self.timed_quiz["_id"],
+                "user_id": self.timed_quiz_session["user_id"],
+            },
+        )
+
+        assert response.status_code == 500
 
     def test_create_session_with_valid_quiz_id_and_previous_session(self):
         self.session_id = self.homework_session["_id"]

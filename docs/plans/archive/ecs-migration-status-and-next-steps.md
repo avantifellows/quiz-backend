@@ -38,7 +38,7 @@
 | Dockerfile | Complete | repo root |
 | .dockerignore | Complete | repo root |
 | database.py connection pooling | Complete | `app/database.py` |
-| Migration proposal doc | Complete | `docs/MIGRATION_LAMBDA_TO_ECS.md` |
+| Migration proposal doc | Complete | `docs/plans/archive/MIGRATION_LAMBDA_TO_ECS.md` |
 | Implementation plan | Complete | `context_for_ai/plans/ecs-migration-implementation-plan.md` |
 | ECS deploy workflow (testing) | Complete | `.github/workflows/deploy_ecs_testing.yml` |
 | Terraform IaC (prod) | Complete | `terraform/prod/` |
