@@ -6,7 +6,9 @@ No MongoDB needed — these exercise the pure mapping.
 """
 
 import unittest
+from unittest import mock
 
+from services import cms_ingest
 from services.cms_ingest import map_cms_test_to_quiz, CmsIngestError
 
 
@@ -838,6 +840,46 @@ class TestMultilingualContent(unittest.TestCase):
         self.assertEqual(question["correct_answer"], 3)
         self.assertTrue(question["graded"])
         self.assertEqual(warnings, [])
+
+
+class FetchAssembledTestParamsTests(unittest.TestCase):
+    """A test is identified by its id alone; curriculum_id/grade_id are forwarded only when
+    the caller knows them — nex-gen-cms shortened its test URLs to `/test?id=<id>`.
+    """
+
+    def _capture_params(self, **kwargs):
+        captured = {}
+
+        class _Response:
+            status_code = 200
+
+            @staticmethod
+            def json():
+                return {"test": {}, "problems": []}
+
+        def fake_get(url, params=None, headers=None, timeout=None):
+            captured.update(params or {})
+            return _Response()
+
+        with mock.patch.object(cms_ingest.requests, "get", fake_get), mock.patch.object(
+            cms_ingest.settings, "cms_service_endpoint", "https://cms.example"
+        ), mock.patch.object(cms_ingest.settings, "cms_service_token", "tok"):
+            cms_ingest.fetch_assembled_test(504, **kwargs)
+        return captured
+
+    def test_passes_through_explicit_curriculum_and_grade(self):
+        params = self._capture_params(curriculum_id=2, grade_id=4)
+        self.assertEqual(params["id"], 504)
+        self.assertEqual(params["curriculum_id"], 2)
+        self.assertEqual(params["grade_id"], 4)
+
+    def test_omits_curriculum_and_grade_when_not_given(self):
+        params = self._capture_params()
+        self.assertEqual(params, {"id": 504})
+
+    def test_forwards_only_the_ids_the_caller_knows(self):
+        params = self._capture_params(curriculum_id=2)
+        self.assertEqual(params, {"id": 504, "curriculum_id": 2})
 
 
 if __name__ == "__main__":
