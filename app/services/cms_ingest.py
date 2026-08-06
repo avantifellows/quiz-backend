@@ -91,6 +91,8 @@ class CmsIngestError(Exception):
 
 # The CMS ignores these values but 502s if curriculum_id is missing, so send a placeholder
 # when the caller doesn't know the pair.
+# TEMPORARY: delete once db-service #651 ships (PR #677) — it drops the redundant
+# curriculum_id filter that makes an empty param blow up.
 _CMS_PLACEHOLDER_CURRICULUM_GRADE_ID = 1
 
 
