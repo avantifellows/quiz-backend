@@ -192,13 +192,8 @@ class CmsQuizIngestRequest(BaseModel):
     """
 
     test_id: int
-    # Optional: the CMS assembled-test endpoint ignores their VALUES — a test is identified
-    # by `id` alone and `/api/service/test` returns the same problems whichever
-    # curriculum/grade is passed (a test can be tagged to several curriculum-grade pairs).
-    # They are still sent downstream because that endpoint 502s when they are absent, so
-    # fetch_assembled_test substitutes a placeholder. Callers that know the real pair should
-    # keep passing it; callers holding only a test link — nex-gen-cms shortened its test URLs
-    # to `/test?id=<id>` — can now omit them.
+    # Optional: the CMS identifies a test by `id` alone and ignores these values. Callers
+    # holding only a shortened CMS link (`/test?id=<id>`) can omit them.
     curriculum_id: Optional[int] = None
     grade_id: Optional[int] = None
     quiz_type: str = QuizType.assessment.value

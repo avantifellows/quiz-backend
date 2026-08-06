@@ -89,10 +89,8 @@ class CmsIngestError(Exception):
     """Raised when the CMS assembled-test JSON cannot be fetched or is unusable."""
 
 
-# The CMS assembled-test endpoint requires curriculum_id/grade_id to be PRESENT (it 502s
-# without them) but ignores their values: `/api/service/test?id=X` returns the same problems
-# for any pair, and a test may be tagged to several pairs. So when a caller doesn't know the
-# pair, send a placeholder rather than refuse the ingest.
+# The CMS ignores these values but 502s if curriculum_id is missing, so send a placeholder
+# when the caller doesn't know the pair.
 _CMS_PLACEHOLDER_CURRICULUM_GRADE_ID = 1
 
 
