@@ -89,10 +89,22 @@ class CmsIngestError(Exception):
     """Raised when the CMS assembled-test JSON cannot be fetched or is unusable."""
 
 
+# The CMS assembled-test endpoint requires curriculum_id/grade_id to be PRESENT (it 502s
+# without them) but ignores their values: `/api/service/test?id=X` returns the same problems
+# for any pair, and a test may be tagged to several pairs. So when a caller doesn't know the
+# pair, send a placeholder rather than refuse the ingest.
+_CMS_PLACEHOLDER_CURRICULUM_GRADE_ID = 1
+
+
 def fetch_assembled_test(
-    test_id: int, curriculum_id: int, grade_id: int
+    test_id: int,
+    curriculum_id: Optional[int] = None,
+    grade_id: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """Fetch the assembled-test JSON from the new CMS. Raises CmsIngestError on failure."""
+    """Fetch the assembled-test JSON from the new CMS. Raises CmsIngestError on failure.
+
+    curriculum_id/grade_id are optional; see _CMS_PLACEHOLDER_CURRICULUM_GRADE_ID.
+    """
     if not settings.cms_service_endpoint or not settings.cms_service_token:
         raise CmsIngestError(
             "CMS_SERVICE_ENDPOINT / CMS_SERVICE_TOKEN are not configured"
@@ -104,8 +116,16 @@ def fetch_assembled_test(
             url,
             params={
                 "id": test_id,
-                "curriculum_id": curriculum_id,
-                "grade_id": grade_id,
+                "curriculum_id": (
+                    curriculum_id
+                    if curriculum_id is not None
+                    else _CMS_PLACEHOLDER_CURRICULUM_GRADE_ID
+                ),
+                "grade_id": (
+                    grade_id
+                    if grade_id is not None
+                    else _CMS_PLACEHOLDER_CURRICULUM_GRADE_ID
+                ),
             },
             headers={"Authorization": f"Bearer {settings.cms_service_token}"},
             timeout=30,

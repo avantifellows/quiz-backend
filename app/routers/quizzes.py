@@ -192,8 +192,15 @@ class CmsQuizIngestRequest(BaseModel):
     """
 
     test_id: int
-    curriculum_id: int
-    grade_id: int
+    # Optional: the CMS assembled-test endpoint ignores their VALUES — a test is identified
+    # by `id` alone and `/api/service/test` returns the same problems whichever
+    # curriculum/grade is passed (a test can be tagged to several curriculum-grade pairs).
+    # They are still sent downstream because that endpoint 502s when they are absent, so
+    # fetch_assembled_test substitutes a placeholder. Callers that know the real pair should
+    # keep passing it; callers holding only a test link — nex-gen-cms shortened its test URLs
+    # to `/test?id=<id>` — can now omit them.
+    curriculum_id: Optional[int] = None
+    grade_id: Optional[int] = None
     quiz_type: str = QuizType.assessment.value
     # Raw session window-end as an ISO wall-clock string (IST), e.g. "2026-04-15T14:00:00".
     # The stored metadata.session_end_time is this PLUS the quiz duration (see
