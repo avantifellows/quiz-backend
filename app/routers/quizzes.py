@@ -192,8 +192,10 @@ class CmsQuizIngestRequest(BaseModel):
     """
 
     test_id: int
-    curriculum_id: int
-    grade_id: int
+    # Optional: the CMS identifies a test by `id` alone and ignores these values. Callers
+    # holding only a shortened CMS link (`/test?id=<id>`) can omit them.
+    curriculum_id: Optional[int] = None
+    grade_id: Optional[int] = None
     quiz_type: str = QuizType.assessment.value
     # Raw session window-end as an ISO wall-clock string (IST), e.g. "2026-04-15T14:00:00".
     # The stored metadata.session_end_time is this PLUS the quiz duration (see
