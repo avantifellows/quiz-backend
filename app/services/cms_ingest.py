@@ -90,23 +90,31 @@ class CmsIngestError(Exception):
 
 
 def fetch_assembled_test(
-    test_id: int, curriculum_id: int, grade_id: int
+    test_id: int,
+    curriculum_id: Optional[int] = None,
+    grade_id: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """Fetch the assembled-test JSON from the new CMS. Raises CmsIngestError on failure."""
+    """Fetch the assembled-test JSON from the new CMS. Raises CmsIngestError on failure.
+
+    A test is identified by its id alone; curriculum_id/grade_id are optional and only
+    forwarded when the caller knows them.
+    """
     if not settings.cms_service_endpoint or not settings.cms_service_token:
         raise CmsIngestError(
             "CMS_SERVICE_ENDPOINT / CMS_SERVICE_TOKEN are not configured"
         )
 
+    params = {"id": test_id}
+    if curriculum_id is not None:
+        params["curriculum_id"] = curriculum_id
+    if grade_id is not None:
+        params["grade_id"] = grade_id
+
     url = settings.cms_service_endpoint.rstrip("/") + "/api/service/test"
     try:
         response = requests.get(
             url,
-            params={
-                "id": test_id,
-                "curriculum_id": curriculum_id,
-                "grade_id": grade_id,
-            },
+            params=params,
             headers={"Authorization": f"Bearer {settings.cms_service_token}"},
             timeout=30,
         )
