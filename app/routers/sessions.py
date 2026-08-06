@@ -320,6 +320,18 @@ async def create_session(session: Session):
         logger.info(
             f"Some meaningful event has occurred in last_session, creating new session for user: {session.user_id} and quiz: {session.quiz_id} with {session.omr_mode} as omr_mode"
         )
+        if not isinstance(last_session.get("question_order"), list) or not isinstance(
+            last_session.get("session_answers"), list
+        ):
+            error_message = (
+                f"Previous session {last_session['_id']} has invalid question data"
+            )
+            logger.error(error_message)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=error_message,
+            )
+
         current_session["is_first"] = False
         current_session["events"] = last_session.get("events", [])
         current_session["time_remaining"] = last_session.get("time_remaining", None)
