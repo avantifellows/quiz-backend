@@ -89,13 +89,6 @@ class CmsIngestError(Exception):
     """Raised when the CMS assembled-test JSON cannot be fetched or is unusable."""
 
 
-# The CMS ignores these values but 502s if curriculum_id is missing, so send a placeholder
-# when the caller doesn't know the pair.
-# TEMPORARY: delete once db-service #651 ships (PR #677) — it drops the redundant
-# curriculum_id filter that makes an empty param blow up.
-_CMS_PLACEHOLDER_CURRICULUM_GRADE_ID = 1
-
-
 def fetch_assembled_test(
     test_id: int,
     curriculum_id: Optional[int] = None,
@@ -103,30 +96,25 @@ def fetch_assembled_test(
 ) -> Dict[str, Any]:
     """Fetch the assembled-test JSON from the new CMS. Raises CmsIngestError on failure.
 
-    curriculum_id/grade_id are optional; see _CMS_PLACEHOLDER_CURRICULUM_GRADE_ID.
+    A test is identified by its id alone; curriculum_id/grade_id are optional and only
+    forwarded when the caller knows them.
     """
     if not settings.cms_service_endpoint or not settings.cms_service_token:
         raise CmsIngestError(
             "CMS_SERVICE_ENDPOINT / CMS_SERVICE_TOKEN are not configured"
         )
 
+    params = {"id": test_id}
+    if curriculum_id is not None:
+        params["curriculum_id"] = curriculum_id
+    if grade_id is not None:
+        params["grade_id"] = grade_id
+
     url = settings.cms_service_endpoint.rstrip("/") + "/api/service/test"
     try:
         response = requests.get(
             url,
-            params={
-                "id": test_id,
-                "curriculum_id": (
-                    curriculum_id
-                    if curriculum_id is not None
-                    else _CMS_PLACEHOLDER_CURRICULUM_GRADE_ID
-                ),
-                "grade_id": (
-                    grade_id
-                    if grade_id is not None
-                    else _CMS_PLACEHOLDER_CURRICULUM_GRADE_ID
-                ),
-            },
+            params=params,
             headers={"Authorization": f"Bearer {settings.cms_service_token}"},
             timeout=30,
         )

@@ -843,8 +843,8 @@ class TestMultilingualContent(unittest.TestCase):
 
 
 class FetchAssembledTestParamsTests(unittest.TestCase):
-    """curriculum_id/grade_id must always be SENT (the CMS 502s without them) even though
-    callers may now omit them — nex-gen-cms shortened its test URLs to `/test?id=<id>`.
+    """A test is identified by its id alone; curriculum_id/grade_id are forwarded only when
+    the caller knows them — nex-gen-cms shortened its test URLs to `/test?id=<id>`.
     """
 
     def _capture_params(self, **kwargs):
@@ -873,19 +873,13 @@ class FetchAssembledTestParamsTests(unittest.TestCase):
         self.assertEqual(params["curriculum_id"], 2)
         self.assertEqual(params["grade_id"], 4)
 
-    def test_substitutes_placeholder_when_omitted(self):
+    def test_omits_curriculum_and_grade_when_not_given(self):
         params = self._capture_params()
-        placeholder = cms_ingest._CMS_PLACEHOLDER_CURRICULUM_GRADE_ID
-        self.assertEqual(params["id"], 504)
-        self.assertEqual(params["curriculum_id"], placeholder)
-        self.assertEqual(params["grade_id"], placeholder)
+        self.assertEqual(params, {"id": 504})
 
-    def test_substitutes_placeholder_for_each_param_independently(self):
+    def test_forwards_only_the_ids_the_caller_knows(self):
         params = self._capture_params(curriculum_id=2)
-        self.assertEqual(params["curriculum_id"], 2)
-        self.assertEqual(
-            params["grade_id"], cms_ingest._CMS_PLACEHOLDER_CURRICULUM_GRADE_ID
-        )
+        self.assertEqual(params, {"id": 504, "curriculum_id": 2})
 
 
 if __name__ == "__main__":
