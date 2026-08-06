@@ -78,6 +78,27 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
         # ensure that `answer` is not affected
         assert session_answer["answer"] == self.session_answer["answer"]
 
+    def test_single_update_clears_explicit_null_fields(self):
+        url = (
+            f"{session_answers.router.prefix}/{self.session_id}/"
+            f"{self.session_answer_position_index}"
+        )
+        response = self.client.patch(
+            url,
+            json={"answer": [0], "time_spent": 45},
+        )
+        assert response.status_code == 200
+
+        response = self.client.patch(
+            url,
+            json={"answer": None, "time_spent": None},
+        )
+        assert response.status_code == 200
+
+        session_answer = self.client.get(url).json()
+        assert session_answer["answer"] is None
+        assert session_answer["time_spent"] is None
+
     # --- US-001: Pre-DB validation for batch endpoint ---
 
     def test_batch_update_invalid_payloads_are_rejected_before_db_read(self):
@@ -324,3 +345,41 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
         assert targeted_answer["answer"] == new_answer
         assert targeted_answer["visited"] == self.session_answers[0]["visited"]
         assert untouched_answer == self.session_answers[1]
+
+    def test_batch_update_clears_answer_with_null(self):
+        db_client.quiz.sessions.update_one(
+            {"_id": self.session_id},
+            {"$set": {"session_answers.0.answer": [0]}},
+        )
+
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/update-multiple-answers",
+            json=[[0, {"answer": None}]],
+        )
+
+        assert response.status_code == 200
+        answer = self.client.get(
+            f"{session_answers.router.prefix}/{self.session_id}/0"
+        ).json()
+        assert answer["answer"] is None
+
+    def test_batch_update_accepts_mixed_answer_shapes(self):
+        session_id = self.multi_qset_quiz_session["_id"]
+        updates = [
+            [0, {"answer": 42}],
+            [1, {"answer": "hello"}],
+            [2, {"answer": {"row1": "A"}, "visited": True}],
+            [3, {"answer": ["A,B", "C,D"]}],
+        ]
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{session_id}/update-multiple-answers",
+            json=updates,
+        )
+
+        assert response.status_code == 200
+        for position, expected in updates:
+            stored = self.client.get(
+                f"{session_answers.router.prefix}/{session_id}/{position}"
+            ).json()
+            for field, value in expected.items():
+                assert stored[field] == value

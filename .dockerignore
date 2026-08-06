@@ -37,11 +37,6 @@ terraform/
 docs/
 *.md
 
-# AWS SAM (Lambda)
-templates/
-.aws-sam/
-samconfig.toml
-
 # Context for AI
 context_for_ai/
 

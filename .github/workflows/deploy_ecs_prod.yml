@@ -48,12 +48,7 @@ jobs:
 
       - name: Determine image tag
         id: vars
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
-          fi
+        run: echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
@@ -128,14 +123,23 @@ jobs:
           fi
 
           for ATTEMPT in {1..5}; do
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+            HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
               https://quiz-backend.avantifellows.org/health || true)
-            echo "Health check attempt $ATTEMPT returned: $HTTP_STATUS"
-            if [ "$HTTP_STATUS" = "200" ]; then
+            echo "Health check attempt $ATTEMPT returned: $HEALTH_STATUS"
+
+            DB_STATUS="not-run"
+            if [ "$HEALTH_STATUS" = "200" ]; then
+              # Preflight performs a MongoDB read even when these sentinel IDs do not exist.
+              DB_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+                "https://quiz-backend.avantifellows.org/sessions/preflight?quiz_id=__deployment_smoke__&user_id=__deployment_smoke__" || true)
+              echo "Database check attempt $ATTEMPT returned: $DB_STATUS"
+            fi
+
+            if [ "$HEALTH_STATUS" = "200" ] && [ "$DB_STATUS" = "200" ]; then
               echo "Smoke test passed."
               exit 0
             fi
             sleep 2
           done
-          echo "Smoke test failed! Expected 200."
+          echo "Smoke test failed! Expected /health and /sessions/preflight to return 200."
           exit 1

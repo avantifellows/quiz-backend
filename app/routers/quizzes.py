@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, status, HTTPException, Query
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from database import client
 from models import Quiz, GetQuizResponse, CreateQuizResponse
 from settings import Settings
@@ -214,8 +214,8 @@ class CmsQuizIngestRequest(BaseModel):
     # "show answers immediately after submission" in the LMS form.
     review_immediate: Optional[bool] = None
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "test_id": 504,
                 "curriculum_id": 1,
@@ -227,6 +227,7 @@ class CmsQuizIngestRequest(BaseModel):
                 "review_immediate": False,
             }
         }
+    )
 
 
 @router.post("/", response_model=CreateQuizResponse)
