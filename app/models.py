@@ -98,7 +98,26 @@ class SessionMetrics(BaseModel):
     total_marks: float
 
 
-class QuestionMetadata(BaseModel):
+class NumericStringMetadata(BaseModel):
+    """Base for metadata models whose string fields may hold numbers in existing documents.
+
+    Pydantic v1 accepted a numeric grade/chapter_id/etc. and coerced it to str, so
+    quizzes written back then can hold e.g. grade 12 as an int. v2 raises instead,
+    which turned GET /quiz into a 500 for every such quiz.
+    """
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def coerce_numeric_to_str(cls, v, info):
+        """Preserve Pydantic v1 behavior: accept int/float input and coerce to str."""
+        if type(v) in (int, float) and cls.model_fields[info.field_name].annotation is (
+            Optional[str]
+        ):
+            return str(v)
+        return v
+
+
+class QuestionMetadata(NumericStringMetadata):
     grade: Optional[str] = None
     subject: Optional[str] = None
     chapter: Optional[str] = None
@@ -114,7 +133,7 @@ class QuestionMetadata(BaseModel):
     priority: Optional[str] = None
 
 
-class QuizMetadata(BaseModel):
+class QuizMetadata(NumericStringMetadata):
     quiz_type: QuizType
     test_format: Optional[TestFormat] = None
     grade: Optional[str] = None
