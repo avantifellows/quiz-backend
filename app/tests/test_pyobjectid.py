@@ -1,7 +1,13 @@
 import unittest
 from bson import ObjectId
 from fastapi.encoders import jsonable_encoder
-from ..models import Organization, QuestionSet
+from ..models import (
+    GetQuizResponse,
+    Organization,
+    QuestionMetadata,
+    QuestionSet,
+    QuizMetadata,
+)
 from ..main import app
 
 
@@ -129,3 +135,70 @@ class PyObjectIdOpenAPITestCase(unittest.TestCase):
     def test_session_answer_id_is_string_in_openapi(self):
         id_schema = self._get_model_id_schema("SessionAnswer")
         self.assertEqual(id_schema.get("type"), "string")
+
+
+class NumericMetadataCoercionTestCase(unittest.TestCase):
+    """Existing quizzes store metadata.grade (and similar id-like fields) as numbers."""
+
+    def test_question_metadata_coerces_numeric_grade(self):
+        self.assertEqual(QuestionMetadata(grade=12).grade, "12")
+
+    def test_quiz_metadata_coerces_numeric_grade(self):
+        metadata = QuizMetadata(quiz_type="assessment", grade=12)
+        self.assertEqual(metadata.grade, "12")
+
+    def test_coerces_other_numeric_id_fields(self):
+        metadata = QuestionMetadata(chapter_id=45, topic_id=7, priority=1)
+        self.assertEqual(metadata.chapter_id, "45")
+        self.assertEqual(metadata.topic_id, "7")
+        self.assertEqual(metadata.priority, "1")
+
+    def test_string_values_are_unchanged(self):
+        metadata = QuestionMetadata(grade="12", subject="Physics")
+        self.assertEqual(metadata.grade, "12")
+        self.assertEqual(metadata.subject, "Physics")
+
+    def test_none_stays_none(self):
+        self.assertIsNone(QuestionMetadata(grade=None).grade)
+
+    def test_non_string_fields_are_not_coerced(self):
+        """bool subclasses int, so a naive coercion would turn it into a string."""
+        metadata = QuizMetadata(quiz_type="assessment", next_step_autostart=True)
+        self.assertIs(metadata.next_step_autostart, True)
+
+    def test_invalid_types_are_still_rejected(self):
+        with self.assertRaises(Exception):
+            QuestionMetadata(grade=["not", "a", "grade"])
+
+    def test_quiz_response_with_numeric_grades_validates(self):
+        """Regression: this document shape returned a 500 from GET /quiz."""
+        question_set_id, question_id = str(ObjectId()), str(ObjectId())
+        quiz = GetQuizResponse.model_validate(
+            {
+                "_id": str(ObjectId()),
+                "title": "Quiz",
+                "max_marks": 10,
+                "num_graded_questions": 1,
+                "metadata": {"quiz_type": "assessment", "grade": 12},
+                "question_sets": [
+                    {
+                        "_id": question_set_id,
+                        "max_questions_allowed_to_attempt": 1,
+                        "questions": [
+                            {
+                                "_id": question_id,
+                                "question_set_id": question_set_id,
+                                "text": "?",
+                                "type": "single-choice",
+                                "graded": True,
+                                "metadata": {"grade": 12, "chapter_id": 45},
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+        self.assertEqual(quiz.metadata.grade, "12")
+        question_metadata = quiz.question_sets[0].questions[0].metadata
+        self.assertEqual(question_metadata.grade, "12")
+        self.assertEqual(question_metadata.chapter_id, "45")
