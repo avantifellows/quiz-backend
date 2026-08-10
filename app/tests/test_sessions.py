@@ -745,3 +745,79 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert r.status_code == 200
         s = self.client.get(f"{sessions.router.prefix}/{sid}").json()
         assert float(s.get("total_time_spent")) == pytest.approx(20.0, abs=0.01)
+
+    # --- combined timer + time-spent ping (answer_updates folded into the event) ---
+
+    def test_dummy_event_with_answer_updates_persists_time_spent(self):
+        """A single dummy-event carrying answer_updates should update BOTH the timer
+        (time_remaining) and the per-question time_spent in one call/one write."""
+        sid = self.timed_quiz_session_id
+        self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={
+                "event": EventType.dummy_event.value,
+                "answer_updates": [[0, {"time_spent": 12}], [1, {"time_spent": 7}]],
+            },
+        )
+        assert r.status_code == 200
+        # timer half of the ping still works
+        assert "time_remaining" in r.json()
+
+        # time-spent half of the ping persisted to the answers array
+        s = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        assert s["session_answers"][0]["time_spent"] == 12
+        assert s["session_answers"][1]["time_spent"] == 7
+
+    def test_answer_updates_out_of_bounds_returns_400(self):
+        """A position beyond the answers array is rejected, mirroring the batch endpoint."""
+        sid = self.timed_quiz_session_id
+        num_answers = len(
+            self.client.get(f"{sessions.router.prefix}/{sid}").json()["session_answers"]
+        )
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={
+                "event": EventType.dummy_event.value,
+                "answer_updates": [[num_answers + 5, {"time_spent": 3}]],
+            },
+        )
+        assert r.status_code == 400
+
+    def test_event_only_update_still_works_without_answer_updates(self):
+        """Backward compatibility: an event with no answer_updates behaves exactly as before."""
+        sid = self.timed_quiz_session_id
+        self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.dummy_event.value},
+        )
+        assert r.status_code == 200
+        assert "time_remaining" in r.json()
+
+    def test_answer_updates_on_end_quiz_persists_and_scores(self):
+        """End-quiz uses the full read; answer_updates folded in still persist and metrics compute."""
+        sid = self.timed_quiz_session_id
+        self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={
+                "event": EventType.end_quiz.value,
+                "answer_updates": [[0, {"time_spent": 33}]],
+            },
+        )
+        assert r.status_code == 200
+        assert "metrics" in r.json()
+        s = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        assert s["session_answers"][0]["time_spent"] == 33
+        assert s["has_quiz_ended"] is True

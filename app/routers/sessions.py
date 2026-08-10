@@ -13,6 +13,7 @@ from models import (
     UpdateSession,
     UpdateSessionResponse,
 )
+from utils import remove_optional_unset_args
 from datetime import datetime
 from logger_config import get_logger
 from typing import Any, Dict, List, Optional
@@ -411,7 +412,39 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     log_message = f"Updating session with id {session_id} and event {new_event}"
     session_update_query = {}
 
-    session = client.quiz.sessions.find_one({"_id": session_id})
+    # Read only what this event needs.
+    # - end-quiz scores the attempt, so it needs the full session (all session_answers).
+    # - dummy/start/resume only need the timing fields, so we skip the (~33 KB) answers
+    #   array via a lightweight projection. num_answers/session_answers_is_array are kept so
+    #   any folded answer_updates can be position-validated without loading the array.
+    if new_event == EventType.end_quiz:
+        session = client.quiz.sessions.find_one({"_id": session_id})
+    else:
+        projection_pipeline = [
+            {"$match": {"_id": session_id}},
+            {
+                "$project": {
+                    "_id": 0,
+                    "user_id": 1,
+                    "quiz_id": 1,
+                    "events": 1,
+                    "total_time_spent": 1,
+                    "start_quiz_time": 1,
+                    "has_quiz_ended": 1,
+                    "time_limit_max": 1,
+                    "session_answers_is_array": {"$isArray": "$session_answers"},
+                    "num_answers": {
+                        "$cond": [
+                            {"$isArray": "$session_answers"},
+                            {"$size": "$session_answers"},
+                            None,
+                        ]
+                    },
+                }
+            },
+        ]
+        projection_result = list(client.quiz.sessions.aggregate(projection_pipeline))
+        session = projection_result[0] if projection_result else None
     if session is None:
         logger.error(
             f"Received session update request, but session_id {session_id} not found"
@@ -594,6 +627,46 @@ async def update_session(session_id: str, session_updates: UpdateSession):
             }
         )
         response_content["metrics"] = session_metrics
+
+    # Fold any per-question updates carried with the event into the SAME write. This lets the
+    # frontend's periodic heartbeat send the timer event and its time-spent updates as one
+    # request + one DB update instead of two. Writing session_answers.{pos}.{field} is a
+    # positional set, so it needs the answer count (for bounds validation) but not the answers
+    # array itself — which is why the lightweight read above is sufficient.
+    if session_updates.answer_updates:
+        if "num_answers" in session:  # lightweight read (dummy/start/resume)
+            session_answers_is_array = session.get("session_answers_is_array")
+            num_answers = session.get("num_answers")
+        else:  # full read (end-quiz)
+            session_answers_value = session.get("session_answers")
+            session_answers_is_array = isinstance(session_answers_value, list)
+            num_answers = (
+                len(session_answers_value) if session_answers_is_array else None
+            )
+
+        if not session_answers_is_array or num_answers is None:
+            error_message = f"No session answers found in the session with id {session_id}, for user: {user_id} and quiz: {quiz_id}"
+            logger.error(error_message)
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=error_message,
+            )
+
+        positions = [position for position, _ in session_updates.answer_updates]
+        if any(position < 0 or position >= num_answers for position in positions):
+            error_message = "One or more provided position indices are out of bounds of the session answers array"
+            logger.error(error_message)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error_message,
+            )
+
+        for position, answer_update in session_updates.answer_updates:
+            cleaned = jsonable_encoder(remove_optional_unset_args(answer_update))
+            for key, value in cleaned.items():
+                session_update_query.setdefault("$set", {})[
+                    f"session_answers.{position}.{key}"
+                ] = value
 
     # Always bump session-level updated_at for any session change
     session_update_query.setdefault("$set", {}).update(
