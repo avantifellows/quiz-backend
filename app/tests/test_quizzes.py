@@ -50,6 +50,7 @@ class QuizTestCase(BaseTestCase):
         )
         assert response.status_code == 200
         response = response.json()
+        assert response["_id"] == self.short_homework_quiz_id
         assert (
             len(response["question_sets"][0]["questions"])
             == self.short_homework_quiz_questions_length
@@ -243,6 +244,14 @@ class QuizTestCase(BaseTestCase):
         assert first_q.get("correct_answer") is not None
         assert trimmed_q.get("correct_answer") is not None
 
+        answers = [
+            question["correct_answer"]
+            for question in payload["question_sets"][0]["questions"]
+        ]
+        assert any(answer == [0] for answer in answers)
+        assert any(type(answer) is float and answer == 23.2 for answer in answers)
+        assert any(type(answer) is int and answer == 23 for answer in answers)
+
     def test_get_quiz_include_answers_respects_display_solution_false(self):
         # Update the embedded (bucketed) quiz payload so we can verify the endpoint clears it.
         embedded_q_id = self.multi_qset_quiz["question_sets"][0]["questions"][0]["_id"]
@@ -294,22 +303,54 @@ class QuizTestCase(BaseTestCase):
             for condition in partial_mark_rule["conditions"]:
                 assert "num_correct_selected" in condition
 
-    def test_created_matrix_match_quiz_contains_list_of_string_answer(self):
+    def test_created_matrix_match_quiz_preserves_answer_shapes(self):
         # Base GET /quiz payload is sanitized in Phase 3, so fetch with include_answers=true
         response = self.client.get(
             f"{quizzes.router.prefix}/{self.matrix_match_quiz_id}",
-            params={"include_answers": True},
+            params={"include_answers": True, "single_page_mode": True},
         )
         assert response.status_code == 200
         quiz_payload = response.json()
 
         # go through quiz and find advanced matrix match question
+        numeric_answers = []
         for question_set in quiz_payload["question_sets"]:
             for question in question_set["questions"]:
                 if question["type"] == "matrix-match":
                     assert isinstance(question["correct_answer"], list)
                     for ans in question["correct_answer"]:
                         assert isinstance(ans, str)
+                elif question["type"] == "numerical-integer":
+                    numeric_answers.append(question["correct_answer"])
+
+        # The fixture submits these as strings; the existing union normalizes them.
+        assert numeric_answers == [5.0, 5.0, 4.0, 4.0, 1.0]
+
+    def test_legacy_quiz_fields_are_backfilled(self):
+        mongo_client.quiz.quizzes.update_one(
+            {"_id": self.homework_quiz_id},
+            {
+                "$unset": {
+                    "question_sets.0.max_questions_allowed_to_attempt": "",
+                    "question_sets.0.title": "",
+                    "question_sets.0.marking_scheme": "",
+                }
+            },
+        )
+
+        response = self.client.get(f"{quizzes.router.prefix}/{self.homework_quiz_id}")
+        assert response.status_code == 200
+        question_set = response.json()["question_sets"][0]
+        assert question_set["max_questions_allowed_to_attempt"] == len(
+            question_set["questions"]
+        )
+        assert question_set["title"] == "Section A"
+        assert question_set["marking_scheme"] == {
+            "correct": 1.0,
+            "wrong": 0.0,
+            "skipped": 0.0,
+            "partial": None,
+        }
 
     def test_get_quiz_with_single_page_mode_returns_all_questions_with_full_details(
         self,

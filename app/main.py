@@ -2,7 +2,6 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from routers import questions, quizzes, session_answers, sessions, organizations, forms
-from mangum import Mangum
 import random
 import string
 import time
@@ -74,6 +73,3 @@ app.include_router(organizations.router)
 async def health_check():
     """Lightweight health check endpoint for ALB."""
     return {"status": "healthy"}
-
-
-handler = Mangum(app)

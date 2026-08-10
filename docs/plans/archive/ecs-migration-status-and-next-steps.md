@@ -1,5 +1,6 @@
-# ECS Migration — Status & Next Steps
+# ECS Migration — Status & Next Steps (ARCHIVED)
 
+> **Status:** ARCHIVED — Migration complete. Lambda/SAM fully decommissioned. ECS Fargate is the sole deployment target.
 > **Last reviewed:** February 7, 2026
 > **Branch:** `docs/migration-lambda-to-ecs` (merged with main)
 > **Reference:** `context_for_ai/plans/ecs-migration-implementation-plan.md`
@@ -37,7 +38,7 @@
 | Dockerfile | Complete | repo root |
 | .dockerignore | Complete | repo root |
 | database.py connection pooling | Complete | `app/database.py` |
-| Migration proposal doc | Complete | `docs/MIGRATION_LAMBDA_TO_ECS.md` |
+| Migration proposal doc | Complete | `docs/plans/archive/MIGRATION_LAMBDA_TO_ECS.md` |
 | Implementation plan | Complete | `context_for_ai/plans/ecs-migration-implementation-plan.md` |
 | ECS deploy workflow (testing) | Complete | `.github/workflows/deploy_ecs_testing.yml` |
 | Terraform IaC (prod) | Complete | `terraform/prod/` |
