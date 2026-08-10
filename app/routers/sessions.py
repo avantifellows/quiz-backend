@@ -252,7 +252,9 @@ async def create_session(session: Session):
                 for question_index, question in enumerate(question_set["questions"]):
                     session_answers.append(
                         jsonable_encoder(
-                            SessionAnswer.parse_obj({"question_id": question["_id"]})
+                            SessionAnswer.model_validate(
+                                {"question_id": question["_id"]}
+                            )
                         )
                     )
     else:
@@ -320,6 +322,18 @@ async def create_session(session: Session):
         logger.info(
             f"Some meaningful event has occurred in last_session, creating new session for user: {session.user_id} and quiz: {session.quiz_id} with {session.omr_mode} as omr_mode"
         )
+        if not isinstance(last_session.get("question_order"), list) or not isinstance(
+            last_session.get("session_answers"), list
+        ):
+            error_message = (
+                f"Previous session {last_session['_id']} has invalid question data"
+            )
+            logger.error(error_message)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=error_message,
+            )
+
         current_session["is_first"] = False
         current_session["events"] = last_session.get("events", [])
         current_session["time_remaining"] = last_session.get("time_remaining", None)
@@ -343,7 +357,7 @@ async def create_session(session: Session):
 
             # append with new session_answer "_id" keys
             session_answers.append(
-                jsonable_encoder(SessionAnswer.parse_obj(session_answer))
+                jsonable_encoder(SessionAnswer.model_validate(session_answer))
             )
 
     current_session["session_answers"] = session_answers
@@ -410,7 +424,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     log_message += f", for user: {user_id} and quiz: {quiz_id}"
     logger.info(log_message)
 
-    new_event_obj = jsonable_encoder(Event.parse_obj({"event_type": new_event}))
+    new_event_obj = jsonable_encoder(Event.model_validate({"event_type": new_event}))
     total_time_spent = session.get("total_time_spent", None)
     running_total = float(total_time_spent or 0)
     should_update_total_time_spent = total_time_spent is None
