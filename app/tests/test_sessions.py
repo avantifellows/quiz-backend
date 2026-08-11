@@ -824,6 +824,40 @@ class SessionsTestCase(SessionsBaseTestCase):
         s = self.client.get(f"{sessions.router.prefix}/{sid}").json()
         assert not s.get("has_quiz_ended")
 
+    def test_answer_updates_reject_duplicate_positions(self):
+        """The fold shares the batch endpoint's contract: duplicate positions -> 400."""
+        sid = self.timed_quiz_session_id
+        self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={
+                "event": EventType.dummy_event.value,
+                "answer_updates": [[0, {"time_spent": 3}], [0, {"time_spent": 4}]],
+            },
+        )
+        assert r.status_code == 400
+        assert "Duplicate" in r.json()["detail"]
+
+    def test_answer_updates_reject_empty_item(self):
+        """The fold shares the batch endpoint's contract: an item with no business field -> 400."""
+        sid = self.timed_quiz_session_id
+        self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={
+                "event": EventType.dummy_event.value,
+                "answer_updates": [[0, {}]],
+            },
+        )
+        assert r.status_code == 400
+        assert "Empty payload" in r.json()["detail"]
+
     def test_folded_time_spent_does_not_write_per_answer_updated_at(self):
         """The folded heartbeat path drops per-answer updated_at (nothing reads it), so a
         time_spent-only update writes just that field, not a redundant updated_at per answer.

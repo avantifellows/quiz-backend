@@ -13,12 +13,16 @@ from models import (
     UpdateSession,
     UpdateSessionResponse,
 )
-from utils import remove_optional_unset_args
 from datetime import datetime
 from logger_config import get_logger
 from typing import Any, Dict, List, Optional
 from settings import Settings
 from services.scoring import compute_session_metrics
+from services.session_answer_updates import (
+    validate_answer_updates_before_read,
+    validate_answer_update_bounds,
+    build_answer_update_set,
+)
 
 
 def str_to_datetime(value) -> Optional[datetime]:
@@ -645,34 +649,16 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     # positional set, so it needs the answer count (for bounds validation) but not the answers
     # array itself — which is why the lightweight read above is sufficient.
     if session_updates.answer_updates:
-        # Only dummy/start/resume reach here (end-quiz + answer_updates is rejected above)
-        session_answers_is_array = session.get("session_answers_is_array")
-        num_answers = session.get("num_answers")
-
-        if not session_answers_is_array or num_answers is None:
-            error_message = f"No session answers found in the session with id {session_id}, for user: {user_id} and quiz: {quiz_id}"
-            logger.error(error_message)
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=error_message,
-            )
-
-        positions = [position for position, _ in session_updates.answer_updates]
-        if any(position < 0 or position >= num_answers for position in positions):
-            error_message = "One or more provided position indices are out of bounds of the session answers array"
-            logger.error(error_message)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=error_message,
-            )
-
-        for position, answer_update in session_updates.answer_updates:
-            cleaned = jsonable_encoder(remove_optional_unset_args(answer_update))
-            cleaned.pop("updated_at", None)
-            for key, value in cleaned.items():
-                session_update_query.setdefault("$set", {})[
-                    f"session_answers.{position}.{key}"
-                ] = value
+        validate_answer_updates_before_read(session_updates.answer_updates)
+        validate_answer_update_bounds(
+            session_updates.answer_updates,
+            session_answers_is_array=session.get("session_answers_is_array"),
+            num_answers=session.get("num_answers"),
+            session_id=session_id,
+        )
+        session_update_query.setdefault("$set", {}).update(
+            build_answer_update_set(session_updates.answer_updates)
+        )
 
     # Always bump session-level updated_at for any session change
     session_update_query.setdefault("$set", {}).update(
