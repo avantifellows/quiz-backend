@@ -802,8 +802,11 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert r.status_code == 200
         assert "time_remaining" in r.json()
 
-    def test_answer_updates_on_end_quiz_persists_and_scores(self):
-        """End-quiz uses the full read; answer_updates folded in still persist and metrics compute."""
+    def test_answer_updates_rejected_on_end_quiz(self):
+        """answer_updates may not ride along with end-quiz: scoring runs on the in-memory
+        session and would ignore a folded answer, persisting it but scoring it as skipped.
+        So the combination is rejected with 400 (the frontend never sends it this way).
+        """
         sid = self.timed_quiz_session_id
         self.client.patch(
             f"{sessions.router.prefix}/{sid}",
@@ -816,8 +819,32 @@ class SessionsTestCase(SessionsBaseTestCase):
                 "answer_updates": [[0, {"time_spent": 33}]],
             },
         )
-        assert r.status_code == 200
-        assert "metrics" in r.json()
+        assert r.status_code == 400
+        # end-quiz was rejected, so the quiz must not have ended
         s = self.client.get(f"{sessions.router.prefix}/{sid}").json()
-        assert s["session_answers"][0]["time_spent"] == 33
-        assert s["has_quiz_ended"] is True
+        assert not s.get("has_quiz_ended")
+
+    def test_folded_time_spent_does_not_write_per_answer_updated_at(self):
+        """The folded heartbeat path drops per-answer updated_at (nothing reads it), so a
+        time_spent-only update writes just that field, not a redundant updated_at per answer.
+        """
+        sid = self.timed_quiz_session_id
+        self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        # capture the per-answer updated_at before the folded heartbeat (if any)
+        before = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        before_updated_at = before["session_answers"][0].get("updated_at")
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={
+                "event": EventType.dummy_event.value,
+                "answer_updates": [[0, {"time_spent": 12}]],
+            },
+        )
+        assert r.status_code == 200
+        after = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        assert after["session_answers"][0]["time_spent"] == 12
+        # updated_at on the answer must be untouched by the fold
+        assert after["session_answers"][0].get("updated_at") == before_updated_at

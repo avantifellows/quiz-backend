@@ -412,6 +412,17 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     log_message = f"Updating session with id {session_id} and event {new_event}"
     session_update_query = {}
 
+    # answer_updates may not ride along with end-quiz. Scoring (compute_session_metrics) runs
+    # on the in-memory session, while the fold only touches the update query — so an answer sent
+    # with end-quiz would be persisted but scored as skipped, permanently. The frontend only
+    # ever sends answer_updates with dummy/heartbeat events, so reject the combination outright
+    # rather than making the scoring path depend on fold ordering.
+    if new_event == EventType.end_quiz and session_updates.answer_updates:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="answer_updates cannot be combined with an end-quiz event",
+        )
+
     # Read only what this event needs.
     # - end-quiz scores the attempt, so it needs the full session (all session_answers).
     # - dummy/start/resume only need the timing fields, so we skip the (~33 KB) answers
@@ -634,15 +645,9 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     # positional set, so it needs the answer count (for bounds validation) but not the answers
     # array itself — which is why the lightweight read above is sufficient.
     if session_updates.answer_updates:
-        if "num_answers" in session:  # lightweight read (dummy/start/resume)
-            session_answers_is_array = session.get("session_answers_is_array")
-            num_answers = session.get("num_answers")
-        else:  # full read (end-quiz)
-            session_answers_value = session.get("session_answers")
-            session_answers_is_array = isinstance(session_answers_value, list)
-            num_answers = (
-                len(session_answers_value) if session_answers_is_array else None
-            )
+        # Only dummy/start/resume reach here (end-quiz + answer_updates is rejected above)
+        session_answers_is_array = session.get("session_answers_is_array")
+        num_answers = session.get("num_answers")
 
         if not session_answers_is_array or num_answers is None:
             error_message = f"No session answers found in the session with id {session_id}, for user: {user_id} and quiz: {quiz_id}"
@@ -663,6 +668,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
 
         for position, answer_update in session_updates.answer_updates:
             cleaned = jsonable_encoder(remove_optional_unset_args(answer_update))
+            cleaned.pop("updated_at", None)
             for key, value in cleaned.items():
                 session_update_query.setdefault("$set", {})[
                     f"session_answers.{position}.{key}"
