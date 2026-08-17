@@ -101,9 +101,10 @@ def build_answer_update_set(
     """Build the Mongo ``$set`` fields (``session_answers.{pos}.{field}``) for the given updates.
 
     Per-answer ``updated_at`` records when a student last modified that answer, so genuine
-    answer-save paths (the batch end-of-test flush and the single-position endpoint) keep it —
-    that is the default. ``remove_optional_unset_args`` always keeps it (``default_factory``),
-    so it is present on the cleaned model without the client having to send it.
+    answer-save paths (currently only the batch end-of-test flush calls this helper; the
+    single-position endpoint stamps it through its own inline path) keep it — that is the
+    default. ``remove_optional_unset_args`` always keeps it (``default_factory``), so it is
+    present on the cleaned model without the client having to send it.
     """
     set_fields: Dict[str, Any] = {}
     for position, answer in positions_and_answers:
