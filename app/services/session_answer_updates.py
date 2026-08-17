@@ -18,6 +18,25 @@ from utils import remove_optional_unset_args
 BUSINESS_FIELDS = {"answer", "visited", "time_spent", "marked_for_review"}
 
 
+def session_answers_meta_projection() -> Dict[str, Any]:
+    """The ``$project`` fragment both answer-update paths need before writing: the number of
+    session answers, without loading the (~33 KB) array itself.
+
+    ``num_answers`` is the array length, or ``None`` when ``session_answers`` isn't a proper
+    array — that ``None`` is the single "no valid answers array" signal consumed by
+    ``validate_answer_update_bounds``.
+    """
+    return {
+        "num_answers": {
+            "$cond": [
+                {"$isArray": "$session_answers"},
+                {"$size": "$session_answers"},
+                None,
+            ]
+        }
+    }
+
+
 def validate_answer_updates_before_read(
     positions_and_answers: List[Tuple[int, UpdateSessionAnswer]]
 ) -> None:
@@ -55,14 +74,13 @@ def validate_answer_updates_before_read(
 def validate_answer_update_bounds(
     positions_and_answers: List[Tuple[int, UpdateSessionAnswer]],
     *,
-    session_answers_is_array: bool,
     num_answers: Optional[int],
     session_id: str,
 ) -> None:
     """Checks that need the session's answer-array shape (from a lightweight projection): the
     array exists (404) and every position is within bounds (400, position == length is rejected).
     """
-    if not session_answers_is_array or num_answers is None:
+    if num_answers is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No session answers found in the session with id {session_id}",
@@ -76,19 +94,22 @@ def validate_answer_update_bounds(
 
 
 def build_answer_update_set(
-    positions_and_answers: List[Tuple[int, UpdateSessionAnswer]]
+    positions_and_answers: List[Tuple[int, UpdateSessionAnswer]],
+    *,
+    stamp_updated_at: bool = True,
 ) -> Dict[str, Any]:
     """Build the Mongo ``$set`` fields (``session_answers.{pos}.{field}``) for the given updates.
 
-    Per-answer ``updated_at`` is intentionally dropped: nothing reads it, and
-    ``remove_optional_unset_args`` always keeps it (``default_factory``), which would otherwise
-    double the field writes on the hot heartbeat path. The session-level ``updated_at`` bump is
-    the caller's responsibility.
+    Per-answer ``updated_at`` records when a student last modified that answer, so genuine
+    answer-save paths (the batch end-of-test flush and the single-position endpoint) keep it —
+    that is the default. ``remove_optional_unset_args`` always keeps it (``default_factory``),
+    so it is present on the cleaned model without the client having to send it.
     """
     set_fields: Dict[str, Any] = {}
     for position, answer in positions_and_answers:
         cleaned = jsonable_encoder(remove_optional_unset_args(answer))
-        cleaned.pop("updated_at", None)
+        if not stamp_updated_at:
+            cleaned.pop("updated_at", None)
         for key, value in cleaned.items():
             set_fields[f"session_answers.{position}.{key}"] = value
     return set_fields

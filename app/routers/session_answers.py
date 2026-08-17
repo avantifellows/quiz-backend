@@ -8,6 +8,7 @@ from services.session_answer_updates import (
     validate_answer_updates_before_read,
     validate_answer_update_bounds,
     build_answer_update_set,
+    session_answers_meta_projection,
 )
 from logger_config import get_logger
 from typing import List, Tuple
@@ -53,14 +54,7 @@ async def update_session_answers_at_specific_positions(
                 "_id": 0,
                 "user_id": 1,
                 "quiz_id": 1,
-                "session_answers_is_array": {"$isArray": "$session_answers"},
-                "num_answers": {
-                    "$cond": [
-                        {"$isArray": "$session_answers"},
-                        {"$size": "$session_answers"},
-                        None,
-                    ]
-                },
+                **session_answers_meta_projection(),
             }
         },
     ]
@@ -81,7 +75,6 @@ async def update_session_answers_at_specific_positions(
     # Post-read validation (answers array exists + positions in bounds)
     validate_answer_update_bounds(
         positions_and_answers,
-        session_answers_is_array=session_meta["session_answers_is_array"],
         num_answers=session_meta["num_answers"],
         session_id=session_id,
     )

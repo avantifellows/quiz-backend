@@ -882,3 +882,19 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert after["session_answers"][0]["time_spent"] == 12
         # updated_at on the answer must be untouched by the fold
         assert after["session_answers"][0].get("updated_at") == before_updated_at
+
+    def test_answer_updates_bad_payload_on_missing_session_returns_400(self):
+        """Payload-only checks run before the DB read, so a malformed answer_updates payload
+        fails fast with 400 even when the session does not exist — matching the batch endpoint,
+        rather than the 404 the read would otherwise produce.
+        """
+        r = self.client.patch(
+            f"{sessions.router.prefix}/nonexistent-session-id",
+            json={
+                "event": EventType.dummy_event.value,
+                # duplicate positions -> payload-only 400, no session needed
+                "answer_updates": [[0, {"time_spent": 3}], [0, {"time_spent": 4}]],
+            },
+        )
+        assert r.status_code == 400
+        assert "Duplicate" in r.json()["detail"]

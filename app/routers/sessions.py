@@ -22,6 +22,7 @@ from services.session_answer_updates import (
     validate_answer_updates_before_read,
     validate_answer_update_bounds,
     build_answer_update_set,
+    session_answers_meta_projection,
 )
 
 
@@ -427,11 +428,14 @@ async def update_session(session_id: str, session_updates: UpdateSession):
             detail="answer_updates cannot be combined with an end-quiz event",
         )
 
+    if session_updates.answer_updates:
+        validate_answer_updates_before_read(session_updates.answer_updates)
+
     # Read only what this event needs.
     # - end-quiz scores the attempt, so it needs the full session (all session_answers).
     # - dummy/start/resume only need the timing fields, so we skip the (~33 KB) answers
-    #   array via a lightweight projection. num_answers/session_answers_is_array are kept so
-    #   any folded answer_updates can be position-validated without loading the array.
+    #   array via a lightweight projection. num_answers is kept so any folded answer_updates
+    #   can be position-validated without loading the array.
     if new_event == EventType.end_quiz:
         session = client.quiz.sessions.find_one({"_id": session_id})
     else:
@@ -447,14 +451,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
                     "start_quiz_time": 1,
                     "has_quiz_ended": 1,
                     "time_limit_max": 1,
-                    "session_answers_is_array": {"$isArray": "$session_answers"},
-                    "num_answers": {
-                        "$cond": [
-                            {"$isArray": "$session_answers"},
-                            {"$size": "$session_answers"},
-                            None,
-                        ]
-                    },
+                    **session_answers_meta_projection(),
                 }
             },
         ]
@@ -649,15 +646,15 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     # positional set, so it needs the answer count (for bounds validation) but not the answers
     # array itself — which is why the lightweight read above is sufficient.
     if session_updates.answer_updates:
-        validate_answer_updates_before_read(session_updates.answer_updates)
         validate_answer_update_bounds(
             session_updates.answer_updates,
-            session_answers_is_array=session.get("session_answers_is_array"),
             num_answers=session.get("num_answers"),
             session_id=session_id,
         )
         session_update_query.setdefault("$set", {}).update(
-            build_answer_update_set(session_updates.answer_updates)
+            build_answer_update_set(
+                session_updates.answer_updates, stamp_updated_at=False
+            )
         )
 
     # Always bump session-level updated_at for any session change
