@@ -883,6 +883,34 @@ class SessionsTestCase(SessionsBaseTestCase):
         # updated_at on the answer must be untouched by the fold
         assert after["session_answers"][0].get("updated_at") == before_updated_at
 
+    def test_folded_real_answer_change_still_bumps_per_answer_updated_at(self):
+        """A pure time_spent tick skips per-answer updated_at, but if the fold carries a real
+        answer field (answer/visited/marked_for_review) that IS an edit, so updated_at must be
+        bumped — otherwise the timestamp would say "not touched" about a touched answer.
+        """
+        sid = self.timed_quiz_session_id
+        self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        # pin an obviously-old updated_at on position 0 so the rewrite is unambiguous
+        old = datetime(2020, 1, 1)
+        mongo_client.quiz.sessions.update_one(
+            {"_id": sid},
+            {"$set": {"session_answers.0.updated_at": old}},
+        )
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={
+                "event": EventType.dummy_event.value,
+                "answer_updates": [[0, {"answer": [0], "time_spent": 5}]],
+            },
+        )
+        assert r.status_code == 200
+        session = mongo_client.quiz.sessions.find_one({"_id": sid})
+        # a real answer edit rode along, so updated_at must have moved off the pinned value
+        assert session["session_answers"][0]["updated_at"] != old
+
     def test_answer_updates_bad_payload_on_missing_session_returns_400(self):
         """Payload-only checks run before the DB read, so a malformed answer_updates payload
         fails fast with 400 even when the session does not exist — matching the batch endpoint,

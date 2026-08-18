@@ -44,7 +44,11 @@ async def update_session_answers_at_specific_positions(
             detail=error_message,
         )
 
-    validate_answer_updates_before_read(positions_and_answers)
+    try:
+        validate_answer_updates_before_read(positions_and_answers)
+    except HTTPException as exc:
+        logger.error(f"{exc.detail} (session: {session_id})")
+        raise
 
     # Lightweight DB read: fetch only metadata instead of full session document
     pipeline = [
@@ -73,11 +77,15 @@ async def update_session_answers_at_specific_positions(
     logger.info(log_message)
 
     # Post-read validation (answers array exists + positions in bounds)
-    validate_answer_update_bounds(
-        positions_and_answers,
-        num_answers=session_meta["num_answers"],
-        session_id=session_id,
-    )
+    try:
+        validate_answer_update_bounds(
+            positions_and_answers,
+            num_answers=session_meta["num_answers"],
+            session_id=session_id,
+        )
+    except HTTPException as exc:
+        logger.error(f"{exc.detail} (user: {user_id}, quiz: {quiz_id})")
+        raise
 
     setQuery = build_answer_update_set(positions_and_answers)
     # bump session-level updated_at whenever any answer changes

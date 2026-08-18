@@ -429,7 +429,11 @@ async def update_session(session_id: str, session_updates: UpdateSession):
         )
 
     if session_updates.answer_updates:
-        validate_answer_updates_before_read(session_updates.answer_updates)
+        try:
+            validate_answer_updates_before_read(session_updates.answer_updates)
+        except HTTPException as exc:
+            logger.error(f"{exc.detail} (session: {session_id})")
+            raise
 
     # Read only what this event needs.
     # - end-quiz scores the attempt, so it needs the full session (all session_answers).
@@ -646,14 +650,19 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     # positional set, so it needs the answer count (for bounds validation) but not the answers
     # array itself — which is why the lightweight read above is sufficient.
     if session_updates.answer_updates:
-        validate_answer_update_bounds(
-            session_updates.answer_updates,
-            num_answers=session.get("num_answers"),
-            session_id=session_id,
-        )
+        try:
+            validate_answer_update_bounds(
+                session_updates.answer_updates,
+                num_answers=session.get("num_answers"),
+                session_id=session_id,
+            )
+        except HTTPException as exc:
+            logger.error(f"{exc.detail} (user: {user_id}, quiz: {quiz_id})")
+            raise
         session_update_query.setdefault("$set", {}).update(
             build_answer_update_set(
-                session_updates.answer_updates, stamp_updated_at=False
+                session_updates.answer_updates,
+                drop_updated_at_for_timing_only_items=True,
             )
         )
 

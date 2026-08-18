@@ -96,20 +96,29 @@ def validate_answer_update_bounds(
 def build_answer_update_set(
     positions_and_answers: List[Tuple[int, UpdateSessionAnswer]],
     *,
-    stamp_updated_at: bool = True,
+    drop_updated_at_for_timing_only_items: bool = False,
 ) -> Dict[str, Any]:
     """Build the Mongo ``$set`` fields (``session_answers.{pos}.{field}``) for the given updates.
 
-    Per-answer ``updated_at`` records when a student last modified that answer, so genuine
-    answer-save paths (currently only the batch end-of-test flush calls this helper; the
-    single-position endpoint stamps it through its own inline path) keep it — that is the
-    default. ``remove_optional_unset_args`` always keeps it (``default_factory``), so it is
-    present on the cleaned model without the client having to send it.
+    Per-answer ``updated_at`` records when a student last modified that answer.
+    ``remove_optional_unset_args`` always keeps it (``default_factory``), so it is present on
+    the cleaned model without the client having to send it, and genuine answer-save paths
+    (the batch end-of-test flush) keep it — that is the default.
+
+    The heartbeat fold passes ``drop_updated_at_for_timing_only_items=True``. It fires every 20s
+    and normally carries only ``time_spent``: for an item that touched *exactly* ``time_spent``
+    (a timer tick, not an answer edit) ``updated_at`` is dropped, since bumping it would be write
+    amplification on the hot path and would misrepresent a tick as an edit. Any other business
+    field (``answer``/``visited``/``marked_for_review``) makes it a real edit, so ``updated_at``
+    is kept — otherwise the stored timestamp would say "not touched" about an answer that was.
+    (Empty items never reach here — they are rejected by validate_answer_updates_before_read —
+    so the ``== {"time_spent"}`` gate is exact rather than treating a no-op item as a tick.)
     """
     set_fields: Dict[str, Any] = {}
     for position, answer in positions_and_answers:
         cleaned = jsonable_encoder(remove_optional_unset_args(answer))
-        if not stamp_updated_at:
+        touched_fields = answer.model_fields_set & BUSINESS_FIELDS
+        if drop_updated_at_for_timing_only_items and touched_fields == {"time_spent"}:
             cleaned.pop("updated_at", None)
         for key, value in cleaned.items():
             set_fields[f"session_answers.{position}.{key}"] = value

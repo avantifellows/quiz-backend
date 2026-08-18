@@ -519,7 +519,11 @@ class UpdateSession(BaseModel):
     # periodic timer ping and the time-spent sync are a single call + single DB write
     # (see PATCH /sessions/{id}). Each item is [position_index, {fields to set}], the same
     # shape the batch answer endpoint accepts. Absent (None) => event-only update, unchanged
-    # behavior. Used by the frontend's 20-second heartbeat to carry time_spent.
+    # behavior. In practice the frontend's 20-second heartbeat only sends time_spent, but the
+    # field accepts any UpdateSessionAnswer fields (answer/visited/marked_for_review) —
+    # equivalent to the batch endpoint. It may not ride along with end-quiz (rejected in the
+    # router), so scoring is never bypassed; only a real answer field bumps per-answer
+    # updated_at, a bare time_spent tick does not.
     answer_updates: Optional[List[Tuple[int, UpdateSessionAnswer]]] = None
 
 
