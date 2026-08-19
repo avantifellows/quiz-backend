@@ -134,6 +134,31 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
         )
         assert response.status_code == 200
 
+    def test_batch_update_stamps_per_answer_updated_at(self):
+        """The batch endpoint is the genuine end-of-test answer flush, so it re-stamps
+        per-answer updated_at (unlike the 20s heartbeat fold, which omits it). Guards against
+        the shared $set helper silently dropping updated_at on this path again.
+        """
+        from database import client
+        from datetime import datetime
+
+        # pin an obviously-old updated_at on position 0 so the rewrite is unambiguous
+        old = datetime(2020, 1, 1)
+        client.quiz.sessions.update_one(
+            {"_id": self.session_id},
+            {"$set": {"session_answers.0.updated_at": old}},
+        )
+
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/update-multiple-answers",
+            json=[[0, {"time_spent": 45}]],
+        )
+        assert response.status_code == 200
+
+        session = client.quiz.sessions.find_one({"_id": self.session_id})
+        # updated_at must have been rewritten by the batch save, not left at the pinned value
+        assert session["session_answers"][0]["updated_at"] != old
+
     # --- US-003: Lightweight aggregation read path ---
 
     def test_batch_update_session_not_found_returns_404(self):
