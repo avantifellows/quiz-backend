@@ -553,6 +553,22 @@ class QuizTestCase(BaseTestCase):
         doc = mongo_client.quiz.quizzes.find_one({"_id": resp.json()["id"]})
         assert doc["metadata"].get("session_end_time") is None
 
+    def test_create_from_cms_accepts_but_ignores_deprecated_curriculum_and_grade(self):
+        """Deprecated no-ops: older callers still send them so the request must not 422, but
+        they must never reach the CMS."""
+        quiz_dict = self._cms_quiz_dict()
+        with patch(
+            "routers.quizzes.fetch_assembled_test", return_value={}
+        ) as mock_fetch, patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(quiz_dict, [])
+        ):
+            resp = self.client.post(
+                f"{quizzes.router.prefix}/from-cms",
+                json={"test_id": 504, "curriculum_id": 99, "grade_id": 88},
+            )
+        assert resp.status_code == 201
+        mock_fetch.assert_called_once_with(504)
+
     # ---- CMS from-cms create: session settings ----
 
     def test_create_from_cms_applies_session_settings(self):

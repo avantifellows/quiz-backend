@@ -843,9 +843,7 @@ class TestMultilingualContent(unittest.TestCase):
 
 
 class FetchAssembledTestParamsTests(unittest.TestCase):
-    """A test is identified by its id alone; curriculum_id/grade_id are forwarded only when
-    the caller knows them — nex-gen-cms shortened its test URLs to `/test?id=<id>`.
-    """
+    """A test is identified by its id alone; curriculum_id/grade_id are never sent."""
 
     def _capture_params(self, **kwargs):
         captured = {}
@@ -867,19 +865,13 @@ class FetchAssembledTestParamsTests(unittest.TestCase):
             cms_ingest.fetch_assembled_test(504, **kwargs)
         return captured
 
-    def test_passes_through_explicit_curriculum_and_grade(self):
-        params = self._capture_params(curriculum_id=2, grade_id=4)
-        self.assertEqual(params["id"], 504)
-        self.assertEqual(params["curriculum_id"], 2)
-        self.assertEqual(params["grade_id"], 4)
+    def test_sends_only_the_test_id(self):
+        self.assertEqual(self._capture_params(), {"id": 504})
 
-    def test_omits_curriculum_and_grade_when_not_given(self):
-        params = self._capture_params()
-        self.assertEqual(params, {"id": 504})
-
-    def test_forwards_only_the_ids_the_caller_knows(self):
-        params = self._capture_params(curriculum_id=2)
-        self.assertEqual(params, {"id": 504, "curriculum_id": 2})
+    def test_does_not_accept_curriculum_or_grade(self):
+        """The signature no longer takes them, so a stale caller fails loudly."""
+        with self.assertRaises(TypeError):
+            self._capture_params(curriculum_id=2, grade_id=4)
 
 
 if __name__ == "__main__":
