@@ -554,11 +554,8 @@ class QuizTestCase(BaseTestCase):
         assert doc["metadata"].get("session_end_time") is None
 
     def test_create_from_cms_accepts_but_ignores_deprecated_curriculum_and_grade(self):
-        """curriculum_id/grade_id are deprecated no-ops. Older callers (af_lms, sessionCreator)
-        still send them, so the request must not 422 — but they must never reach the CMS: the
-        CMS used to append the unvalidated pair into the assembled test's curriculum_grades
-        (nex-gen-cms #177 deleted that). Asserts the fetch is called with the test id ONLY.
-        """
+        """Deprecated no-ops: older callers still send them so the request must not 422, but
+        they must never reach the CMS."""
         quiz_dict = self._cms_quiz_dict()
         with patch(
             "routers.quizzes.fetch_assembled_test", return_value={}

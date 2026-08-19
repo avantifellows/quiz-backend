@@ -843,10 +843,7 @@ class TestMultilingualContent(unittest.TestCase):
 
 
 class FetchAssembledTestParamsTests(unittest.TestCase):
-    """A test is identified by its id alone. curriculum_id/grade_id are never sent: the CMS
-    fed them into `Test.SetCurriculumGrade`, which appended the unvalidated pair into the
-    response's `curriculum_grades` (nex-gen-cms #177 deleted it).
-    """
+    """A test is identified by its id alone; curriculum_id/grade_id are never sent."""
 
     def _capture_params(self, **kwargs):
         captured = {}
@@ -872,8 +869,7 @@ class FetchAssembledTestParamsTests(unittest.TestCase):
         self.assertEqual(self._capture_params(), {"id": 504})
 
     def test_does_not_accept_curriculum_or_grade(self):
-        """The signature no longer takes them, so a stale caller fails loudly rather than
-        silently reintroducing the unvalidated-pair injection."""
+        """The signature no longer takes them, so a stale caller fails loudly."""
         with self.assertRaises(TypeError):
             self._capture_params(curriculum_id=2, grade_id=4)
 

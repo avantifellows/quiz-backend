@@ -192,10 +192,8 @@ class CmsQuizIngestRequest(BaseModel):
     """
 
     test_id: int
-    # DEPRECATED, ignored. The CMS identifies a test by `id` alone (nex-gen-cms #177 removed
-    # the last use of these). Still accepted so older callers (af_lms regenerate reads them
-    # back out of quiz metadata, sessionCreator parses them off a CMS link) keep working
-    # without a lockstep deploy; drop once no caller sends them.
+    # DEPRECATED, ignored — the CMS identifies a test by `id` alone (nex-gen-cms #177).
+    # Still accepted so older callers don't 422; drop once nothing sends them.
     curriculum_id: Optional[int] = None
     grade_id: Optional[int] = None
     quiz_type: str = QuizType.assessment.value

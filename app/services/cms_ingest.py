@@ -92,12 +92,9 @@ class CmsIngestError(Exception):
 def fetch_assembled_test(test_id: int) -> Dict[str, Any]:
     """Fetch the assembled-test JSON from the new CMS. Raises CmsIngestError on failure.
 
-    A test is identified by its id alone. We used to also forward curriculum_id/grade_id,
-    which the CMS fed into `Test.SetCurriculumGrade` — that APPENDED the caller-supplied
-    pair into the response's `curriculum_grades` without validating it against the test,
-    so a wrong pair silently became part of the assembled contract (nex-gen-cms #177
-    deleted it). Sending only `id` means the response reflects the test's real
-    associations.
+    A test is identified by its id alone. curriculum_id/grade_id used to be forwarded, but
+    the CMS appended the unvalidated pair into the response's `curriculum_grades`
+    (nex-gen-cms #177 deleted that path).
     """
     if not settings.cms_service_endpoint or not settings.cms_service_token:
         raise CmsIngestError(
