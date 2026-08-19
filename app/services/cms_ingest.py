@@ -2,7 +2,7 @@
 CMS -> quiz mapping for the LMS session-creation flow.
 
 The new CMS (nex-gen-cms) owns test content and exposes an assembled-test JSON at
-GET /api/service/test?id=&curriculum_id=&grade_id= (bearer-auth). This module fetches
+GET /api/service/test?id= (bearer-auth). This module fetches
 that JSON and maps it into the quiz format this service stores (quiz.quizzes /
 quiz.questions), so Gurukul renders a CMS-sourced test like any other quiz.
 
@@ -89,15 +89,12 @@ class CmsIngestError(Exception):
     """Raised when the CMS assembled-test JSON cannot be fetched or is unusable."""
 
 
-def fetch_assembled_test(
-    test_id: int,
-    curriculum_id: Optional[int] = None,
-    grade_id: Optional[int] = None,
-) -> Dict[str, Any]:
+def fetch_assembled_test(test_id: int) -> Dict[str, Any]:
     """Fetch the assembled-test JSON from the new CMS. Raises CmsIngestError on failure.
 
-    A test is identified by its id alone; curriculum_id/grade_id are optional and only
-    forwarded when the caller knows them.
+    A test is identified by its id alone. curriculum_id/grade_id used to be forwarded, but
+    the CMS appended the unvalidated pair into the response's `curriculum_grades`
+    (nex-gen-cms #177 deleted that path).
     """
     if not settings.cms_service_endpoint or not settings.cms_service_token:
         raise CmsIngestError(
@@ -105,10 +102,6 @@ def fetch_assembled_test(
         )
 
     params = {"id": test_id}
-    if curriculum_id is not None:
-        params["curriculum_id"] = curriculum_id
-    if grade_id is not None:
-        params["grade_id"] = grade_id
 
     url = settings.cms_service_endpoint.rstrip("/") + "/api/service/test"
     try:

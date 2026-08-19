@@ -197,8 +197,8 @@ class CmsQuizIngestRequest(BaseModel):
     """
 
     test_id: int
-    # Optional: the CMS identifies a test by `id` alone and ignores these values. Callers
-    # holding only a shortened CMS link (`/test?id=<id>`) can omit them.
+    # DEPRECATED, ignored — the CMS identifies a test by `id` alone (nex-gen-cms #177).
+    # Still accepted so older callers don't 422; drop once nothing sends them.
     curriculum_id: Optional[int] = None
     grade_id: Optional[int] = None
     quiz_type: str = QuizType.assessment.value
@@ -225,8 +225,6 @@ class CmsQuizIngestRequest(BaseModel):
         json_schema_extra={
             "example": {
                 "test_id": 504,
-                "curriculum_id": 1,
-                "grade_id": 1,
                 "quiz_type": "assessment",
                 "session_end_time": "2026-04-15T14:00:00",
                 "shuffle": True,
@@ -248,14 +246,9 @@ async def create_quiz(quiz: Quiz):
 async def create_quiz_from_cms(request: CmsQuizIngestRequest):
     """Fetch an assembled chapter test from the new CMS, map it into a native quiz, and
     store it. Returns the new quiz id plus any non-fatal mapping warnings."""
-    logger.info(
-        f"CMS ingest: test {request.test_id} (curriculum {request.curriculum_id}, "
-        f"grade {request.grade_id})"
-    )
+    logger.info(f"CMS ingest: test {request.test_id}")
     try:
-        assembled = fetch_assembled_test(
-            request.test_id, request.curriculum_id, request.grade_id
-        )
+        assembled = fetch_assembled_test(request.test_id)
         quiz_dict, warnings = map_cms_test_to_quiz(
             assembled, quiz_type=request.quiz_type
         )
@@ -316,10 +309,7 @@ async def regenerate_quiz_from_cms(quiz_id: str, request: CmsQuizIngestRequest):
     (different number of question sets, or a different question count in any set): the
     positional _id mapping that keeps attempts linked would otherwise silently misalign.
     """
-    logger.info(
-        f"CMS regenerate: quiz {quiz_id} from test {request.test_id} "
-        f"(curriculum {request.curriculum_id}, grade {request.grade_id})"
-    )
+    logger.info(f"CMS regenerate: quiz {quiz_id} from test {request.test_id}")
     db = get_quiz_db()
     existing = await db.quizzes.find_one({"_id": quiz_id})
     if existing is None:
@@ -329,9 +319,7 @@ async def regenerate_quiz_from_cms(quiz_id: str, request: CmsQuizIngestRequest):
         )
 
     try:
-        assembled = fetch_assembled_test(
-            request.test_id, request.curriculum_id, request.grade_id
-        )
+        assembled = fetch_assembled_test(request.test_id)
         new_quiz, warnings = map_cms_test_to_quiz(
             assembled, quiz_type=request.quiz_type
         )
