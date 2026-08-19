@@ -18,6 +18,12 @@ from logger_config import get_logger
 from typing import Any, Dict, List, Optional
 from settings import Settings
 from services.scoring import compute_session_metrics
+from services.session_answer_updates import (
+    validate_answer_updates_before_read,
+    validate_answer_update_bounds,
+    build_answer_update_set,
+    session_answers_meta_projection,
+)
 
 
 def str_to_datetime(value) -> Optional[datetime]:
@@ -411,7 +417,50 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     log_message = f"Updating session with id {session_id} and event {new_event}"
     session_update_query = {}
 
-    session = client.quiz.sessions.find_one({"_id": session_id})
+    # answer_updates may not ride along with end-quiz. Scoring (compute_session_metrics) runs
+    # on the in-memory session, while the fold only touches the update query — so an answer sent
+    # with end-quiz would be persisted but scored as skipped, permanently. The frontend only
+    # ever sends answer_updates with dummy/heartbeat events, so reject the combination outright
+    # rather than making the scoring path depend on fold ordering.
+    if new_event == EventType.end_quiz and session_updates.answer_updates:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="answer_updates cannot be combined with an end-quiz event",
+        )
+
+    if session_updates.answer_updates:
+        try:
+            validate_answer_updates_before_read(session_updates.answer_updates)
+        except HTTPException as exc:
+            logger.error(f"{exc.detail} (session: {session_id})")
+            raise
+
+    # Read only what this event needs.
+    # - end-quiz scores the attempt, so it needs the full session (all session_answers).
+    # - dummy/start/resume only need the timing fields, so we skip the (~33 KB) answers
+    #   array via a lightweight projection. num_answers is kept so any folded answer_updates
+    #   can be position-validated without loading the array.
+    if new_event == EventType.end_quiz:
+        session = client.quiz.sessions.find_one({"_id": session_id})
+    else:
+        projection_pipeline = [
+            {"$match": {"_id": session_id}},
+            {
+                "$project": {
+                    "_id": 0,
+                    "user_id": 1,
+                    "quiz_id": 1,
+                    "events": 1,
+                    "total_time_spent": 1,
+                    "start_quiz_time": 1,
+                    "has_quiz_ended": 1,
+                    "time_limit_max": 1,
+                    **session_answers_meta_projection(),
+                }
+            },
+        ]
+        projection_result = list(client.quiz.sessions.aggregate(projection_pipeline))
+        session = projection_result[0] if projection_result else None
     if session is None:
         logger.error(
             f"Received session update request, but session_id {session_id} not found"
@@ -594,6 +643,28 @@ async def update_session(session_id: str, session_updates: UpdateSession):
             }
         )
         response_content["metrics"] = session_metrics
+
+    # Fold any per-question updates carried with the event into the SAME write. This lets the
+    # frontend's periodic heartbeat send the timer event and its time-spent updates as one
+    # request + one DB update instead of two. Writing session_answers.{pos}.{field} is a
+    # positional set, so it needs the answer count (for bounds validation) but not the answers
+    # array itself — which is why the lightweight read above is sufficient.
+    if session_updates.answer_updates:
+        try:
+            validate_answer_update_bounds(
+                session_updates.answer_updates,
+                num_answers=session.get("num_answers"),
+                session_id=session_id,
+            )
+        except HTTPException as exc:
+            logger.error(f"{exc.detail} (user: {user_id}, quiz: {quiz_id})")
+            raise
+        session_update_query.setdefault("$set", {}).update(
+            build_answer_update_set(
+                session_updates.answer_updates,
+                drop_updated_at_for_timing_only_items=True,
+            )
+        )
 
     # Always bump session-level updated_at for any session change
     session_update_query.setdefault("$set", {}).update(

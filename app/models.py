@@ -1,4 +1,4 @@
-from typing import Optional, List, Union
+from typing import Optional, List, Tuple, Union
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from schemas import (
     QuestionType,
@@ -524,11 +524,26 @@ class UpdateSession(BaseModel):
     """Model for the body of the request that updates a session"""
 
     model_config = ConfigDict(
-        json_schema_extra={"example": {"event": "start-quiz"}},
+        json_schema_extra={
+            "example": {
+                "event": "dummy-event",
+                "answer_updates": [[0, {"time_spent": 20}], [1, {"time_spent": 5}]],
+            }
+        },
     )
 
     event: EventType
     metrics: Optional[SessionMetrics] = None
+    # Optional per-question updates folded into the same request as the event, so the
+    # periodic timer ping and the time-spent sync are a single call + single DB write
+    # (see PATCH /sessions/{id}). Each item is [position_index, {fields to set}], the same
+    # shape the batch answer endpoint accepts. Absent (None) => event-only update, unchanged
+    # behavior. In practice the frontend's 20-second heartbeat only sends time_spent, but the
+    # field accepts any UpdateSessionAnswer fields (answer/visited/marked_for_review) —
+    # equivalent to the batch endpoint. It may not ride along with end-quiz (rejected in the
+    # router), so scoring is never bypassed; only a real answer field bumps per-answer
+    # updated_at, a bare time_spent tick does not.
+    answer_updates: Optional[List[Tuple[int, UpdateSessionAnswer]]] = None
 
 
 class SessionResponse(Session):

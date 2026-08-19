@@ -745,3 +745,184 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert r.status_code == 200
         s = self.client.get(f"{sessions.router.prefix}/{sid}").json()
         assert float(s.get("total_time_spent")) == pytest.approx(20.0, abs=0.01)
+
+    # --- combined timer + time-spent ping (answer_updates folded into the event) ---
+
+    def test_dummy_event_with_answer_updates_persists_time_spent(self):
+        """A single dummy-event carrying answer_updates should update BOTH the timer
+        (time_remaining) and the per-question time_spent in one call/one write."""
+        sid = self.timed_quiz_session_id
+        self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={
+                "event": EventType.dummy_event.value,
+                "answer_updates": [[0, {"time_spent": 12}], [1, {"time_spent": 7}]],
+            },
+        )
+        assert r.status_code == 200
+        # timer half of the ping still works
+        assert "time_remaining" in r.json()
+
+        # time-spent half of the ping persisted to the answers array
+        s = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        assert s["session_answers"][0]["time_spent"] == 12
+        assert s["session_answers"][1]["time_spent"] == 7
+
+    def test_answer_updates_out_of_bounds_returns_400(self):
+        """A position beyond the answers array is rejected, mirroring the batch endpoint."""
+        sid = self.timed_quiz_session_id
+        num_answers = len(
+            self.client.get(f"{sessions.router.prefix}/{sid}").json()["session_answers"]
+        )
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={
+                "event": EventType.dummy_event.value,
+                "answer_updates": [[num_answers + 5, {"time_spent": 3}]],
+            },
+        )
+        assert r.status_code == 400
+
+    def test_event_only_update_still_works_without_answer_updates(self):
+        """Backward compatibility: an event with no answer_updates behaves exactly as before."""
+        sid = self.timed_quiz_session_id
+        self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.dummy_event.value},
+        )
+        assert r.status_code == 200
+        assert "time_remaining" in r.json()
+
+    def test_answer_updates_rejected_on_end_quiz(self):
+        """answer_updates may not ride along with end-quiz: scoring runs on the in-memory
+        session and would ignore a folded answer, persisting it but scoring it as skipped.
+        So the combination is rejected with 400 (the frontend never sends it this way).
+        """
+        sid = self.timed_quiz_session_id
+        self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={
+                "event": EventType.end_quiz.value,
+                "answer_updates": [[0, {"time_spent": 33}]],
+            },
+        )
+        assert r.status_code == 400
+        # end-quiz was rejected, so the quiz must not have ended
+        s = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        assert not s.get("has_quiz_ended")
+
+    def test_answer_updates_reject_duplicate_positions(self):
+        """The fold shares the batch endpoint's contract: duplicate positions -> 400."""
+        sid = self.timed_quiz_session_id
+        self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={
+                "event": EventType.dummy_event.value,
+                "answer_updates": [[0, {"time_spent": 3}], [0, {"time_spent": 4}]],
+            },
+        )
+        assert r.status_code == 400
+        assert "Duplicate" in r.json()["detail"]
+
+    def test_answer_updates_reject_empty_item(self):
+        """The fold shares the batch endpoint's contract: an item with no business field -> 400."""
+        sid = self.timed_quiz_session_id
+        self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={
+                "event": EventType.dummy_event.value,
+                "answer_updates": [[0, {}]],
+            },
+        )
+        assert r.status_code == 400
+        assert "Empty payload" in r.json()["detail"]
+
+    def test_folded_time_spent_does_not_write_per_answer_updated_at(self):
+        """The folded heartbeat path drops per-answer updated_at (nothing reads it), so a
+        time_spent-only update writes just that field, not a redundant updated_at per answer.
+        """
+        sid = self.timed_quiz_session_id
+        self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        # capture the per-answer updated_at before the folded heartbeat (if any)
+        before = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        before_updated_at = before["session_answers"][0].get("updated_at")
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={
+                "event": EventType.dummy_event.value,
+                "answer_updates": [[0, {"time_spent": 12}]],
+            },
+        )
+        assert r.status_code == 200
+        after = self.client.get(f"{sessions.router.prefix}/{sid}").json()
+        assert after["session_answers"][0]["time_spent"] == 12
+        # updated_at on the answer must be untouched by the fold
+        assert after["session_answers"][0].get("updated_at") == before_updated_at
+
+    def test_folded_real_answer_change_still_bumps_per_answer_updated_at(self):
+        """A pure time_spent tick skips per-answer updated_at, but if the fold carries a real
+        answer field (answer/visited/marked_for_review) that IS an edit, so updated_at must be
+        bumped — otherwise the timestamp would say "not touched" about a touched answer.
+        """
+        sid = self.timed_quiz_session_id
+        self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={"event": EventType.start_quiz.value},
+        )
+        # pin an obviously-old updated_at on position 0 so the rewrite is unambiguous
+        old = datetime(2020, 1, 1)
+        mongo_client.quiz.sessions.update_one(
+            {"_id": sid},
+            {"$set": {"session_answers.0.updated_at": old}},
+        )
+        r = self.client.patch(
+            f"{sessions.router.prefix}/{sid}",
+            json={
+                "event": EventType.dummy_event.value,
+                "answer_updates": [[0, {"answer": [0], "time_spent": 5}]],
+            },
+        )
+        assert r.status_code == 200
+        session = mongo_client.quiz.sessions.find_one({"_id": sid})
+        # a real answer edit rode along, so updated_at must have moved off the pinned value
+        assert session["session_answers"][0]["updated_at"] != old
+
+    def test_answer_updates_bad_payload_on_missing_session_returns_400(self):
+        """Payload-only checks run before the DB read, so a malformed answer_updates payload
+        fails fast with 400 even when the session does not exist — matching the batch endpoint,
+        rather than the 404 the read would otherwise produce.
+        """
+        r = self.client.patch(
+            f"{sessions.router.prefix}/nonexistent-session-id",
+            json={
+                "event": EventType.dummy_event.value,
+                # duplicate positions -> payload-only 400, no session needed
+                "answer_updates": [[0, {"time_spent": 3}], [0, {"time_spent": 4}]],
+            },
+        )
+        assert r.status_code == 400
+        assert "Duplicate" in r.json()["detail"]

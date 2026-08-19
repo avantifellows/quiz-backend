@@ -4,6 +4,12 @@ from fastapi.encoders import jsonable_encoder
 from database import client
 from models import UpdateSessionAnswer
 from utils import remove_optional_unset_args
+from services.session_answer_updates import (
+    validate_answer_updates_before_read,
+    validate_answer_update_bounds,
+    build_answer_update_set,
+    session_answers_meta_projection,
+)
 from logger_config import get_logger
 from typing import List, Tuple
 from datetime import datetime
@@ -38,37 +44,11 @@ async def update_session_answers_at_specific_positions(
             detail=error_message,
         )
 
-    # Extract positions for validation
-    positions_list = [p for p, _ in positions_and_answers]
-
-    # Pre-DB validation: negative indices
-    if any(p < 0 for p in positions_list):
-        error_message = "One or more provided position indices are negative"
-        logger.error(error_message)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_message,
-        )
-
-    # Pre-DB validation: duplicate positions
-    if len(positions_list) != len(set(positions_list)):
-        error_message = "Duplicate position indices are not allowed in a single batch update request"
-        logger.error(error_message)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_message,
-        )
-
-    # Pre-DB validation: empty per-item payload
-    business_fields = {"answer", "visited", "time_spent", "marked_for_review"}
-    for position, session_answer in positions_and_answers:
-        if not (session_answer.model_fields_set & business_fields):
-            error_message = f"Empty payload at position {position}: at least one business field (answer, visited, time_spent, marked_for_review) must be provided"
-            logger.error(error_message)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=error_message,
-            )
+    try:
+        validate_answer_updates_before_read(positions_and_answers)
+    except HTTPException as exc:
+        logger.error(f"{exc.detail} (session: {session_id})")
+        raise
 
     # Lightweight DB read: fetch only metadata instead of full session document
     pipeline = [
@@ -78,14 +58,7 @@ async def update_session_answers_at_specific_positions(
                 "_id": 0,
                 "user_id": 1,
                 "quiz_id": 1,
-                "session_answers_is_array": {"$isArray": "$session_answers"},
-                "num_answers": {
-                    "$cond": [
-                        {"$isArray": "$session_answers"},
-                        {"$size": "$session_answers"},
-                        None,
-                    ]
-                },
+                **session_answers_meta_projection(),
             }
         },
     ]
@@ -103,35 +76,18 @@ async def update_session_answers_at_specific_positions(
     log_message += f"(user: {user_id}, quiz: {quiz_id})"
     logger.info(log_message)
 
-    if not session_meta["session_answers_is_array"]:
-        no_session_answer_error_message = f"No session answers found in the session with id {session_id}, for user: {user_id} and quiz: {quiz_id}"
-        logger.error(no_session_answer_error_message)
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=no_session_answer_error_message,
+    # Post-read validation (answers array exists + positions in bounds)
+    try:
+        validate_answer_update_bounds(
+            positions_and_answers,
+            num_answers=session_meta["num_answers"],
+            session_id=session_id,
         )
+    except HTTPException as exc:
+        logger.error(f"{exc.detail} (user: {user_id}, quiz: {quiz_id})")
+        raise
 
-    num_answers = session_meta["num_answers"]
-    positions, session_answers = zip(*positions_and_answers)
-    if any(pos >= num_answers for pos in positions):
-        error_message = "One or more provided position indices are out of bounds of the session answers array"
-        logger.error(error_message)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_message,
-        )
-
-    input_session_answers = [
-        jsonable_encoder(remove_optional_unset_args(session_answer))
-        for session_answer in session_answers
-    ]
-
-    setQuery = {
-        f"session_answers.{position_index}.{key}": value
-        for position_index, session_answer in zip(positions, input_session_answers)
-        for key, value in session_answer.items()
-    }
-
+    setQuery = build_answer_update_set(positions_and_answers)
     # bump session-level updated_at whenever any answer changes
     setQuery["updated_at"] = datetime.utcnow()
     result = client.quiz.sessions.update_one({"_id": session_id}, {"$set": setQuery})
