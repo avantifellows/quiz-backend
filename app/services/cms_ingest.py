@@ -18,8 +18,7 @@ Contract (locked with the CMS owner — see task lms-cms-tests):
   problems, each problem's content (text, options, answer, solutions) lives per language
   in `lang_versions[{lang_code, meta_data}]`; the top-level `meta_data` is retained but
   empty. We ingest the English version — see `_problem_meta`. Test instructions follow the
-  same pattern: `type_params.instruction_lang_versions` with the flat
-  `type_params.instructions` kept in sync for now — see `_instructions`.
+  same pattern — see `_instructions`.
 - Choice answers are 1-based option numbers; the quiz engine wants 0-based indices.
   Numerical and comprehension answers are numeric values.
 - Marks cascade problem-ref -> section -> subject -> test; the lowest level that sets
@@ -462,16 +461,12 @@ def _time_limit(type_params: Dict[str, Any]) -> Optional[Dict[str, int]]:
 
 
 def _instructions(type_params: Dict[str, Any]) -> Optional[str]:
-    """Resolve the test's candidate-facing instructions, preferring the per-language array.
+    """Resolve the test's instructions, preferring the per-language array.
 
-    The CMS is migrating `type_params.instructions` (a single HTML blob) into
-    `type_params.instruction_lang_versions` ([{lang_code, instructions}]) to support
-    regional languages (nex-gen-cms #176, db-service #698). The flat key is still written
-    in sync for older consumers, but it goes away once everything reads the array — and
-    reading only the flat key would then silently yield blank instructions.
-
-    So: take the English entry from the array when present, else fall back to the flat key.
-    Mirrors the CMS's own ResolveInstructions, which falls back for "en" only.
+    The CMS is moving `instructions` into `instruction_lang_versions`
+    [{lang_code, instructions}] (nex-gen-cms #176, db-service #698); the flat key is
+    written in sync until every consumer reads the array. Falls back to it for "en" only,
+    mirroring the CMS's own ResolveInstructions.
     """
     for version in type_params.get("instruction_lang_versions") or []:
         if version.get("lang_code") == CMS_PRIMARY_LANG:

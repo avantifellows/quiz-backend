@@ -843,10 +843,8 @@ class TestMultilingualContent(unittest.TestCase):
 
 
 class TestInstructions(unittest.TestCase):
-    """Instructions are migrating from a flat `instructions` key to a per-language
-    `instruction_lang_versions` array (nex-gen-cms #176, db-service #698). Both shapes must
-    map, since the flat key is written in sync today and disappears after the migration.
-    """
+    """Both the flat `instructions` key and the per-language `instruction_lang_versions`
+    array must map — the flat key is written in sync today, and goes away later."""
 
     def _quiz(self, type_params_extra):
         assembled = _test_with_problems(
@@ -886,7 +884,7 @@ class TestInstructions(unittest.TestCase):
         self.assertEqual(quiz["instructions"], "<p>Legacy text</p>")
 
     def test_array_wins_over_the_flat_key(self):
-        """Post-migration the array is the source of truth, so a stale flat value loses."""
+        """The array is the source of truth, so a stale flat value loses."""
         quiz = self._quiz(
             {
                 "instructions": "<p>Stale</p>",
@@ -898,7 +896,7 @@ class TestInstructions(unittest.TestCase):
         self.assertEqual(quiz["instructions"], "<p>Current</p>")
 
     def test_falls_back_when_the_array_has_no_english_entry(self):
-        """A regional-only array must not blank out the English instructions."""
+        """A regional-only array must not blank out the English text."""
         quiz = self._quiz(
             {
                 "instructions": "<p>English</p>",
