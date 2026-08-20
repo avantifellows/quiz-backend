@@ -842,6 +842,89 @@ class TestMultilingualContent(unittest.TestCase):
         self.assertEqual(warnings, [])
 
 
+class TestInstructions(unittest.TestCase):
+    """Instructions are migrating from a flat `instructions` key to a per-language
+    `instruction_lang_versions` array (nex-gen-cms #176, db-service #698). Both shapes must
+    map, since the flat key is written in sync today and disappears after the migration.
+    """
+
+    def _quiz(self, type_params_extra):
+        assembled = _test_with_problems(
+            problems=[
+                _problem(
+                    506,
+                    "mcq_single_answer",
+                    {"text": "Q?", "options": ["A", "B"], "answer": ["1"]},
+                )
+            ],
+            sections=[
+                {
+                    "type": "mcq_single_answer",
+                    "name": "",
+                    "compulsory": {"problems": [{"id": 506}]},
+                }
+            ],
+        )
+        assembled["test"]["type_params"].update(type_params_extra)
+        quiz, _ = map_cms_test_to_quiz(assembled)
+        return quiz
+
+    def test_reads_english_from_the_lang_versions_array(self):
+        quiz = self._quiz(
+            {
+                "instruction_lang_versions": [
+                    {"lang_code": "hi", "instructions": "<p>हिंदी</p>"},
+                    {"lang_code": "en", "instructions": "<p>Read carefully</p>"},
+                ]
+            }
+        )
+        self.assertEqual(quiz["instructions"], "<p>Read carefully</p>")
+
+    def test_falls_back_to_the_flat_key_when_the_array_is_absent(self):
+        """Pre-migration rows carry only the flat key."""
+        quiz = self._quiz({"instructions": "<p>Legacy text</p>"})
+        self.assertEqual(quiz["instructions"], "<p>Legacy text</p>")
+
+    def test_array_wins_over_the_flat_key(self):
+        """Post-migration the array is the source of truth, so a stale flat value loses."""
+        quiz = self._quiz(
+            {
+                "instructions": "<p>Stale</p>",
+                "instruction_lang_versions": [
+                    {"lang_code": "en", "instructions": "<p>Current</p>"}
+                ],
+            }
+        )
+        self.assertEqual(quiz["instructions"], "<p>Current</p>")
+
+    def test_falls_back_when_the_array_has_no_english_entry(self):
+        """A regional-only array must not blank out the English instructions."""
+        quiz = self._quiz(
+            {
+                "instructions": "<p>English</p>",
+                "instruction_lang_versions": [
+                    {"lang_code": "hi", "instructions": "<p>हिंदी</p>"}
+                ],
+            }
+        )
+        self.assertEqual(quiz["instructions"], "<p>English</p>")
+
+    def test_empty_english_entry_falls_back_rather_than_blanking(self):
+        quiz = self._quiz(
+            {
+                "instructions": "<p>English</p>",
+                "instruction_lang_versions": [
+                    {"lang_code": "en", "instructions": "   "}
+                ],
+            }
+        )
+        self.assertEqual(quiz["instructions"], "<p>English</p>")
+
+    def test_none_when_neither_shape_carries_anything(self):
+        self.assertIsNone(self._quiz({})["instructions"])
+        self.assertIsNone(self._quiz({"instructions": ""})["instructions"])
+
+
 class FetchAssembledTestParamsTests(unittest.TestCase):
     """A test is identified by its id alone; curriculum_id/grade_id are never sent."""
 
