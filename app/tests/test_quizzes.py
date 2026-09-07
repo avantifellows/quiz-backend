@@ -1,4 +1,6 @@
+import copy
 import json
+from unittest.mock import patch
 from .base import BaseTestCase
 from routers import quizzes, questions
 from settings import Settings
@@ -47,6 +49,7 @@ class QuizTestCase(BaseTestCase):
         )
         assert response.status_code == 200
         response = response.json()
+        assert response["_id"] == self.short_homework_quiz_id
         assert (
             len(response["question_sets"][0]["questions"])
             == self.short_homework_quiz_questions_length
@@ -240,6 +243,14 @@ class QuizTestCase(BaseTestCase):
         assert first_q.get("correct_answer") is not None
         assert trimmed_q.get("correct_answer") is not None
 
+        answers = [
+            question["correct_answer"]
+            for question in payload["question_sets"][0]["questions"]
+        ]
+        assert any(answer == [0] for answer in answers)
+        assert any(type(answer) is float and answer == 23.2 for answer in answers)
+        assert any(type(answer) is int and answer == 23 for answer in answers)
+
     def test_get_quiz_include_answers_respects_display_solution_false(self):
         # Update the embedded (bucketed) quiz payload so we can verify the endpoint clears it.
         embedded_q_id = self.multi_qset_quiz["question_sets"][0]["questions"][0]["_id"]
@@ -291,22 +302,54 @@ class QuizTestCase(BaseTestCase):
             for condition in partial_mark_rule["conditions"]:
                 assert "num_correct_selected" in condition
 
-    def test_created_matrix_match_quiz_contains_list_of_string_answer(self):
+    def test_created_matrix_match_quiz_preserves_answer_shapes(self):
         # Base GET /quiz payload is sanitized in Phase 3, so fetch with include_answers=true
         response = self.client.get(
             f"{quizzes.router.prefix}/{self.matrix_match_quiz_id}",
-            params={"include_answers": True},
+            params={"include_answers": True, "single_page_mode": True},
         )
         assert response.status_code == 200
         quiz_payload = response.json()
 
         # go through quiz and find advanced matrix match question
+        numeric_answers = []
         for question_set in quiz_payload["question_sets"]:
             for question in question_set["questions"]:
                 if question["type"] == "matrix-match":
                     assert isinstance(question["correct_answer"], list)
                     for ans in question["correct_answer"]:
                         assert isinstance(ans, str)
+                elif question["type"] == "numerical-integer":
+                    numeric_answers.append(question["correct_answer"])
+
+        # The fixture submits these as strings; the existing union normalizes them.
+        assert numeric_answers == [5.0, 5.0, 4.0, 4.0, 1.0]
+
+    def test_legacy_quiz_fields_are_backfilled(self):
+        self.db.quizzes.update_one(
+            {"_id": self.homework_quiz_id},
+            {
+                "$unset": {
+                    "question_sets.0.max_questions_allowed_to_attempt": "",
+                    "question_sets.0.title": "",
+                    "question_sets.0.marking_scheme": "",
+                }
+            },
+        )
+
+        response = self.client.get(f"{quizzes.router.prefix}/{self.homework_quiz_id}")
+        assert response.status_code == 200
+        question_set = response.json()["question_sets"][0]
+        assert question_set["max_questions_allowed_to_attempt"] == len(
+            question_set["questions"]
+        )
+        assert question_set["title"] == "Section A"
+        assert question_set["marking_scheme"] == {
+            "correct": 1.0,
+            "wrong": 0.0,
+            "skipped": 0.0,
+            "partial": None,
+        }
 
     def test_get_quiz_with_single_page_mode_returns_all_questions_with_full_details(
         self,
@@ -364,3 +407,395 @@ class QuizTestCase(BaseTestCase):
                 break
         assert found is not None
         assert found.get("solution") == []
+
+    def test_patch_quiz_updates_session_editable_fields(self):
+        # Timed quiz (time_limit.max = 200s): the stored session_end_time is the supplied
+        # window end PLUS the quiz duration (answer-visibility time), not the raw window end.
+        quiz_id = self.timed_quiz_id
+        resp = self.client.patch(
+            f"{quizzes.router.prefix}/{quiz_id}",
+            json={
+                "title": "Renamed by LMS",
+                "shuffle": True,
+                "show_scores": False,
+                "review_immediate": False,
+                "session_end_time": "2026-04-15T14:00:00",
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["id"] == quiz_id
+        assert set(body["updated"]) == {
+            "title",
+            "shuffle",
+            "show_scores",
+            "review_immediate",
+            "session_end_time",
+        }
+
+        doc = self.db.quizzes.find_one({"_id": quiz_id})
+        assert doc["title"] == "Renamed by LMS"
+        assert doc["shuffle"] is True
+        assert doc["show_scores"] is False
+        assert doc["review_immediate"] is False
+        # 14:00:00 + 200s = 14:03:20
+        assert doc["metadata"]["session_end_time"] == "2026-04-15T14:03:20"
+
+    def test_patch_quiz_session_end_time_untimed_quiz_has_no_offset(self):
+        # An untimed quiz (time_limit None) adds no duration; the value is just normalized.
+        quiz_id = self.homework_quiz_id
+        resp = self.client.patch(
+            f"{quizzes.router.prefix}/{quiz_id}",
+            json={"session_end_time": "2026-04-15T14:00:00"},
+        )
+        assert resp.status_code == 200
+        doc = self.db.quizzes.find_one({"_id": quiz_id})
+        assert doc["metadata"]["session_end_time"] == "2026-04-15T14:00:00"
+
+    def test_patch_quiz_session_end_time_when_metadata_is_null(self):
+        # A quiz doc can carry metadata: null (the GET route guards for it). A dotted
+        # $set would raise on the null intermediate; the endpoint must handle it.
+        quiz_id = self.homework_quiz_id
+        self.db.quizzes.update_one({"_id": quiz_id}, {"$set": {"metadata": None}})
+
+        resp = self.client.patch(
+            f"{quizzes.router.prefix}/{quiz_id}",
+            json={"session_end_time": "2026-04-15T14:00:00"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["updated"] == ["session_end_time"]
+
+        doc = self.db.quizzes.find_one({"_id": quiz_id})
+        # untimed quiz -> no offset, value normalized to isoformat
+        assert doc["metadata"] == {"session_end_time": "2026-04-15T14:00:00"}
+
+    def test_patch_quiz_session_end_time_accepts_12h_format(self):
+        # The LMS emits the legacy 12-hour "%I:%M:%S %p" format; it must parse and still get
+        # the duration offset (else the answer-review gate silently opens at the window end).
+        quiz_id = self.timed_quiz_id  # time_limit.max = 200s
+        resp = self.client.patch(
+            f"{quizzes.router.prefix}/{quiz_id}",
+            json={"session_end_time": "2026-04-15 02:00:00 PM"},
+        )
+        assert resp.status_code == 200
+        doc = self.db.quizzes.find_one({"_id": quiz_id})
+        # 14:00:00 + 200s = 14:03:20
+        assert doc["metadata"]["session_end_time"] == "2026-04-15T14:03:20"
+
+    def test_patch_quiz_only_touches_provided_fields(self):
+        quiz_id = self.short_homework_quiz_id
+        before = self.db.quizzes.find_one({"_id": quiz_id})
+
+        resp = self.client.patch(
+            f"{quizzes.router.prefix}/{quiz_id}", json={"shuffle": True}
+        )
+        assert resp.status_code == 200
+        assert resp.json()["updated"] == ["shuffle"]
+
+        after = self.db.quizzes.find_one({"_id": quiz_id})
+        assert after["shuffle"] is True
+        # untouched field stays as it was
+        assert after["title"] == before["title"]
+
+    def test_patch_quiz_with_no_fields_is_a_noop(self):
+        quiz_id = self.homework_quiz_id
+        resp = self.client.patch(f"{quizzes.router.prefix}/{quiz_id}", json={})
+        assert resp.status_code == 200
+        assert resp.json()["updated"] == []
+
+    def test_patch_quiz_returns_404_for_unknown_id(self):
+        resp = self.client.patch(
+            f"{quizzes.router.prefix}/does-not-exist", json={"shuffle": True}
+        )
+        assert resp.status_code == 404
+
+    # ---- CMS from-cms create: answer-visibility time ----
+
+    def _cms_quiz_dict(self, **overrides):
+        """A quiz dict shaped like map_cms_test_to_quiz's output (1 set, 2 questions), built
+        off the homework fixture. `overrides` shallow-merge onto the top level."""
+        quiz = copy.deepcopy(self.homework_quiz_data)
+        quiz.update(overrides)
+        return quiz
+
+    def test_create_from_cms_stores_answer_visibility_time(self):
+        quiz_dict = self._cms_quiz_dict(time_limit={"min": 0, "max": 200})
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(quiz_dict, [])
+        ):
+            resp = self.client.post(
+                f"{quizzes.router.prefix}/from-cms",
+                json={
+                    "test_id": 504,
+                    "curriculum_id": 1,
+                    "grade_id": 1,
+                    "session_end_time": "2026-04-15T14:00:00",
+                },
+            )
+        assert resp.status_code == 201
+        doc = self.db.quizzes.find_one({"_id": resp.json()["id"]})
+        # 14:00:00 + 200s duration = 14:03:20
+        assert doc["metadata"]["session_end_time"] == "2026-04-15T14:03:20"
+
+    def test_create_from_cms_without_session_end_time_leaves_it_unset(self):
+        quiz_dict = self._cms_quiz_dict(time_limit={"min": 0, "max": 200})
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(quiz_dict, [])
+        ):
+            resp = self.client.post(
+                f"{quizzes.router.prefix}/from-cms",
+                json={"test_id": 504, "curriculum_id": 1, "grade_id": 1},
+            )
+        assert resp.status_code == 201
+        doc = self.db.quizzes.find_one({"_id": resp.json()["id"]})
+        assert doc["metadata"].get("session_end_time") is None
+
+    def test_create_from_cms_accepts_but_ignores_deprecated_curriculum_and_grade(self):
+        """Deprecated no-ops: older callers still send them so the request must not 422, but
+        they must never reach the CMS."""
+        quiz_dict = self._cms_quiz_dict()
+        with patch(
+            "routers.quizzes.fetch_assembled_test", return_value={}
+        ) as mock_fetch, patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(quiz_dict, [])
+        ):
+            resp = self.client.post(
+                f"{quizzes.router.prefix}/from-cms",
+                json={"test_id": 504, "curriculum_id": 99, "grade_id": 88},
+            )
+        assert resp.status_code == 201
+        mock_fetch.assert_called_once_with(504)
+
+    # ---- CMS from-cms create: session settings ----
+
+    def test_create_from_cms_applies_session_settings(self):
+        """The PM's advanced-settings choices must land on the quiz doc: the quiz-taking
+        frontend reads shuffle/show_scores/review_immediate from there, not the session.
+        """
+        quiz_dict = self._cms_quiz_dict()
+        # The mapper hardcodes shuffle=False and leaves the other two to the model defaults,
+        # so all three differ from what's requested below.
+        quiz_dict["shuffle"] = False
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(quiz_dict, [])
+        ):
+            resp = self.client.post(
+                f"{quizzes.router.prefix}/from-cms",
+                json={
+                    "test_id": 504,
+                    "curriculum_id": 1,
+                    "grade_id": 1,
+                    "shuffle": True,
+                    "show_scores": False,
+                    "review_immediate": False,
+                },
+            )
+        assert resp.status_code == 201
+        doc = self.db.quizzes.find_one({"_id": resp.json()["id"]})
+        assert doc["shuffle"] is True
+        assert doc["show_scores"] is False
+        assert doc["review_immediate"] is False
+
+    def test_create_from_cms_without_settings_keeps_defaults(self):
+        """Omitted settings leave the mapper/model defaults alone — the field-scoped body
+        must not coerce None onto the doc."""
+        quiz_dict = self._cms_quiz_dict()
+        quiz_dict["shuffle"] = False
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(quiz_dict, [])
+        ):
+            resp = self.client.post(
+                f"{quizzes.router.prefix}/from-cms",
+                json={"test_id": 504, "curriculum_id": 1, "grade_id": 1},
+            )
+        assert resp.status_code == 201
+        doc = self.db.quizzes.find_one({"_id": resp.json()["id"]})
+        assert doc["shuffle"] is False
+        assert doc["show_scores"] is True
+        assert doc["review_immediate"] is True
+
+    def test_create_from_cms_applies_a_single_setting_in_isolation(self):
+        """shuffle alone must not disturb the other two."""
+        quiz_dict = self._cms_quiz_dict()
+        quiz_dict["shuffle"] = False
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(quiz_dict, [])
+        ):
+            resp = self.client.post(
+                f"{quizzes.router.prefix}/from-cms",
+                json={
+                    "test_id": 504,
+                    "curriculum_id": 1,
+                    "grade_id": 1,
+                    "shuffle": True,
+                },
+            )
+        assert resp.status_code == 201
+        doc = self.db.quizzes.find_one({"_id": resp.json()["id"]})
+        assert doc["shuffle"] is True
+        assert doc["show_scores"] is True
+        assert doc["review_immediate"] is True
+
+    def test_regenerate_ignores_settings_in_body_and_keeps_doc_values(self):
+        """Regenerate preserves whatever the session-edit flow last set, even if the body
+        carries settings — the create and regenerate paths share one request model."""
+        quiz_id, _ = self.post_and_get_quiz(copy.deepcopy(self.homework_quiz_data))
+        self.client.patch(
+            f"{quizzes.router.prefix}/{quiz_id}",
+            json={"shuffle": True, "show_scores": False},
+        )
+
+        new_quiz = self._cms_quiz_dict()
+        new_quiz["shuffle"] = False
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(new_quiz, [])
+        ):
+            resp = self.client.put(
+                f"{quizzes.router.prefix}/{quiz_id}/from-cms",
+                json={
+                    "test_id": 504,
+                    "curriculum_id": 1,
+                    "grade_id": 1,
+                    "shuffle": False,
+                    "show_scores": True,
+                },
+            )
+        assert resp.status_code == 200
+        after = self.db.quizzes.find_one({"_id": quiz_id})
+        assert after["shuffle"] is True
+        assert after["show_scores"] is False
+
+    # ---- regenerate in place (PUT /quiz/{id}/from-cms) ----
+
+    def test_regenerate_preserves_ids_and_refreshes_content(self):
+        quiz_id, _ = self.post_and_get_quiz(copy.deepcopy(self.homework_quiz_data))
+        # Session-edit sets these on the quiz doc; regenerate must not reset them.
+        self.client.patch(
+            f"{quizzes.router.prefix}/{quiz_id}",
+            json={"title": "LMS Session Name", "show_scores": False},
+        )
+        before = self.db.quizzes.find_one({"_id": quiz_id})
+        old_qids = [q["_id"] for q in before["question_sets"][0]["questions"]]
+
+        # Corrected test: same structure, changed content + content-metadata.
+        new_quiz = self._cms_quiz_dict()
+        new_quiz["title"] = "CMS Test Title"  # must NOT overwrite the session name
+        new_quiz["question_sets"][0]["questions"][0]["text"] = "CORRECTED text"
+        new_quiz["metadata"]["subject"] = "Physics"  # content metadata -> refreshes
+        new_quiz["metadata"]["grade"] = "99"  # session-editable metadata -> preserved
+
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(new_quiz, [])
+        ):
+            resp = self.client.put(
+                f"{quizzes.router.prefix}/{quiz_id}/from-cms",
+                json={"test_id": 504, "curriculum_id": 1, "grade_id": 1},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["regenerated"] is True
+
+        after = self.db.quizzes.find_one({"_id": quiz_id})
+        # quiz + question ids preserved (attempts stay linked)
+        assert after["_id"] == quiz_id
+        assert [q["_id"] for q in after["question_sets"][0]["questions"]] == old_qids
+        # question content refreshed in the questions collection
+        assert (
+            self.db.questions.find_one({"_id": old_qids[0]})["text"] == "CORRECTED text"
+        )
+        # session-editable settings preserved
+        assert after["title"] == "LMS Session Name"
+        assert after["show_scores"] is False
+        assert after["metadata"]["grade"] == "8"  # old value kept, not the CMS "99"
+        # content metadata refreshed from the corrected test
+        assert after["metadata"]["subject"] == "Physics"
+
+    def test_regenerate_recomputes_session_end_time_with_supplied_window(self):
+        quiz_id, _ = self.post_and_get_quiz(copy.deepcopy(self.homework_quiz_data))
+        new_quiz = self._cms_quiz_dict(time_limit={"min": 0, "max": 200})
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(new_quiz, [])
+        ):
+            resp = self.client.put(
+                f"{quizzes.router.prefix}/{quiz_id}/from-cms",
+                json={
+                    "test_id": 504,
+                    "curriculum_id": 1,
+                    "grade_id": 1,
+                    "session_end_time": "2026-04-15T14:00:00",
+                },
+            )
+        assert resp.status_code == 200
+        doc = self.db.quizzes.find_one({"_id": quiz_id})
+        assert doc["metadata"]["session_end_time"] == "2026-04-15T14:03:20"
+
+    def test_regenerate_preserves_session_end_time_when_not_supplied(self):
+        quiz_id, _ = self.post_and_get_quiz(copy.deepcopy(self.homework_quiz_data))
+        self.client.patch(
+            f"{quizzes.router.prefix}/{quiz_id}",
+            json={"session_end_time": "2026-04-15T14:00:00"},  # untimed -> stored as-is
+        )
+        new_quiz = self._cms_quiz_dict()
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(new_quiz, [])
+        ):
+            resp = self.client.put(
+                f"{quizzes.router.prefix}/{quiz_id}/from-cms",
+                json={"test_id": 504, "curriculum_id": 1, "grade_id": 1},
+            )
+        assert resp.status_code == 200
+        doc = self.db.quizzes.find_one({"_id": quiz_id})
+        assert doc["metadata"]["session_end_time"] == "2026-04-15T14:00:00"
+
+    def test_regenerate_refuses_structure_change(self):
+        quiz_id, _ = self.post_and_get_quiz(copy.deepcopy(self.homework_quiz_data))
+        before = self.db.quizzes.find_one({"_id": quiz_id})
+
+        new_quiz = self._cms_quiz_dict()  # add a 3rd question -> structure differs
+        new_quiz["question_sets"][0]["questions"].append(
+            copy.deepcopy(new_quiz["question_sets"][0]["questions"][0])
+        )
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(new_quiz, [])
+        ):
+            resp = self.client.put(
+                f"{quizzes.router.prefix}/{quiz_id}/from-cms",
+                json={"test_id": 504, "curriculum_id": 1, "grade_id": 1},
+            )
+        assert resp.status_code == 409
+        after = self.db.quizzes.find_one({"_id": quiz_id})
+        # nothing was written
+        assert len(after["question_sets"][0]["questions"]) == len(
+            before["question_sets"][0]["questions"]
+        )
+
+    def test_regenerate_refuses_when_question_identity_changes(self):
+        # Same set/question counts, but a position is now a DIFFERENT problem (source_id
+        # changed) — a reorder or delete+add. Blindly reusing the old _id would mis-score
+        # attempts, so this must 409 with no write.
+        seed = copy.deepcopy(self.homework_quiz_data)
+        for idx, q in enumerate(seed["question_sets"][0]["questions"]):
+            q["source_id"] = f"cms-{idx}"
+        quiz_id, _ = self.post_and_get_quiz(seed)
+        before = self.db.quizzes.find_one({"_id": quiz_id})
+        old_q0_id = before["question_sets"][0]["questions"][0]["_id"]
+
+        new_quiz = copy.deepcopy(seed)
+        new_quiz["question_sets"][0]["questions"][0]["source_id"] = "cms-999"
+
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(new_quiz, [])
+        ):
+            resp = self.client.put(
+                f"{quizzes.router.prefix}/{quiz_id}/from-cms",
+                json={"test_id": 504, "curriculum_id": 1, "grade_id": 1},
+            )
+        assert resp.status_code == 409
+        # no write happened — the question keeps its original source_id
+        assert self.db.questions.find_one({"_id": old_q0_id})["source_id"] == "cms-0"
+
+    def test_regenerate_returns_404_for_unknown_id(self):
+        resp = self.client.put(
+            f"{quizzes.router.prefix}/does-not-exist/from-cms",
+            json={"test_id": 504, "curriculum_id": 1, "grade_id": 1},
+        )
+        assert resp.status_code == 404

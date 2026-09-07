@@ -20,6 +20,7 @@ class QuestionsTestCase(BaseTestCase):
     def test_get_question_if_id_valid(self):
         response = self.client.get(f"/questions/{self.question_id}")
         question = response.json()
+        assert question["_id"] == self.question_id
         assert question["text"] == self.text
 
     def test_get_questions_for_multiple_question_sets(self):
