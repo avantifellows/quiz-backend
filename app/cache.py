@@ -192,6 +192,16 @@ async def get_cached_quiz(quiz_id: str) -> dict | None:
     caches the result with 1h TTL. Routes handle their own 404 responses.
     If the fixup DB write-back fails, the HTTPException propagates (500) and the
     quiz is not cached.
+
+    IMMUTABILITY ASSUMPTION — READ BEFORE ENABLING THE CACHE:
+    This cache has NO invalidation. It is safe only because quiz/question data is treated
+    as immutable once a quiz is published (team decision). Editing a published quiz will
+    serve stale data until the TTL expires — and because each ECS task has its own local
+    Redis sidecar, there is no coherent cross-task bust, so a mid-test edit can serve stale
+    data for up to 1h per task. This is not cosmetic: the cached quiz feeds scoring
+    (compute_session_metrics) and the reveal endpoint reads correct_answer from it, so a
+    late answer-key edit would grade against the stale key. Do not edit a published quiz's
+    content or answer key; use PATCH /quiz only for the session-editable settings it targets.
     """
     cached = await cache_get(cache_key("quiz", quiz_id))
     if cached is not None:

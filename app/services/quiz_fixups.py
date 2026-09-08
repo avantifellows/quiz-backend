@@ -43,7 +43,10 @@ async def apply_quiz_backwards_compatibility_fixup(quiz_id, quiz):
 
     logger.info("Starting update for backwards compatibility")
     db = get_quiz_db()
-    update_result = await db.quizzes.update_one({"_id": quiz_id}, {"$set": quiz})
+    # replace_one, not update_one+$set: `quiz` still carries its own `_id`, and $set-ing the
+    # immutable _id is illegal (tolerated only while it equals the filter). A full-document
+    # replace is what this fixup means anyway, and matches the CMS regenerate path.
+    update_result = await db.quizzes.replace_one({"_id": quiz_id}, quiz)
 
     if not update_result.acknowledged:
         logger.error("Failed to update quiz for backwards compatibility")

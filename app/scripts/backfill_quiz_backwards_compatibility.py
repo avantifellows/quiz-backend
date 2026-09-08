@@ -105,7 +105,9 @@ def main():
 
         apply_fixup(quiz)
         try:
-            result = db.quizzes.update_one({"_id": quiz_id}, {"$set": quiz})
+            # replace_one, not update_one+$set: `quiz` carries its own `_id`, and $set-ing the
+            # immutable _id is illegal (tolerated only while it equals the filter).
+            result = db.quizzes.replace_one({"_id": quiz_id}, quiz)
             if result.acknowledged:
                 updated += 1
                 print(f"  updated quiz {quiz_id}")
