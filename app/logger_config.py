@@ -15,6 +15,9 @@ class ISTFormatter(logging.Formatter):
 def setup_logger():
     logger = logging.getLogger("quizenginelogger")
 
+    if logger.handlers:
+        return logger
+
     logger.propagate = False
 
     logger_format = "%(asctime)s IST loglevel=%(levelname)-6s filename=%(filename)s funcName=%(funcName)s() L%(lineno)-4d %(message)s call_trace=%(pathname)s L%(lineno)-4d"

@@ -8,6 +8,7 @@ import time
 
 import database
 from database import init_db, close_db
+from cache import init_cache, close_cache
 from logger_config import setup_logger
 from routers import (
     questions,
@@ -28,7 +29,10 @@ async def lifespan(app):
     init_db()
     # Verify connectivity — fail fast on bad credentials/DNS/network
     await database._client.admin.command("ping")
+    # Best-effort Redis init — never blocks startup
+    await init_cache()
     yield
+    await close_cache()
     await close_db()
 
 
