@@ -17,7 +17,8 @@ Contract (locked with the CMS owner — see task lms-cms-tests):
   fully-resolved problems joined to their refs by id. Since the CMS added multilingual
   problems, each problem's content (text, options, answer, solutions) lives per language
   in `lang_versions[{lang_code, meta_data}]`; the top-level `meta_data` is retained but
-  empty. We ingest the English version — see `_problem_meta`.
+  empty. We ingest the English version — see `_problem_meta`. Test instructions follow the
+  same pattern — see `_instructions`.
 - Choice answers are 1-based option numbers; the quiz engine wants 0-based indices.
   Numerical and comprehension answers are numeric values.
 - Marks cascade problem-ref -> section -> subject -> test; the lowest level that sets
@@ -459,6 +460,22 @@ def _time_limit(type_params: Dict[str, Any]) -> Optional[Dict[str, int]]:
     return {"min": 0, "max": minutes * 60}
 
 
+def _instructions(type_params: Dict[str, Any]) -> Optional[str]:
+    """Resolve the test's instructions, preferring the per-language array.
+
+    The CMS is moving `instructions` into `instruction_lang_versions`
+    [{lang_code, instructions}] (nex-gen-cms #176, db-service #698); the flat key is
+    written in sync until every consumer reads the array. Falls back to it for "en" only,
+    mirroring the CMS's own ResolveInstructions.
+    """
+    for version in type_params.get("instruction_lang_versions") or []:
+        if version.get("lang_code") == CMS_PRIMARY_LANG:
+            text = (version.get("instructions") or "").strip()
+            if text:
+                return text
+    return (type_params.get("instructions") or "").strip() or None
+
+
 def map_cms_test_to_quiz(
     assembled: Dict[str, Any], quiz_type: str = "assessment"
 ) -> Tuple[Dict[str, Any], List[str]]:
@@ -556,7 +573,7 @@ def map_cms_test_to_quiz(
         "num_graded_questions": num_graded_questions,
         "shuffle": False,
         "time_limit": _time_limit(type_params),
-        "instructions": type_params.get("instructions") or None,
+        "instructions": _instructions(type_params),
         "metadata": {
             "quiz_type": quiz_type,
             "test_format": test.get("subtype"),
