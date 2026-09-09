@@ -49,7 +49,9 @@ class CacheEnabledBaseTestCase(BaseTestCase):
         os.environ["CACHE_NAMESPACE"] = _TEST_CACHE_NAMESPACE
         super().setUpClass()
         # Sync Redis client for direct key inspection in assertions
-        cls._redis = sync_redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
+        cls._redis = sync_redis.Redis(
+            host="localhost", port=6379, db=0, decode_responses=True
+        )
 
     @classmethod
     def tearDownClass(cls):

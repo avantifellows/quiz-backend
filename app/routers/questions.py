@@ -55,7 +55,15 @@ async def get_questions(
 
     normalized_skip = str(skip if skip else 0)
     normalized_limit = str(limit if limit else "all")
-    key = cache_key("questions", "qset", question_set_id, "skip", normalized_skip, "limit", normalized_limit)
+    key = cache_key(
+        "questions",
+        "qset",
+        question_set_id,
+        "skip",
+        normalized_skip,
+        "limit",
+        normalized_limit,
+    )
     questions = await cache_get(key)
 
     if questions is None:
