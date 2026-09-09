@@ -1,14 +1,13 @@
 import unittest
 from bson import ObjectId
 from fastapi.encoders import jsonable_encoder
-from ..models import (
+from models import (
     GetQuizResponse,
     Organization,
     QuestionMetadata,
     QuestionSet,
     QuizMetadata,
 )
-from ..main import app
 
 
 class PyObjectIdValidationTestCase(unittest.TestCase):
@@ -109,6 +108,9 @@ class PyObjectIdOpenAPITestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        from main import create_app
+
+        app = create_app()
         cls.schema = app.openapi()
 
     def _get_model_id_schema(self, model_name):

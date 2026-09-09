@@ -1,12 +1,14 @@
 import json
 import pytest
+from pathlib import Path
 from .base import SessionsBaseTestCase
-from ..routers import quizzes, sessions, session_answers
-from ..schemas import EventType
+from routers import quizzes, sessions, session_answers
+from schemas import EventType
 from datetime import datetime, timedelta
 import time
 from settings import Settings
-from ..database import client as mongo_client
+
+_DUMMY = Path(__file__).resolve().parent / "dummy_data"
 
 
 settings = Settings()
@@ -103,7 +105,7 @@ class SessionsTestCase(SessionsBaseTestCase):
         future_end = (datetime.utcnow() + timedelta(hours=1)).strftime(
             "%Y-%m-%d %I:%M:%S %p"
         )
-        mongo_client.quiz.quizzes.update_one(
+        self.db.quizzes.update_one(
             {"_id": quiz_id},
             {
                 "$set": {
@@ -135,7 +137,7 @@ class SessionsTestCase(SessionsBaseTestCase):
         past_end = (datetime.utcnow() - timedelta(hours=1)).strftime(
             "%Y-%m-%d %I:%M:%S %p"
         )
-        mongo_client.quiz.quizzes.update_one(
+        self.db.quizzes.update_one(
             {"_id": quiz_id},
             {"$set": {"metadata.session_end_time": past_end}},
         )
@@ -169,7 +171,7 @@ class SessionsTestCase(SessionsBaseTestCase):
 
         # Cross-check with the source question document (direct DB, because /questions is sanitized in Phase 3)
         question_id = self.homework_session["session_answers"][0]["question_id"]
-        q = mongo_client.quiz.questions.find_one({"_id": question_id})
+        q = self.db.questions.find_one({"_id": question_id})
         assert reveal_payload["correct_answer"] == (q or {}).get("correct_answer")
 
     def test_reveal_endpoint_blocks_non_homework_quiz(self):
@@ -192,7 +194,7 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert response["detail"] == "Quiz 00 not found while creating the session"
 
     def test_create_session_with_valid_quiz_id_and_first_session(self):
-        data = open("app/tests/dummy_data/homework_quiz.json")
+        data = open(_DUMMY / "homework_quiz.json")
         quiz_data = json.load(data)
         response = self.client.post(quizzes.router.prefix + "/", json=quiz_data)
         quiz_id = json.loads(response.content)["id"]
@@ -204,7 +206,7 @@ class SessionsTestCase(SessionsBaseTestCase):
         session = json.loads(response.content)
         assert session["is_first"] is True
         assert session["user_id"] == "1"
-        stored_session = mongo_client.quiz.sessions.find_one({"_id": session["_id"]})
+        stored_session = self.db.sessions.find_one({"_id": session["_id"]})
         assert stored_session["user_id"] == "1"
         assert len(session["session_answers"]) == sum(
             len(qset["questions"]) for qset in quiz_data["question_sets"]
@@ -263,7 +265,7 @@ class SessionsTestCase(SessionsBaseTestCase):
             f"{sessions.router.prefix}/{self.timed_quiz_session_id}",
             json={"event": EventType.start_quiz.value},
         )
-        mongo_client.quiz.sessions.update_one(
+        self.db.sessions.update_one(
             {"_id": self.timed_quiz_session_id},
             {"$unset": {"session_answers": ""}},
         )
@@ -458,7 +460,7 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert isinstance(response.json(), dict)
 
     def test_check_question_order_first_session_and_omr_mode(self):
-        data = open("app/tests/dummy_data/multiple_question_set_omr_quiz.json")
+        data = open(_DUMMY / "multiple_question_set_omr_quiz.json")
         quiz_data = json.load(data)
         response = self.client.post(quizzes.router.prefix + "/", json=quiz_data)
         quiz_id = json.loads(response.content)["id"]
@@ -475,7 +477,7 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert session["question_order"] == list(range(len(session["question_order"])))
 
     def test_check_question_order_first_session_and_not_omr_mode(self):
-        data = open("app/tests/dummy_data/multiple_question_set_quiz.json")
+        data = open(_DUMMY / "multiple_question_set_quiz.json")
         quiz_data = json.load(data)
         response = self.client.post(quizzes.router.prefix + "/", json=quiz_data)
         quiz_id = json.loads(response.content)["id"]
@@ -733,7 +735,7 @@ class SessionsTestCase(SessionsBaseTestCase):
         assert r.status_code == 200
 
         past = datetime.utcnow() - timedelta(seconds=100)
-        mongo_client.quiz.sessions.update_one(
+        self.db.sessions.update_one(
             {"_id": sid},
             {"$set": {"events.0.created_at": past, "events.0.updated_at": past}},
         )
@@ -895,7 +897,7 @@ class SessionsTestCase(SessionsBaseTestCase):
         )
         # pin an obviously-old updated_at on position 0 so the rewrite is unambiguous
         old = datetime(2020, 1, 1)
-        mongo_client.quiz.sessions.update_one(
+        self.db.sessions.update_one(
             {"_id": sid},
             {"$set": {"session_answers.0.updated_at": old}},
         )
@@ -907,7 +909,7 @@ class SessionsTestCase(SessionsBaseTestCase):
             },
         )
         assert r.status_code == 200
-        session = mongo_client.quiz.sessions.find_one({"_id": sid})
+        session = self.db.sessions.find_one({"_id": sid})
         # a real answer edit rode along, so updated_at must have moved off the pinned value
         assert session["session_answers"][0]["updated_at"] != old
 

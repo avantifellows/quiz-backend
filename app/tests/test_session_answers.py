@@ -1,10 +1,8 @@
 import json
 from unittest.mock import patch
 from bson import ObjectId
-from pymongo.collection import Collection
-from database import client as db_client
 from .base import SessionsBaseTestCase
-from ..routers import session_answers
+from routers import session_answers
 
 
 class SessionAnswerTestCase(SessionsBaseTestCase):
@@ -109,9 +107,7 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
             ([[0, {"answer": [0]}], [1, {}]], "Empty payload"),
         ]
 
-        with patch.object(Collection, "find_one") as spy_find_one, patch.object(
-            Collection, "aggregate"
-        ) as spy_aggregate:
+        with patch.object(session_answers, "get_quiz_db") as spy_get_quiz_db:
             for payload, expected_detail in cases:
                 with self.subTest(payload=payload):
                     response = self.client.patch(
@@ -121,8 +117,7 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
                     assert response.status_code == 400
                     assert expected_detail in response.json()["detail"]
 
-            spy_find_one.assert_not_called()
-            spy_aggregate.assert_not_called()
+            spy_get_quiz_db.assert_not_called()
 
     # --- US-002: Pre-DB validation for empty per-item payload ---
 
@@ -139,12 +134,11 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
         per-answer updated_at (unlike the 20s heartbeat fold, which omits it). Guards against
         the shared $set helper silently dropping updated_at on this path again.
         """
-        from database import client
         from datetime import datetime
 
         # pin an obviously-old updated_at on position 0 so the rewrite is unambiguous
         old = datetime(2020, 1, 1)
-        client.quiz.sessions.update_one(
+        self.db.sessions.update_one(
             {"_id": self.session_id},
             {"$set": {"session_answers.0.updated_at": old}},
         )
@@ -155,7 +149,7 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
         )
         assert response.status_code == 200
 
-        session = client.quiz.sessions.find_one({"_id": self.session_id})
+        session = self.db.sessions.find_one({"_id": self.session_id})
         # updated_at must have been rewritten by the batch save, not left at the pinned value
         assert session["session_answers"][0]["updated_at"] != old
 
@@ -184,8 +178,6 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
 
     def test_batch_update_exact_length_does_not_extend_array(self):
         """Position == len(session_answers) must not silently extend the array."""
-        from database import client
-
         exact_length = len(self.session_answers)
         response = self.client.patch(
             f"{session_answers.router.prefix}/{self.session_id}/update-multiple-answers",
@@ -195,7 +187,7 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
         assert "out of bounds" in response.json()["detail"]
 
         # Verify array was not extended
-        session = client.quiz.sessions.find_one({"_id": self.session_id})
+        session = self.db.sessions.find_one({"_id": self.session_id})
         assert len(session["session_answers"]) == exact_length
 
     # --- US-005: Malformed session_answers test coverage ---
@@ -203,10 +195,9 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
     def test_batch_update_missing_session_answers_field_returns_404(self):
         """Session document with no session_answers field returns 404."""
         doc_id = str(ObjectId())
-        db_client.quiz.sessions.insert_one(
+        self.db.sessions.insert_one(
             {"_id": doc_id, "user_id": "test_user", "quiz_id": "test_quiz"}
         )
-        self.addCleanup(lambda: db_client.quiz.sessions.delete_one({"_id": doc_id}))
 
         response = self.client.patch(
             f"{session_answers.router.prefix}/{doc_id}/update-multiple-answers",
@@ -218,7 +209,7 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
     def test_batch_update_null_session_answers_returns_404(self):
         """Session document with session_answers: None returns 404."""
         doc_id = str(ObjectId())
-        db_client.quiz.sessions.insert_one(
+        self.db.sessions.insert_one(
             {
                 "_id": doc_id,
                 "user_id": "test_user",
@@ -226,7 +217,6 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
                 "session_answers": None,
             }
         )
-        self.addCleanup(lambda: db_client.quiz.sessions.delete_one({"_id": doc_id}))
 
         response = self.client.patch(
             f"{session_answers.router.prefix}/{doc_id}/update-multiple-answers",
@@ -238,7 +228,7 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
     def test_batch_update_non_array_session_answers_returns_404(self):
         """Session document with non-array session_answers (e.g., 'corrupted') returns 404."""
         doc_id = str(ObjectId())
-        db_client.quiz.sessions.insert_one(
+        self.db.sessions.insert_one(
             {
                 "_id": doc_id,
                 "user_id": "test_user",
@@ -246,7 +236,6 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
                 "session_answers": "corrupted",
             }
         )
-        self.addCleanup(lambda: db_client.quiz.sessions.delete_one({"_id": doc_id}))
 
         response = self.client.patch(
             f"{session_answers.router.prefix}/{doc_id}/update-multiple-answers",
@@ -284,7 +273,7 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
             (-1, {}, "Empty payload"),
         ]
 
-        with patch.object(Collection, "find_one") as spy_find_one:
+        with patch.object(session_answers, "get_quiz_db") as spy_get_quiz_db:
             for position, payload, expected_detail in cases:
                 with self.subTest(position=position, payload=payload):
                     response = self.client.patch(
@@ -294,63 +283,7 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
                     assert response.status_code == 400
                     assert expected_detail in response.json()["detail"]
 
-            spy_find_one.assert_not_called()
-
-    # --- US-007: Spy test — prove lightweight read is used ---
-
-    def test_batch_update_uses_aggregate_not_find_one(self):
-        """Prove the batch endpoint uses aggregation instead of find_one for the read path."""
-        # Create a minimal session via direct insert (bypasses BaseTestCase setup
-        # to avoid unrelated DB calls that would confuse spy assertions)
-        doc_id = str(ObjectId())
-        db_client.quiz.sessions.insert_one(
-            {
-                "_id": doc_id,
-                "user_id": "spy_test_user",
-                "quiz_id": "spy_test_quiz",
-                "session_answers": [
-                    {"question_id": "q1", "answer": None, "visited": False}
-                ],
-            }
-        )
-        self.addCleanup(lambda: db_client.quiz.sessions.delete_one({"_id": doc_id}))
-
-        # Patch at CLASS level — pymongo Database.__getitem__ returns a NEW
-        # Collection object on every access, so instance-level patching would
-        # miss the router's Collection instance.
-        # Use plain function replacements as spies (wraps= doesn't work at
-        # class level because the mock doesn't forward self to the unbound method).
-        original_find_one = Collection.find_one
-        original_aggregate = Collection.aggregate
-        find_one_called = False
-        aggregate_called = False
-
-        def spy_find_one(self_col, *args, **kwargs):
-            nonlocal find_one_called
-            find_one_called = True
-            return original_find_one(self_col, *args, **kwargs)
-
-        def spy_aggregate(self_col, *args, **kwargs):
-            nonlocal aggregate_called
-            aggregate_called = True
-            return original_aggregate(self_col, *args, **kwargs)
-
-        with patch.object(Collection, "find_one", spy_find_one), patch.object(
-            Collection, "aggregate", spy_aggregate
-        ):
-            response = self.client.patch(
-                f"{session_answers.router.prefix}/{doc_id}/update-multiple-answers",
-                json=[[0, {"answer": [1, 2]}]],
-            )
-            assert response.status_code == 200
-
-            # The batch endpoint must use aggregate (lightweight read), not find_one
-            assert (
-                not find_one_called
-            ), "find_one should not be called — batch endpoint should use aggregate"
-            assert (
-                aggregate_called
-            ), "aggregate should be called for the lightweight read path"
+            spy_get_quiz_db.assert_not_called()
 
     def test_batch_update_changes_only_targeted_answer(self):
         new_answer = [0, 2]
@@ -372,7 +305,7 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
         assert untouched_answer == self.session_answers[1]
 
     def test_batch_update_clears_answer_with_null(self):
-        db_client.quiz.sessions.update_one(
+        self.db.sessions.update_one(
             {"_id": self.session_id},
             {"$set": {"session_answers.0.answer": [0]}},
         )

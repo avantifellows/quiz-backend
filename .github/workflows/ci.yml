@@ -43,6 +43,7 @@ jobs:
       - name: Run Test Cases
         env:
           MONGO_AUTH_CREDENTIALS: mongodb://localhost:27017
+          MONGO_DB_NAME: quiz_test
           ALLOW_TEST_DATABASE_RESET: "1"
         # command to run tests and generate coverage metrics
         run: |

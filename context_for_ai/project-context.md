@@ -484,7 +484,7 @@ API docs at `http://127.0.0.1:8000/docs`
 ### Framework
 
 - **Pytest** for test execution
-- **Real MongoDB** (local or CI service) for a disposable test database; the suite clears its `quiz` database and requires the one-shot `ALLOW_TEST_DATABASE_RESET=1` opt-in
+- **Real MongoDB** (local or CI service) for a disposable test database; the suite clears its `quiz_test` database and requires the one-shot `ALLOW_TEST_DATABASE_RESET=1` opt-in
 - Test fixtures in `app/tests/dummy_data/`
 
 ### Base Test Classes

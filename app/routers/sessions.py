@@ -3,7 +3,7 @@ import random
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 import pymongo
-from database import client
+from database import get_quiz_db
 from schemas import EventType, QuizType
 from models import (
     Event,
@@ -105,7 +105,7 @@ def _is_required_form_answer_complete(question: Dict[str, Any], answer: Any) -> 
     return isinstance(answer, list) and len(answer) > 0
 
 
-def _hydrate_required_form_matrix_rows(quiz: Dict[str, Any]) -> None:
+async def _hydrate_required_form_matrix_rows(db, quiz: Dict[str, Any]) -> None:
     for question_set_index, question_set in enumerate(quiz.get("question_sets") or []):
         questions = question_set.get("questions") or []
         has_missing_matrix_rows = any(
@@ -115,10 +115,10 @@ def _hydrate_required_form_matrix_rows(quiz: Dict[str, Any]) -> None:
             for question in questions
         )
         if has_missing_matrix_rows:
-            quiz["question_sets"][question_set_index]["questions"] = list(
-                client.quiz.questions.find(
-                    {"question_set_id": question_set["_id"]}
-                ).sort("_id", 1)
+            quiz["question_sets"][question_set_index]["questions"] = (
+                await db.questions.find({"question_set_id": question_set["_id"]})
+                .sort("_id", 1)
+                .to_list(length=None)
             )
 
 
@@ -177,7 +177,8 @@ async def quiz_preflight(
     Lightweight helper endpoint for FE.
     Returns whether FE should request quiz with answers included.
     """
-    latest_session = client.quiz.sessions.find_one(
+    db = get_quiz_db()
+    latest_session = await db.sessions.find_one(
         {"quiz_id": quiz_id, "user_id": user_id},
         sort=[("_id", pymongo.DESCENDING)],
     )
@@ -204,8 +205,9 @@ async def create_session(session: Session):
         f"Creating new session for user: {session.user_id} and quiz: {session.quiz_id}"
     )
     current_session = jsonable_encoder(session)
+    db = get_quiz_db()
 
-    quiz = client.quiz.quizzes.find_one({"_id": current_session["quiz_id"]})
+    quiz = await db.quizzes.find_one({"_id": current_session["quiz_id"]})
 
     if quiz is None:
         error_message = (
@@ -218,16 +220,14 @@ async def create_session(session: Session):
         )
 
     # try to get the previous two sessions of a user+quiz pair if they exist
-    previous_two_sessions = list(
-        client.quiz.sessions.find(
-            {
-                "quiz_id": current_session["quiz_id"],
-                "user_id": current_session["user_id"],
-            },
-            sort=[("_id", pymongo.DESCENDING)],
-            limit=2,
-        )
-    )
+    previous_two_sessions = await db.sessions.find(
+        {
+            "quiz_id": current_session["quiz_id"],
+            "user_id": current_session["user_id"],
+        },
+        sort=[("_id", pymongo.DESCENDING)],
+        limit=2,
+    ).to_list(length=None)
     last_session, second_last_session = None, None
     # only one session exists
     if len(previous_two_sessions) == 1:
@@ -290,7 +290,7 @@ async def create_session(session: Session):
             ):
                 session_metrics = compute_session_metrics(last_session, quiz)
                 now = datetime.utcnow()
-                update_result = client.quiz.sessions.update_one(
+                update_result = await db.sessions.update_one(
                     {"_id": last_session["_id"]},
                     {"$set": {"metrics": session_metrics, "updated_at": now}},
                 )
@@ -306,7 +306,7 @@ async def create_session(session: Session):
                 last_session["omr_mode"] = session.omr_mode
                 last_session["updated_at"] = now
                 logger.info("Updating omr_mode value in last_session")
-                update_result = client.quiz.sessions.update_one(
+                update_result = await db.sessions.update_one(
                     {"_id": last_session["_id"]},
                     {"$set": {"omr_mode": session.omr_mode, "updated_at": now}},
                 )
@@ -382,7 +382,7 @@ async def create_session(session: Session):
     current_session["updated_at"] = datetime.utcnow()
 
     # insert current session into db
-    result = client.quiz.sessions.insert_one(current_session)
+    result = await db.sessions.insert_one(current_session)
     if result.acknowledged:
         logger.info(
             f"Created new session with id {result.inserted_id} for user: {session.user_id} and quiz: {session.quiz_id} with {session.omr_mode} as omr_mode"
@@ -416,6 +416,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     new_event = jsonable_encoder(session_updates)["event"]
     log_message = f"Updating session with id {session_id} and event {new_event}"
     session_update_query = {}
+    db = get_quiz_db()
 
     # answer_updates may not ride along with end-quiz. Scoring (compute_session_metrics) runs
     # on the in-memory session, while the fold only touches the update query — so an answer sent
@@ -441,7 +442,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     #   array via a lightweight projection. num_answers is kept so any folded answer_updates
     #   can be position-validated without loading the array.
     if new_event == EventType.end_quiz:
-        session = client.quiz.sessions.find_one({"_id": session_id})
+        session = await db.sessions.find_one({"_id": session_id})
     else:
         projection_pipeline = [
             {"$match": {"_id": session_id}},
@@ -459,7 +460,8 @@ async def update_session(session_id: str, session_updates: UpdateSession):
                 }
             },
         ]
-        projection_result = list(client.quiz.sessions.aggregate(projection_pipeline))
+        cursor = await db.sessions.aggregate(projection_pipeline)
+        projection_result = await cursor.to_list(length=None)
         session = projection_result[0] if projection_result else None
     if session is None:
         logger.error(
@@ -609,7 +611,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     if new_event == EventType.end_quiz:
         session_metrics = session.get("metrics")
         if not has_ended:
-            quiz = client.quiz.quizzes.find_one({"_id": session["quiz_id"]})
+            quiz = await db.quizzes.find_one({"_id": session["quiz_id"]})
             if quiz is None:
                 logger.error(
                     f"Quiz {session['quiz_id']} not found while scoring session {session_id}"
@@ -621,7 +623,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
             if (quiz.get("metadata") or {}).get(
                 "quiz_type"
             ) == QuizType.form.value and quiz.get("require_all_questions") is True:
-                _hydrate_required_form_matrix_rows(quiz)
+                await _hydrate_required_form_matrix_rows(db, quiz)
                 incomplete_positions = _get_incomplete_required_form_positions(
                     quiz, session
                 )
@@ -671,7 +673,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
         {"updated_at": datetime.utcnow()}
     )
 
-    update_result = client.quiz.sessions.update_one(
+    update_result = await db.sessions.update_one(
         {"_id": session_id}, session_update_query
     )
     if update_result.modified_count == 0:
@@ -690,14 +692,15 @@ async def update_session(session_id: str, session_updates: UpdateSession):
 @router.get("/{session_id}", response_model=SessionResponse)
 async def get_session(session_id: str):
     logger.info(f"Fetching session with id {session_id}")
-    if (session := client.quiz.sessions.find_one({"_id": session_id})) is not None:
+    db = get_quiz_db()
+    if (session := await db.sessions.find_one({"_id": session_id})) is not None:
         logger.info(f"Found session with id {session_id}")
         if session.get("has_quiz_ended") and session.get("metrics") is None:
-            quiz = client.quiz.quizzes.find_one({"_id": session["quiz_id"]})
+            quiz = await db.quizzes.find_one({"_id": session["quiz_id"]})
             if quiz is not None:
                 session_metrics = compute_session_metrics(session, quiz)
                 now = datetime.utcnow()
-                update_result = client.quiz.sessions.update_one(
+                update_result = await db.sessions.update_one(
                     {"_id": session_id},
                     {"$set": {"metrics": session_metrics, "updated_at": now}},
                 )
@@ -722,8 +725,9 @@ async def check_all_quiz_status(user_id: str) -> Dict[str, bool]:
     - Dict[str, bool]: A dictionary with quiz IDs as keys and `has_quiz_ended` as boolean values.
     """
     logger.info(f"Fetching all quiz attempts for user {user_id}")
+    db = get_quiz_db()
 
-    user_latest_sessions = client.quiz.sessions.aggregate(
+    cursor = await db.sessions.aggregate(
         [
             {"$match": {"user_id": user_id}},
             {"$sort": {"_id": -1}},
@@ -735,6 +739,7 @@ async def check_all_quiz_status(user_id: str) -> Dict[str, bool]:
             },
         ]
     )
+    user_latest_sessions = await cursor.to_list(length=None)
 
     # Create a dictionary of quiz end statuses for easy lookup
     latest_sessions_dict = {
@@ -755,7 +760,8 @@ async def reveal_correct_answer(
     After a student submits an answer, FE calls this endpoint to fetch the raw
     correct answer (and solution if enabled) for that one question.
     """
-    session = client.quiz.sessions.find_one({"_id": session_id})
+    db = get_quiz_db()
+    session = await db.sessions.find_one({"_id": session_id})
     if session is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -763,7 +769,7 @@ async def reveal_correct_answer(
         )
 
     quiz_id = session.get("quiz_id")
-    quiz = client.quiz.quizzes.find_one({"_id": quiz_id})
+    quiz = await db.quizzes.find_one({"_id": quiz_id})
     if quiz is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"quiz {quiz_id} not found"
@@ -797,7 +803,7 @@ async def reveal_correct_answer(
             detail="session answer missing question_id",
         )
 
-    question = client.quiz.questions.find_one({"_id": question_id})
+    question = await db.questions.find_one({"_id": question_id})
     if question is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -153,7 +153,7 @@ The backend is deployed on **ECS Fargate** (ARM64/Graviton) for both testing and
 Infrastructure is managed by Terraform in `terraform/testing/` and `terraform/prod/`. Configure ECS application variables in the corresponding gitignored `terraform.tfvars`, using `terraform.tfvars.example` as the template. See [`docs/ENV.md`](docs/ENV.md) for details.
 
 ## Tests
-Tests run against a real MongoDB instance (local or CI service) and clear its `quiz` database. Make sure MongoDB is running locally, `MONGO_AUTH_CREDENTIALS` points to a disposable test instance, and opt in to the reset only for the test command:
+Tests run against a real MongoDB instance (local or CI service) and clear the `quiz_test` database. The test harness forces `MONGO_DB_NAME=quiz_test`, but `MONGO_AUTH_CREDENTIALS` must still point to a disposable local instance. Opt in to the reset only for the test command:
 
 ```bash
 ALLOW_TEST_DATABASE_RESET=1 pytest
