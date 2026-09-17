@@ -95,7 +95,14 @@ def _is_required_form_answer_complete(question: Dict[str, Any], answer: Any) -> 
         matrix_rows = question.get("matrix_rows") or []
         if len(matrix_rows) == 0:
             return False
-        row_values = [answer.get(row) for row in matrix_rows]
+        # blank row labels are stored under the "__default__" key by the
+        # frontend answer entry components (e.g. single-row matrix ratings)
+        row_values = [
+            answer[row]
+            if row in answer
+            else (answer.get("__default__") if not str(row or "").strip() else None)
+            for row in matrix_rows
+        ]
         if question_type in ["matrix-subjective", "matrix-numerical"]:
             return all(
                 isinstance(value, str) and value.strip() != "" for value in row_values
