@@ -71,3 +71,38 @@ variable "cms_service_token" {
   type        = string
   sensitive   = true
 }
+
+variable "backend_image" {
+  description = "Exact backend image reference. Capture the service's current SHA tag or digest before every infrastructure apply."
+  type        = string
+  validation {
+    condition     = can(regex("(:[0-9a-f]{40}|@sha256:[0-9a-f]{64})$", var.backend_image))
+    error_message = "Use a full commit-SHA image tag or sha256 digest, never latest."
+  }
+}
+
+variable "cache_enabled" {
+  description = "Enable Redis reads/writes only after staging validation."
+  type        = bool
+  default     = false
+}
+
+variable "cache_namespace" {
+  description = "Redis key namespace."
+  type        = string
+  default     = "v1"
+  validation {
+    condition     = can(regex("^[A-Za-z0-9_-]+$", var.cache_namespace))
+    error_message = "Use a nonempty namespace containing letters, numbers, underscores or hyphens."
+  }
+}
+
+variable "redis_max_connections" {
+  description = "Redis pool limit per backend worker; tune from measured load."
+  type        = number
+  default     = 10
+  validation {
+    condition     = var.redis_max_connections >= 1 && floor(var.redis_max_connections) == var.redis_max_connections
+    error_message = "Redis pool limit must be a positive integer."
+  }
+}

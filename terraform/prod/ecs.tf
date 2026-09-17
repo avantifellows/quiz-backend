@@ -41,7 +41,7 @@ resource "aws_ecs_task_definition" "quiz_backend" {
   container_definitions = jsonencode([
     {
       name      = "quiz-backend"
-      image     = "${aws_ecr_repository.quiz_backend.repository_url}:latest"
+      image     = var.backend_image
       essential = true
 
       portMappings = [
@@ -70,7 +70,7 @@ resource "aws_ecs_task_definition" "quiz_backend" {
         },
         {
           name  = "CACHE_ENABLED"
-          value = "false"
+          value = tostring(var.cache_enabled)
         },
         {
           name  = "REDIS_URL"
@@ -78,11 +78,11 @@ resource "aws_ecs_task_definition" "quiz_backend" {
         },
         {
           name  = "REDIS_MAX_CONNECTIONS"
-          value = "10"
+          value = tostring(var.redis_max_connections)
         },
         {
           name  = "CACHE_NAMESPACE"
-          value = "v1"
+          value = var.cache_namespace
         }
       ]
 

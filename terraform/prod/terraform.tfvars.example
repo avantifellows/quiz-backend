@@ -20,3 +20,10 @@ task_memory   = 2048  # 2 GB
 cloudflare_api_key   = "your-cloudflare-global-api-key"
 cloudflare_email     = "your-cloudflare-email@example.com"
 cloudflare_zone_name = "avantifellows.org"
+
+# Required: copy the currently deployed image before EACH Terraform apply.
+# Replace the placeholder with a real full commit SHA or image digest.
+backend_image = "111766607077.dkr.ecr.ap-south-1.amazonaws.com/quiz-backend-prod:REPLACE_WITH_FULL_COMMIT_SHA"
+cache_enabled = false
+cache_namespace = "v1"
+redis_max_connections = 10

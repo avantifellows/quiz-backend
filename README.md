@@ -164,3 +164,8 @@ Do not add `ALLOW_TEST_DATABASE_RESET` to `.env`.
 ## Logs
 
 Application logs are configured in `app/logger_config.py` and output to stdout/stderr. On ECS Fargate, logs are sent to CloudWatch Logs automatically.
+
+Redis cache infrastructure and enablement require a separate Terraform rollout;
+app deployments only replace the backend image. Caching stays disabled by default.
+Follow the [Redis rollout guide](docs/redis-cache-rollout.md), including the required
+pinned `backend_image`, before applying infrastructure or enabling caching.
