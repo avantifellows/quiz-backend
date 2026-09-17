@@ -4,7 +4,7 @@ from fastapi import APIRouter, status, HTTPException, Query
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, ConfigDict
-from database import client
+from database import get_quiz_db
 from models import Quiz, GetQuizResponse, CreateQuizResponse
 from settings import Settings
 from schemas import QuizType
@@ -39,12 +39,12 @@ def _clear_solutions_in_place(quiz: dict) -> None:
             question["solution"] = []
 
 
-def update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz):
+async def update_quiz_for_backwards_compatibility(quiz_id, quiz):
     """
     if given quiz contains question sets that do not have max_questions_allowed_to_attempt key,
     update the question sets (in-place) with the key and value as len(questions) in that set.
     Additionally, add a default title and marking scheme for the set.
-    Finally, add quiz to quiz_collection
+    Finally, update the quiz in the database.
     (NOTE: this is a primitive form of versioning)
     """
     is_backwards_compatibile = True
@@ -76,7 +76,8 @@ def update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz):
         return
 
     logger.info("Starting update for backwards compatibility")
-    update_result = quiz_collection.update_one({"_id": quiz_id}, {"$set": quiz})
+    db = get_quiz_db()
+    update_result = await db.quizzes.update_one({"_id": quiz_id}, {"$set": quiz})
 
     if not update_result.acknowledged:
         logger.error("Failed to update quiz for backwards compatibility")
@@ -88,7 +89,7 @@ def update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz):
     logger.info("Quiz updated for backwards compatibility")
 
 
-def _aggregate_question_set_subset(question_set_id) -> list:
+async def _aggregate_question_set_subset(question_set_id) -> list:
     """Build the question list a quiz doc stores for one set: the first `subset_size`
     questions in full detail plus the rest projected to grading-only fields. The questions
     themselves live in full in the `questions` collection; this is the denormalized subset
@@ -98,14 +99,15 @@ def _aggregate_question_set_subset(question_set_id) -> list:
     in list order at insert time — the create and regenerate paths rely on this to keep the
     embedded subset aligned with the authored question order.
     """
-    subset_with_details = client.quiz.questions.aggregate(
+    db = get_quiz_db()
+    cursor_with_details = await db.questions.aggregate(
         [
             {"$match": {"question_set_id": question_set_id}},
             {"$sort": {"_id": 1}},
             {"$limit": settings.subset_size},
         ]
     )
-    subset_without_details = client.quiz.questions.aggregate(
+    cursor_without_details = await db.questions.aggregate(
         [
             {"$match": {"question_set_id": question_set_id}},
             {"$sort": {"_id": 1}},
@@ -123,13 +125,16 @@ def _aggregate_question_set_subset(question_set_id) -> list:
             },
         ]
     )
-    return list(subset_with_details) + list(subset_without_details)
+    subset_with_details = await cursor_with_details.to_list(length=None)
+    subset_without_details = await cursor_without_details.to_list(length=None)
+    return subset_with_details + subset_without_details
 
 
-def _insert_quiz_with_questions(quiz: dict) -> str:
+async def _insert_quiz_with_questions(quiz: dict) -> str:
     """Insert a quiz (already jsonable-encoded) and its questions into Mongo, returning
     the new quiz id. Shared by the direct create endpoint and the CMS-ingest endpoint.
     """
+    db = get_quiz_db()
     log_message = "Starting quiz creation"
     log_with_source = ""
     log_with_source_id = ""
@@ -147,7 +152,7 @@ def _insert_quiz_with_questions(quiz: dict) -> str:
         for question_index, _ in enumerate(questions):
             questions[question_index]["question_set_id"] = question_set["_id"]
 
-        result = client.quiz.questions.insert_many(questions)
+        result = await db.questions.insert_many(questions)
         if result.acknowledged:
             logger.info(
                 f"Inserted {len(questions)} questions for quiz{log_with_source}{log_with_source_id}"
@@ -162,9 +167,9 @@ def _insert_quiz_with_questions(quiz: dict) -> str:
 
         quiz["question_sets"][question_set_index][
             "questions"
-        ] = _aggregate_question_set_subset(question_set["_id"])
+        ] = await _aggregate_question_set_subset(question_set["_id"])
 
-    new_quiz_result = client.quiz.quizzes.insert_one(quiz)
+    new_quiz_result = await db.quizzes.insert_one(quiz)
     if not new_quiz_result.acknowledged:
         error_message = f"Failed to insert quiz{log_with_source}{log_with_source_id}"
         logger.error(error_message)
@@ -233,7 +238,7 @@ class CmsQuizIngestRequest(BaseModel):
 @router.post("/", response_model=CreateQuizResponse)
 async def create_quiz(quiz: Quiz):
     quiz = jsonable_encoder(quiz)
-    quiz_id = _insert_quiz_with_questions(quiz)
+    quiz_id = await _insert_quiz_with_questions(quiz)
     return JSONResponse(status_code=status.HTTP_201_CREATED, content={"id": quiz_id})
 
 
@@ -271,7 +276,7 @@ async def create_quiz_from_cms(request: CmsQuizIngestRequest):
 
     # Validate + fill defaults (ids, etc.) through the same model the direct endpoint uses.
     quiz = jsonable_encoder(Quiz(**quiz_dict))
-    quiz_id = _insert_quiz_with_questions(quiz)
+    quiz_id = await _insert_quiz_with_questions(quiz)
 
     if warnings:
         logger.warning(
@@ -305,8 +310,8 @@ async def regenerate_quiz_from_cms(quiz_id: str, request: CmsQuizIngestRequest):
     positional _id mapping that keeps attempts linked would otherwise silently misalign.
     """
     logger.info(f"CMS regenerate: quiz {quiz_id} from test {request.test_id}")
-    quiz_collection = client.quiz.quizzes
-    existing = quiz_collection.find_one({"_id": quiz_id})
+    db = get_quiz_db()
+    existing = await db.quizzes.find_one({"_id": quiz_id})
     if existing is None:
         logger.warning(f"Requested quiz {quiz_id} not found for regenerate")
         raise HTTPException(
@@ -347,7 +352,7 @@ async def regenerate_quiz_from_cms(quiz_id: str, request: CmsQuizIngestRequest):
                 mismatch = f"question count in set {i} changed ({len(old_qs)} -> {len(new_qs)})"
                 break
             for j, (old_q, new_q) in enumerate(zip(old_qs, new_qs)):
-                existing_q = client.quiz.questions.find_one({"_id": old_q["_id"]}) or {}
+                existing_q = await db.questions.find_one({"_id": old_q["_id"]}) or {}
                 existing_questions[(i, j)] = existing_q
                 old_src = existing_q.get("source_id")
                 new_src = new_q.get("source_id")
@@ -387,9 +392,9 @@ async def regenerate_quiz_from_cms(quiz_id: str, request: CmsQuizIngestRequest):
             for key, value in existing_q.items():
                 if key not in new_q:
                     new_q[key] = value
-            client.quiz.questions.replace_one({"_id": question_id}, new_q)
+            await db.questions.replace_one({"_id": question_id}, new_q)
         # Re-derive the embedded subset from the refreshed question docs.
-        new_s["questions"] = _aggregate_question_set_subset(new_s["_id"])
+        new_s["questions"] = await _aggregate_question_set_subset(new_s["_id"])
 
     # Preserve session-editable settings the LMS set on the quiz doc (content comes from CMS).
     for field in _SESSION_EDITABLE_QUIZ_FIELDS:
@@ -415,7 +420,7 @@ async def regenerate_quiz_from_cms(quiz_id: str, request: CmsQuizIngestRequest):
         if key not in new_quiz:
             new_quiz[key] = value
 
-    result = quiz_collection.replace_one({"_id": quiz_id}, new_quiz)
+    result = await db.quizzes.replace_one({"_id": quiz_id}, new_quiz)
     if not result.acknowledged:
         error_message = f"Failed to regenerate quiz {quiz_id}"
         logger.error(error_message)
@@ -462,9 +467,8 @@ async def patch_quiz(quiz_id: str, request: QuizPatchRequest):
     Called by the LMS when a quiz session is edited so the display/scoring settings
     on the quiz doc stay in sync, without rebuilding the quiz or its questions.
     """
-    quiz_collection = client.quiz.quizzes
-
-    existing = quiz_collection.find_one(
+    db = get_quiz_db()
+    existing = await db.quizzes.find_one(
         {"_id": quiz_id}, {"_id": 1, "metadata": 1, "time_limit": 1}
     )
     if existing is None:
@@ -500,7 +504,7 @@ async def patch_quiz(quiz_id: str, request: QuizPatchRequest):
             status_code=status.HTTP_200_OK, content={"id": quiz_id, "updated": []}
         )
 
-    result = quiz_collection.update_one({"_id": quiz_id}, {"$set": set_ops})
+    result = await db.quizzes.update_one({"_id": quiz_id}, {"$set": set_ops})
     if not result.acknowledged:
         error_message = f"Failed to patch quiz {quiz_id}"
         logger.error(error_message)
@@ -530,9 +534,9 @@ async def get_quiz(
     logger.info(
         f"Starting to get quiz: {quiz_id} with omr_mode={omr_mode}, single_page_mode={single_page_mode}, include_answers={include_answers}"
     )
-    quiz_collection = client.quiz.quizzes
+    db = get_quiz_db()
 
-    if (quiz := quiz_collection.find_one({"_id": quiz_id})) is None:
+    if (quiz := await db.quizzes.find_one({"_id": quiz_id})) is None:
         logger.warning(f"Requested quiz {quiz_id} not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"quiz {quiz_id} not found"
@@ -552,7 +556,7 @@ async def get_quiz(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"quiz {quiz_id} not found"
         )
 
-    update_quiz_for_backwards_compatibility(quiz_collection, quiz_id, quiz)
+    await update_quiz_for_backwards_compatibility(quiz_id, quiz)
 
     # Handle single page mode with full text (non-OMR)
     if single_page_mode and not omr_mode:
@@ -561,10 +565,10 @@ async def get_quiz(
         )
         # Fetch all questions with full details for each question set
         for question_set_index, question_set in enumerate(quiz["question_sets"]):
-            all_questions = list(
-                client.quiz.questions.find(
-                    {"question_set_id": question_set["_id"]}
-                ).sort("_id", 1)
+            all_questions = (
+                await db.questions.find({"question_set_id": question_set["_id"]})
+                .sort("_id", 1)
+                .to_list(length=None)
             )
             quiz["question_sets"][question_set_index]["questions"] = all_questions
         logger.info(f"Finished fetching all questions for single page mode: {quiz_id}")
@@ -595,29 +599,28 @@ async def get_quiz(
         # find questions with given question set ids
         # count number of options for each question in a qset id
         # group them together into an optionsArray
-        options_count_across_sets = list(
-            client.quiz.questions.aggregate(
-                [
-                    {"$match": {"question_set_id": {"$in": question_set_ids}}},
-                    {"$sort": {"_id": 1}},  # sort questions based on question_id
-                    {
-                        "$project": {
-                            "_id": 0,
-                            "question_set_id": "$question_set_id",
-                            "number_of_options": {"$size": "$options"},
-                        }
-                    },
-                    {
-                        "$group": {
-                            "_id": "$question_set_id",
-                            "options_count_per_set": {"$push": "$number_of_options"},
-                        }
-                    },
-                    {"$sort": {"_id": 1}},  # sort sets based on question_set_id
-                    {"$project": {"_id": 0, "options_count_per_set": 1}},
-                ]
-            )
+        cursor = await db.questions.aggregate(
+            [
+                {"$match": {"question_set_id": {"$in": question_set_ids}}},
+                {"$sort": {"_id": 1}},  # sort questions based on question_id
+                {
+                    "$project": {
+                        "_id": 0,
+                        "question_set_id": "$question_set_id",
+                        "number_of_options": {"$size": "$options"},
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": "$question_set_id",
+                        "options_count_per_set": {"$push": "$number_of_options"},
+                    }
+                },
+                {"$sort": {"_id": 1}},  # sort sets based on question_set_id
+                {"$project": {"_id": 0, "options_count_per_set": 1}},
+            ]
         )
+        options_count_across_sets = await cursor.to_list(length=None)
         for question_set_index, question_set in enumerate(quiz["question_sets"]):
             updated_subset_without_details = []
             options_count_per_set = options_count_across_sets[question_set_index][

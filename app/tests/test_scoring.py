@@ -1,12 +1,15 @@
 import json
 import unittest
+from pathlib import Path
 
 from services.scoring import compute_session_metrics
+
+_DUMMY = Path(__file__).resolve().parent / "dummy_data"
 
 
 class TestScoring(unittest.TestCase):
     def test_assessment_metrics_with_partial_and_ungraded(self):
-        quiz = json.load(open("app/tests/dummy_data/scoring_small_assessment.json"))
+        quiz = json.load(open(_DUMMY / "scoring_small_assessment.json"))
         session = {
             "session_answers": [
                 {"answer": [0, 2], "marked_for_review": False},
@@ -39,7 +42,7 @@ class TestScoring(unittest.TestCase):
         self.assertEqual(metrics["total_marks"], 5.0)
 
     def test_form_metrics_counts_only(self):
-        quiz = json.load(open("app/tests/dummy_data/scoring_small_form.json"))
+        quiz = json.load(open(_DUMMY / "scoring_small_form.json"))
         session = {
             "session_answers": [
                 {"answer": "yes", "marked_for_review": False},

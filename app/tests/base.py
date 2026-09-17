@@ -1,15 +1,29 @@
+import os
 import unittest
 import json
-import os
-from fastapi.testclient import TestClient
+from pathlib import Path
+
+from pymongo import MongoClient
 from pymongo.errors import ConfigurationError, InvalidURI
 from pymongo.uri_parser import parse_uri
-from main import app
-from database import client as mongo_client
+from fastapi.testclient import TestClient
 from routers import quizzes, sessions, organizations
 
+# Resolve fixture directory relative to this file so tests work regardless of CWD
+_DUMMY_DATA = Path(__file__).resolve().parent / "dummy_data"
 
+# Safe test database name — must never be "quiz" (the production DB)
+_TEST_DB_NAME = "quiz_test"
 _LOCAL_MONGO_HOSTS = {"localhost", "127.0.0.1", "::1"}
+
+
+def _guard_db_name(db_name: str) -> None:
+    """Refuse to operate if the effective DB name is the production DB."""
+    if db_name == "quiz":
+        raise RuntimeError(
+            "Refusing to run test cleanup against the production 'quiz' database. "
+            "Set MONGO_DB_NAME to a safe test database name."
+        )
 
 
 def _assert_safe_test_database(uri):
@@ -33,50 +47,74 @@ def _assert_safe_test_database(uri):
 class BaseTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.client = TestClient(app)
+        # 1. Force a safe test DB name BEFORE any app imports that read settings
+        os.environ["MONGO_DB_NAME"] = _TEST_DB_NAME
+
+        # 2. Validate the exact database target before constructing either client
+        from settings import get_mongo_settings
+
+        mongo_settings = get_mongo_settings()
+        _guard_db_name(mongo_settings.mongo_db_name)
+        _assert_safe_test_database(mongo_settings.mongo_auth_credentials)
+        cls._mongo_uri = mongo_settings.mongo_auth_credentials
+
+        # 3. Create a sync admin client for direct DB operations in tests
+        cls._admin_client = MongoClient(mongo_settings.mongo_auth_credentials)
+        cls.addClassCleanup(cls._admin_client.close)
+        cls._admin_db = cls._admin_client[mongo_settings.mongo_db_name]
+
+        # 4. Import and construct the app (triggers lifespan on TestClient enter)
+        from main import create_app
+
+        app = create_app()
+        cls._test_client_ctx = TestClient(app)
+        cls.client = cls._test_client_ctx.__enter__()
+        cls.addClassCleanup(cls._test_client_ctx.__exit__, None, None, None)
+
+    @property
+    def db(self):
+        """Sync admin database handle for direct DB operations in tests."""
+        return self.__class__._admin_db
+
+    def _clear_test_database(self):
+        _assert_safe_test_database(self.__class__._mongo_uri)
+        _guard_db_name(self.db.name)
+        for collection_name in self.db.list_collection_names():
+            self.db.drop_collection(collection_name)
 
     def setUp(self):
-        _assert_safe_test_database(os.environ["MONGO_AUTH_CREDENTIALS"])
-        # Drop all collections in the quiz database before each test
-        # to ensure test isolation
-        db = mongo_client.quiz
-        for collection_name in db.list_collection_names():
-            db.drop_collection(collection_name)
+        self._clear_test_database()
+        self.addCleanup(self._clear_test_database)
+
         # Set up for organizations
-        self.organization_data = json.load(
-            open("app/tests/dummy_data/organization.json")
-        )
+        self.organization_data = json.load(open(_DUMMY_DATA / "organization.json"))
         self.organization_api_key, self.organization = self.post_and_get_organization(
             self.organization_data
         )
 
         # short homework quiz
         self.short_homework_quiz_data = json.load(
-            open("app/tests/dummy_data/short_homework_quiz.json")
+            open(_DUMMY_DATA / "short_homework_quiz.json")
         )
         self.short_homework_quiz_id, self.short_homework_quiz = self.post_and_get_quiz(
             self.short_homework_quiz_data
         )
 
         # homework quiz
-        self.homework_quiz_data = json.load(
-            open("app/tests/dummy_data/homework_quiz.json")
-        )
+        self.homework_quiz_data = json.load(open(_DUMMY_DATA / "homework_quiz.json"))
         self.homework_quiz_id, self.homework_quiz = self.post_and_get_quiz(
             self.homework_quiz_data
         )
 
         # timed quiz
-        self.timed_quiz_data = json.load(
-            open("app/tests/dummy_data/assessment_timed.json")
-        )
+        self.timed_quiz_data = json.load(open(_DUMMY_DATA / "assessment_timed.json"))
         self.timed_quiz_id, self.timed_quiz = self.post_and_get_quiz(
             self.timed_quiz_data
         )
 
         # assessment quiz with multiple question sets
         self.multi_qset_quiz_data = json.load(
-            open("app/tests/dummy_data/multiple_question_set_quiz.json")
+            open(_DUMMY_DATA / "multiple_question_set_quiz.json")
         )
         self.multi_qset_quiz_id, self.multi_qset_quiz = self.post_and_get_quiz(
             self.multi_qset_quiz_data
@@ -84,7 +122,7 @@ class BaseTestCase(unittest.TestCase):
 
         # omr quiz with multiple question sets (same content as above)
         self.multi_qset_omr_data = json.load(
-            open("app/tests/dummy_data/multiple_question_set_omr_quiz.json")
+            open(_DUMMY_DATA / "multiple_question_set_omr_quiz.json")
         )
         self.multi_qset_omr_id, self.multi_qset_omr = self.post_and_get_quiz(
             self.multi_qset_omr_data
@@ -92,7 +130,7 @@ class BaseTestCase(unittest.TestCase):
 
         # quiz with partial marking
         self.partial_mark_data = json.load(
-            open("app/tests/dummy_data/partial_marking_assessment.json")
+            open(_DUMMY_DATA / "partial_marking_assessment.json")
         )
         self.partial_mark_quiz_id, self.partial_mark_quiz = self.post_and_get_quiz(
             self.partial_mark_data
@@ -100,7 +138,7 @@ class BaseTestCase(unittest.TestCase):
 
         # quiz with matrix matching
         self.matrix_match_data = json.load(
-            open("app/tests/dummy_data/matrix_matching_assessment.json")
+            open(_DUMMY_DATA / "matrix_matching_assessment.json")
         )
         self.matrix_match_quiz_id, self.matrix_match_quiz = self.post_and_get_quiz(
             self.matrix_match_data

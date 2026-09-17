@@ -1,6 +1,6 @@
 import pytest
 
-from .base import _assert_safe_test_database
+from .base import _assert_safe_test_database, _guard_db_name
 
 
 @pytest.mark.parametrize(
@@ -26,3 +26,8 @@ def test_rejects_non_local_mongodb(monkeypatch):
     monkeypatch.setenv("ALLOW_TEST_DATABASE_RESET", "1")
     with pytest.raises(RuntimeError, match="Refusing to reset a non-local MongoDB"):
         _assert_safe_test_database("mongodb://production.example.com:27017")
+
+
+def test_rejects_production_database_name():
+    with pytest.raises(RuntimeError, match="production 'quiz' database"):
+        _guard_db_name("quiz")

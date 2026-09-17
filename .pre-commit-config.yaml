@@ -24,6 +24,15 @@ repos:
       # https://flake8.pycqa.org/en/latest/user/error-codes.html
       - "--ignore=E501,E203,W503"
 
+- repo: local
+  hooks:
+  - id: ban-mixed-imports
+    name: ban mixed-root app module imports
+    entry: bash -c 'if grep -rnE "(from \.\.|from app\.|import app\.)(main|database|routers|models|schemas|services|logger_config)\b" app/; then echo "Banned mixed-root import detected. Use canonical top-level imports."; exit 1; fi'
+    language: system
+    types: [python]
+    pass_filenames: false
+
 - repo: https://github.com/terraform-linters/tflint
   rev: v0.30.0
   hooks:

@@ -1,32 +1,40 @@
-import os
-from pymongo import MongoClient
+from pymongo import AsyncMongoClient
+from settings import get_mongo_settings
 
-# Load .env for local development — in CI/ECS the env var is set directly.
-# load_dotenv() searches upward from CWD, so it works from both the repo root
-# and the app/ directory.
-if "MONGO_AUTH_CREDENTIALS" not in os.environ:
-    from dotenv import load_dotenv
+_client = None
 
-    load_dotenv()
 
-if not os.getenv("MONGO_AUTH_CREDENTIALS"):
-    raise RuntimeError(
-        "MONGO_AUTH_CREDENTIALS is not set. "
-        "Set it in your environment or in a .env file at the repo root."
-    )
+def get_configured_db_name():
+    return get_mongo_settings().mongo_db_name
 
-# Connection pool configuration for ECS Fargate
-# Each container maintains a pool of reusable connections to MongoDB
-client = MongoClient(
-    os.getenv("MONGO_AUTH_CREDENTIALS"),
-    # Connection Pool Settings
-    maxPoolSize=20,  # Max connections this container will use
-    minPoolSize=5,  # Keep 5 connections always open
-    # Timeout Settings
-    maxIdleTimeMS=30000,  # Close idle connections after 30 seconds
-    connectTimeoutMS=5000,  # Fail fast if can't connect in 5 seconds
-    serverSelectionTimeoutMS=5000,
-    # Reliability Settings
-    retryWrites=True,  # Retry failed writes automatically
-    retryReads=True,  # Retry failed reads automatically
-)
+
+def init_db():
+    global _client
+    if _client is None:
+        mongo_settings = get_mongo_settings()
+        _client = AsyncMongoClient(
+            mongo_settings.mongo_auth_credentials,
+            # Connection Pool Settings
+            maxPoolSize=mongo_settings.mongo_max_pool_size,
+            minPoolSize=mongo_settings.mongo_min_pool_size,
+            # Timeout Settings
+            maxIdleTimeMS=30000,
+            connectTimeoutMS=5000,
+            serverSelectionTimeoutMS=5000,
+            # Reliability Settings
+            retryWrites=True,
+            retryReads=True,
+        )
+
+
+def get_quiz_db():
+    if _client is None:
+        raise RuntimeError("Database client is not initialized")
+    return _client[get_configured_db_name()]
+
+
+async def close_db():
+    global _client
+    if _client is not None:
+        await _client.close()
+        _client = None

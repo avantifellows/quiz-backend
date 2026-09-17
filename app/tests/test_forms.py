@@ -1,7 +1,7 @@
 import copy
 
 from .base import BaseTestCase
-from ..routers import forms, quizzes
+from routers import forms, quizzes
 from settings import Settings
 
 
