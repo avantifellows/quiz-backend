@@ -92,3 +92,24 @@ Minimum number of connections maintained in the AsyncMongoClient connection pool
 ```
 MONGO_MIN_POOL_SIZE=2
 ```
+
+### Redis cache deployment settings
+
+Terraform controls `CACHE_ENABLED` (default `false`), `CACHE_NAMESPACE` (default
+`v1`), and `REDIS_MAX_CONNECTIONS` (default `10` per backend worker), using
+`cache_enabled`, `cache_namespace`, and `redis_max_connections` in each
+environment's tfvars. `REDIS_URL` points to the task-local Redis sidecar at
+`redis://localhost:6379/0`. The sidecar must be installed through Terraform before
+enabling caching; app deployments alone do not install it.
+
+Terraform also requires `backend_image`: the exact current SHA-tagged image or
+image digest. Refresh it before each infrastructure apply to avoid changing
+backend code accidentally. See [Redis rollout and rollback](redis-cache-rollout.md)
+for the deployment order, validation, and how to capture the running image.
+
+`REDIS_TIMEOUT_SECONDS` defaults to `0.25` seconds (valid range: greater than zero
+and at most five). It bounds each Redis connection/ping, GET, SET and client-close
+operation. Socket deadlines and disabled command retries provide additional
+protection. After a cache failure, requests use MongoDB during a five-second
+reconnect cooldown. This setting is not the cache entry TTL or an overall HTTP
+request deadline; a request can perform multiple bounded cache operations.

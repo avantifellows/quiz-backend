@@ -65,10 +65,16 @@ jobs:
 
       - name: Fetch current task definition
         run: |
+          CURRENT_TASK=$(aws ecs describe-services \
+            --cluster "${{ env.ECS_CLUSTER }}" --services "${{ env.ECS_SERVICE }}" \
+            --query 'services[0].taskDefinition' --output text)
           aws ecs describe-task-definition \
-            --task-definition ${{ env.TASK_DEFINITION_FAMILY }} \
+            --task-definition "$CURRENT_TASK" \
             --query 'taskDefinition' \
             --output json > task-definition-full.json
+
+      - name: Check cache deployment configuration
+        run: python3 scripts/check_cache_deployment.py task-definition-full.json
 
       - name: Clean task definition
         run: |
@@ -102,13 +108,26 @@ jobs:
           wait-max-delay-seconds: 15
 
       - name: Verify deployment
+        env:
+          EXPECTED_IMAGE: ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.vars.outputs.sha }}
         run: |
-          echo "Checking ECS service status..."
-          aws ecs describe-services \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --services ${{ env.ECS_SERVICE }} \
-            --query 'services[0].{taskDefinition:taskDefinition,runningCount:runningCount,desiredCount:desiredCount,status:status}' \
-            --output table
+          TASK_ARNS=$(aws ecs list-tasks --cluster "${{ env.ECS_CLUSTER }}" \
+            --service-name "${{ env.ECS_SERVICE }}" --desired-status RUNNING \
+            --query 'taskArns' --output text)
+          if [ -z "$TASK_ARNS" ] || [ "$TASK_ARNS" = "None" ]; then
+            DESIRED=$(aws ecs describe-services --cluster "${{ env.ECS_CLUSTER }}" \
+              --services "${{ env.ECS_SERVICE }}" --query 'services[0].desiredCount' --output text)
+            if [ "$DESIRED" != "0" ]; then
+              echo "No running tasks for a nonzero desired count"; exit 1
+            fi
+            echo "Service scaled to zero; runtime/cache validation not performed."
+          else
+            mapfile -t TASK_ARRAY < <(printf '%s\n' "$TASK_ARNS" | tr '[:space:]' '\n' | sed '/^$/d')
+            aws ecs describe-tasks --cluster "${{ env.ECS_CLUSTER }}" \
+              --tasks "${TASK_ARRAY[@]}" --output json > running-tasks.json
+            python3 scripts/check_cache_deployment.py task-definition-full.json \
+              --tasks running-tasks.json --expected-image "$EXPECTED_IMAGE"
+          fi
 
       - name: Smoke test
         run: |

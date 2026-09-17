@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import Field
 
 
 class Settings(BaseSettings):
@@ -54,3 +55,33 @@ def get_mongo_settings():
     Must only be called inside functions, never at module scope.
     """
     return MongoSettings()
+
+
+class CacheSettings(BaseSettings):
+    """Redis cache settings, read from environment variables.
+
+    Attributes
+    ----------
+    cache_enabled : bool
+        Whether Redis caching is active (env: CACHE_ENABLED, default: False)
+    redis_url : str
+        Redis connection URI (env: REDIS_URL, default: redis://localhost:6379/0)
+    redis_max_connections : int
+        Max connections per worker (env: REDIS_MAX_CONNECTIONS, default: 10)
+    cache_namespace : str
+        Key prefix for cache versioning (env: CACHE_NAMESPACE, default: v1)
+    """
+
+    cache_enabled: bool = False
+    redis_url: str = "redis://localhost:6379/0"
+    redis_max_connections: int = 10
+    cache_namespace: str = "v1"
+    redis_timeout_seconds: float = Field(default=0.25, gt=0, le=5)
+
+
+def get_cache_settings():
+    """Return a fresh CacheSettings instance from current environment.
+
+    Must only be called inside functions, never at module scope.
+    """
+    return CacheSettings()
