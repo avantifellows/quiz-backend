@@ -8,7 +8,7 @@ Status: plan only; the tests below have not yet been executed for #142.
 
 Prove that caching preserves quiz behavior, actually reduces repeated MongoDB reads, and recovers safely when Redis is unavailable. Functional checks alone do not establish a capacity improvement.
 
-Pass requires all correctness cases below, cache-hit evidence for every cache family, bounded Redis failure behavior, successful recovery/rollback, and repeatable performance results. Stale session settings, answer leakage, incorrect scores, lost answers, or indefinite startup/request hangs block enabling caching. Report failed or unavailable checks explicitly.
+Pass requires all correctness cases below, cache-hit evidence for every cache family, bounded Redis failure behavior, successful recovery/rollback, and repeatable performance results. The user accepts up to one hour of stale quiz/settings data (five minutes for organization authentication). Verify refresh after expiry; do not require immediate invalidation. Answer leakage, scores inconsistent with the cached version, lost answers, or indefinite startup/request hangs block enabling caching. Report failed or unavailable checks explicitly.
 
 ## Findings that shape the plan
 
@@ -45,8 +45,8 @@ Run the primary flows with cache off, cold, and warm. Compare normalized respons
 | Concurrent users | Run independent synthetic users on one quiz. Verify no answer/session cross-contamination, correct scores, and no lost writes. Include simultaneous cold-cache reads to detect duplicate-load spikes. |
 | Legacy documents | Remove compatibility fields only from a tracked synthetic quiz. First read must repair MongoDB and cache the repaired document; subsequent reads must agree. Do not run the repository-wide backfill against staging. |
 | TTL | Inspect new keys: positive TTL <=3,600 seconds (<=300 for organization authentication). Shorten TTL only for tracked fixture keys, let them expire, and verify MongoDB refill plus restored TTL. Confirm unrelated keys are untouched. |
-| Mutable settings — blocking | Warm a quiz, PATCH its title/shuffle/show_scores/review_immediate, then GET it and create a fresh session. Compare to MongoDB and cache-off behavior. Repeat per task. Required settings must take effect consistently; stale behavior is a release blocker unless the product explicitly accepts a documented delay. |
-| Content edits | On a disposable fixture only, warm quiz/question/list/OMR keys, update content/answer key through supported paths, and compare display, scoring, and reveal. Record the no-invalidation limitation and how immutable publishing is enforced. Do not treat a one-hour stale scoring window as a passing result. |
+| Mutable settings — accepted TTL | Warm a quiz, PATCH its title/shuffle/show_scores/review_immediate, then GET it and create a fresh session. Compare to MongoDB and cache-off behavior. Repeat per task. Old settings within the TTL are accepted. After expiry/refill, settings must match MongoDB on every tested task. |
+| Content edits | On a disposable fixture only, warm quiz/question/list/OMR keys, update content/answer key through supported paths, and compare display, scoring, and reveal. Record the no-invalidation limitation and how immutable publishing is enforced. The user accepts the one-hour freshness window; record that scoring may use the cached key during that window. |
 
 ## 3. Failure, memory, and multi-task checks
 

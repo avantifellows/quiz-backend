@@ -29,7 +29,7 @@ async def lifespan(app):
     init_db()
     # Verify connectivity — fail fast on bad credentials/DNS/network
     await database._client.admin.command("ping")
-    # Best-effort Redis init — never blocks startup
+    # Best-effort Redis init with a bounded connection deadline
     await init_cache()
     yield
     await close_cache()

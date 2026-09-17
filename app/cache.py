@@ -1,6 +1,9 @@
+import asyncio
 import json
 import time
 import redis.asyncio as redis
+from redis.asyncio.retry import Retry
+from redis.backoff import NoBackoff
 from fastapi.encoders import jsonable_encoder
 from logger_config import get_logger
 from settings import get_cache_settings
@@ -55,7 +58,8 @@ async def _close_old_client(old_client):
     """Close an old Redis client, suppressing errors to avoid masking the caller's context."""
     if old_client is not None:
         try:
-            await old_client.aclose()
+            async with asyncio.timeout(_cache_settings().redis_timeout_seconds):
+                await old_client.aclose()
         except Exception:
             pass
 
@@ -71,24 +75,32 @@ async def _ensure_cache_client(force: bool = False):
     if redis_client is not None and not force:
         return redis_client
 
-    now = time.time()
+    now = time.monotonic()
     if not force and now - _last_connect_attempt_ts < 5:
         return None
     _last_connect_attempt_ts = now
 
     old_client = redis_client
+    candidate = None
     try:
         candidate = redis.Redis.from_url(
             settings.redis_url,
             max_connections=settings.redis_max_connections,
             decode_responses=True,
+            socket_connect_timeout=settings.redis_timeout_seconds,
+            socket_timeout=settings.redis_timeout_seconds,
+            retry_on_timeout=False,
+            retry=Retry(NoBackoff(), 0),
         )
-        await candidate.ping()
+        async with asyncio.timeout(settings.redis_timeout_seconds):
+            await candidate.ping()
         redis_client = candidate
         await _close_old_client(old_client)
         return redis_client
     except Exception as e:
         redis_client = None
+        _last_connect_attempt_ts = time.monotonic()
+        await _close_old_client(candidate)
         await _close_old_client(old_client)
         if _should_log_cache_error():
             logger.warning(
@@ -99,14 +111,20 @@ async def _ensure_cache_client(force: bool = False):
 
 
 async def close_cache():
-    """Shutdown hook — close the Redis client if open."""
+    """Shutdown hook — close the Redis client within the cache deadline."""
     global redis_client
-    if redis_client is not None:
-        try:
-            await redis_client.aclose()
-        except Exception:
-            pass
+    old_client = redis_client
+    redis_client = None
+    await _close_old_client(old_client)
+
+
+async def _discard_failed_client(client):
+    """Back off after failure without discarding a newer concurrent connection."""
+    global redis_client, _last_connect_attempt_ts
+    if redis_client is client:
         redis_client = None
+        _last_connect_attempt_ts = time.monotonic()
+    await _close_old_client(client)
 
 
 def _should_log_cache_error() -> bool:
@@ -140,7 +158,8 @@ async def cache_get(key: str):
         _maybe_log_stats()
         return None
     try:
-        data = await client.get(key)
+        async with asyncio.timeout(_cache_settings().redis_timeout_seconds):
+            data = await client.get(key)
         if data is not None:
             _bump_stat(family, "hits")
             _maybe_log_stats()
@@ -148,10 +167,7 @@ async def cache_get(key: str):
         _bump_stat(family, "misses")
         _maybe_log_stats()
     except Exception as e:
-        global redis_client
-        old_client = redis_client
-        redis_client = None
-        await _close_old_client(old_client)
+        await _discard_failed_client(client)
         _bump_stat(family, "errors")
         _maybe_log_stats()
         if _should_log_cache_error():
@@ -170,12 +186,10 @@ async def cache_set(key: str, value, ttl_seconds: int = 3600):
         return
     try:
         payload = json.dumps(jsonable_encoder(value))
-        await client.setex(key, ttl_seconds, payload)
+        async with asyncio.timeout(_cache_settings().redis_timeout_seconds):
+            await client.setex(key, ttl_seconds, payload)
     except Exception as e:
-        global redis_client
-        old_client = redis_client
-        redis_client = None
-        await _close_old_client(old_client)
+        await _discard_failed_client(client)
         _bump_stat(family, "errors")
         _maybe_log_stats()
         if _should_log_cache_error():
