@@ -23,6 +23,16 @@ logger = setup_logger()
 
 COMPRESS_MIN_THRESHOLD = 1000  # if more than 1000 bytes (~1KB), compress
 
+# Paths whose last segment is a secret (organization API key) and must not be logged
+_SECRET_PATH_PREFIXES = ("/organizations/authenticate/",)
+
+
+def _loggable_path(path: str) -> str:
+    for prefix in _SECRET_PATH_PREFIXES:
+        if path.startswith(prefix):
+            return prefix + "<redacted>"
+    return path
+
 
 @asynccontextmanager
 async def lifespan(app):
@@ -42,26 +52,33 @@ def create_app():
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
         """
-        Intercepts all http requests and logs their details like
-        path, method, headers, time taken by request etc.
+        Logs one line per request when it finishes: path, method,
+        status code and time taken.
 
         Each request is assigned a random id (rid) which is used
         to track the request in logs.
+
+        Request headers are deliberately not logged: they were most of
+        the log volume (and CloudWatch cost) and carry client IPs.
+        ALB health checks are not logged at all.
         """
+        if request.url.path == "/health":
+            return await call_next(request)
+
         # random id for request so that we can track it in logs
         idem = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
-        logger.info(
-            f"rid={idem} start request path={request.url.path} method={request.method} headers={request.headers}"
-        )
         start_time = time.time()
-        response = await call_next(request)
-        process_time = (time.time() - start_time) * 1000
-        formatted_process_time = "{0:.2f}".format(process_time)
-        logger.info(
-            f"rid={idem} completed_in={formatted_process_time}ms status_code={response.status_code}"
-        )
-
-        return response
+        status_code = 500
+        try:
+            response = await call_next(request)
+            status_code = response.status_code
+            return response
+        finally:
+            process_time = (time.time() - start_time) * 1000
+            formatted_process_time = "{0:.2f}".format(process_time)
+            logger.info(
+                f"rid={idem} path={_loggable_path(request.url.path)} method={request.method} status_code={status_code} completed_in={formatted_process_time}ms"
+            )
 
     origins = [
         "http://localhost:8080",

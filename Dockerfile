@@ -24,4 +24,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 # Run FastAPI with Uvicorn
 # - 0.0.0.0: Listen on all interfaces (required for Docker)
 # - workers=4: Use 4 worker processes for better CPU utilization
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+# - no-access-log: the app's request middleware already logs every request
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--no-access-log"]

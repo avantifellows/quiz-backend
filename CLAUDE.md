@@ -125,6 +125,8 @@ set -a; source .env; set +a; ALLOW_TEST_DATABASE_RESET=1 pytest
 
 Required: `MONGO_AUTH_CREDENTIALS` - MongoDB connection URI
 Optional: `MONGO_DB_NAME` (default: `quiz`), `MONGO_MAX_POOL_SIZE` (default: 20), `MONGO_MIN_POOL_SIZE` (default: 5)
+Logging: `LOG_LEVEL` (default: `INFO`; `DEBUG` also logs per-answer and heartbeat details on the hot paths)
+
 Cache: `CACHE_ENABLED` (default: `false`), `REDIS_URL` (default: `redis://localhost:6379/0`), `REDIS_MAX_CONNECTIONS` (default: 10), `CACHE_NAMESPACE` (default: `v1`)
 
 Copy `.env.example` to `.env` for local development.

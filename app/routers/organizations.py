@@ -14,6 +14,11 @@ settings = Settings()
 logger = get_logger()
 
 
+def _mask_key(key: str) -> str:
+    """Enough of an API key to tell keys apart in logs, never the whole key."""
+    return f"{key[:4]}…(len={len(key)})"
+
+
 def generate_random_string(length: int = settings.api_key_length):
     return "".join(
         [secrets.choice(string.ascii_letters + string.digits) for _ in range(length)]
@@ -27,7 +32,6 @@ async def create_organization(organization: Organization):
 
     # create an API key
     key = generate_random_string()
-    logger.info(f"Generated API key: {key}")
 
     # check if API key exists
     db = get_quiz_db()
@@ -35,7 +39,9 @@ async def create_organization(organization: Organization):
         organization["key"] = key
         new_organization = await db.organization.insert_one(organization)
         if new_organization.acknowledged:
-            logger.info(f"Inserted new organization with API key: {key}")
+            logger.info(
+                f"Inserted new organization with id {new_organization.inserted_id}"
+            )
         else:
             logger.error("Failed to insert new organization")
             raise HTTPException(
@@ -51,7 +57,7 @@ async def create_organization(organization: Organization):
             content=created_organization,
         )
 
-    logger.error(f"API key collision occurred for key: {key}")
+    logger.error("API key collision occurred while creating an organization")
     raise HTTPException(
         status_code=status.HTTP_409_CONFLICT,
         detail=f"API key {key} already exists",
@@ -60,20 +66,18 @@ async def create_organization(organization: Organization):
 
 @router.get("/authenticate/{api_key}", response_model=OrganizationResponse)
 async def check_auth_token(api_key: str):
-    logger.info(f"Authenticating API key: {api_key}")
-
     key = cache_key("org", "key", api_key)
     org = await cache_get(key)
     if org is None:
         db = get_quiz_db()
         org = await db.organization.find_one({"key": api_key})
         if org is None:
-            logger.error(f"Failed to authenticate API key: {api_key}")
+            logger.error(f"Failed to authenticate API key: {_mask_key(api_key)}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="organization not found",
             )
         await cache_set(key, org, ttl_seconds=300)
 
-    logger.info(f"Authenticated API key: {api_key}")
+    logger.info(f"Authenticated API key for organization {org.get('_id')}")
     return org

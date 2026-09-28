@@ -1,4 +1,5 @@
 from fastapi import APIRouter, status, HTTPException, Query
+import logging
 import random
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
@@ -481,7 +482,11 @@ async def update_session(session_id: str, session_updates: UpdateSession):
         )
     user_id, quiz_id = session["user_id"], session["quiz_id"]
     log_message += f", for user: {user_id} and quiz: {quiz_id}"
-    logger.info(log_message)
+    # dummy-event heartbeats are ~97% of session updates; keep them at DEBUG
+    event_log_level = (
+        logging.DEBUG if new_event == EventType.dummy_event else logging.INFO
+    )
+    logger.log(event_log_level, log_message)
 
     new_event_obj = jsonable_encoder(Event.model_validate({"event_type": new_event}))
     total_time_spent = session.get("total_time_spent", None)
@@ -691,8 +696,9 @@ async def update_session(session_id: str, session_updates: UpdateSession):
             detail=f"Failed to update session with id {session_id}",
         )
 
-    logger.info(
-        f"Updated session with id {session_id} for user: {user_id} and quiz: {quiz_id}"
+    logger.log(
+        event_log_level,
+        f"Updated session with id {session_id} for user: {user_id} and quiz: {quiz_id}",
     )
     return JSONResponse(status_code=status.HTTP_200_OK, content=response_content)
 

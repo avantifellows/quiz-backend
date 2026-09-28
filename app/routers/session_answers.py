@@ -157,7 +157,8 @@ async def update_session_answer_in_a_session(
     # Note: every session must have these keys
     user_id, quiz_id = session["user_id"], session["quiz_id"]
     log_message += f"(user: {user_id}, quiz: {quiz_id})"
-    logger.info(log_message)
+    # DEBUG: this fires on every answer/time-spent ping and includes the full answer
+    logger.debug(log_message)
 
     # check if the session has session answers key
     if "session_answers" not in session or session["session_answers"] is None:
@@ -197,7 +198,7 @@ async def update_session_answer_in_a_session(
             detail=f"Failed to update session answer for session: {session_id}, position: {position_index}",
         )
 
-    logger.info(
+    logger.debug(
         f"Updated session answer for session: {session_id} (user: {user_id} and quiz: {quiz_id}), position: {position_index}"
     )
     return JSONResponse(status_code=status.HTTP_200_OK, content=None)
