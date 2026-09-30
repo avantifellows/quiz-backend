@@ -1,5 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
+from fastapi.exceptions import ResponseValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 import random
@@ -23,6 +25,24 @@ logger = setup_logger()
 
 COMPRESS_MIN_THRESHOLD = 1000  # if more than 1000 bytes (~1KB), compress
 
+# Route templates whose path parameters are secrets (organization API keys)
+_SECRET_ROUTES = {"/organizations/authenticate/{api_key}"}
+
+
+def _loggable_path(request: Request) -> str:
+    """Path for the request log line, with no secrets in it.
+
+    Requests that matched no route (404s, slash redirects, odd variants such as
+    /Organizations/authenticate/<key> or //organizations/...) are logged as a
+    placeholder: their raw path can be anything, including an API key.
+    """
+    route = request.scope.get("route")
+    if route is None:
+        return "<unmatched>"
+    if route.path in _SECRET_ROUTES:
+        return route.path
+    return request.url.path
+
 
 @asynccontextmanager
 async def lifespan(app):
@@ -42,26 +62,51 @@ def create_app():
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
         """
-        Intercepts all http requests and logs their details like
-        path, method, headers, time taken by request etc.
+        Logs one line per request when it finishes: path, method,
+        status code and time taken.
 
         Each request is assigned a random id (rid) which is used
         to track the request in logs.
+
+        Request headers are deliberately not logged: they were most of
+        the log volume (and CloudWatch cost) and carry client IPs.
+        ALB health checks are not logged at all.
         """
+        if request.url.path == "/health":
+            return await call_next(request)
+
         # random id for request so that we can track it in logs
         idem = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
-        logger.info(
-            f"rid={idem} start request path={request.url.path} method={request.method} headers={request.headers}"
-        )
         start_time = time.time()
-        response = await call_next(request)
-        process_time = (time.time() - start_time) * 1000
-        formatted_process_time = "{0:.2f}".format(process_time)
-        logger.info(
-            f"rid={idem} completed_in={formatted_process_time}ms status_code={response.status_code}"
-        )
+        status_code = 500
+        try:
+            response = await call_next(request)
+            status_code = response.status_code
+            return response
+        finally:
+            process_time = (time.time() - start_time) * 1000
+            formatted_process_time = "{0:.2f}".format(process_time)
+            logger.info(
+                f"rid={idem} path={_loggable_path(request)} method={request.method} status_code={status_code} completed_in={formatted_process_time}ms"
+            )
 
-        return response
+    @app.exception_handler(ResponseValidationError)
+    async def response_validation_error(request: Request, exc: ResponseValidationError):
+        """
+        A response didn't match its model. Log where, but never the values:
+        the default handler lets uvicorn log the whole invalid response, which
+        can hold secrets (e.g. an organization's API key).
+        """
+        problems = ", ".join(
+            f"{'.'.join(str(p) for p in e.get('loc', ()))}:{e.get('type')}"
+            for e in exc.errors()
+        )
+        logger.error(
+            f"Response validation failed path={_loggable_path(request)} errors=[{problems}]"
+        )
+        return JSONResponse(
+            status_code=500, content={"detail": "Internal Server Error"}
+        )
 
     origins = [
         "http://localhost:8080",
