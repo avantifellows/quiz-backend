@@ -128,6 +128,22 @@ class CacheTimeoutTest(unittest.IsolatedAsyncioTestCase):
             await cache.cache_get(key)
         self.assertIn(f"key_ref={key}", cm.records[0].getMessage())
 
+    async def test_error_logs_hash_unknown_families(self):
+        client = AsyncMock()
+        client.get.side_effect = ConnectionError("boom")
+        cache.redis_client = client
+        cache._last_error_log_ts = 0
+        with self.assertLogs("quizenginelogger", level="WARNING") as cm:
+            await cache.cache_get("cache:v1:new_family:SomeSecretValue")
+        message = cm.records[0].getMessage()
+        self.assertNotIn("SomeSecretValue", message)
+        self.assertIn("key_ref=new_family:sha256=", message)
+
+    def test_namespace_with_colon_rejected(self):
+        with self.assertRaises(ValueError):
+            CacheSettings(cache_namespace="release:v2")
+        self.assertEqual(CacheSettings(cache_namespace="v2").cache_namespace, "v2")
+
     def test_invalid_deadlines_rejected(self):
         for value in [0, -1, 6]:
             with self.subTest(value=value), self.assertRaises(ValueError):

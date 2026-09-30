@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from settings import Settings
 from database import get_quiz_db
 from models import Organization, OrganizationResponse
+import hashlib
 import secrets
 import string
 from fastapi.encoders import jsonable_encoder
@@ -15,8 +16,8 @@ logger = get_logger()
 
 
 def _mask_key(key: str) -> str:
-    """Enough of an API key to tell keys apart in logs, never the whole key."""
-    return f"{key[:4]}…(len={len(key)})"
+    """A short digest to tell keys apart in logs; reveals none of the key."""
+    return f"sha256={hashlib.sha256(key.encode()).hexdigest()[:12]}"
 
 
 def generate_random_string(length: int = settings.api_key_length):

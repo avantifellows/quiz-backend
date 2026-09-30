@@ -83,9 +83,68 @@ class ApiKeyLoggingTestCase(BaseTestCase):
         joined = "\n".join(_messages(cm))
         for secret in (new_key, self.organization_api_key, "NotARealKeyAtAll1234"):
             self.assertNotIn(secret, joined)
-        # the failed lookup is still visible, just masked, and the request line redacts the key
-        self.assertIn("Failed to authenticate API key: NotA…(len=20)", joined)
-        self.assertIn("path=/organizations/authenticate/<redacted>", joined)
+        # the failed lookup is logged as a digest that reveals none of the key
+        self.assertIn("Failed to authenticate API key: sha256=", joined)
+        self.assertNotIn("NotA", joined)
+        self.assertIn("path=/organizations/authenticate/{api_key}", joined)
+
+    def test_short_api_keys_are_not_logged(self):
+        with self.assertLogs(LOGGER, level=logging.DEBUG) as cm:
+            self.client.get(f"{organizations.router.prefix}/authenticate/abc")
+        joined = "\n".join(_messages(cm))
+        self.assertNotIn("abc", joined)
+        self.assertIn("Failed to authenticate API key: sha256=", joined)
+
+    def test_url_variants_never_log_api_key(self):
+        key = self.organization_api_key
+        variants = [
+            f"/Organizations/authenticate/{key}",
+            f"/organizations/Authenticate/{key}",
+            f"//organizations/authenticate/{key}",
+            f"/organizations//authenticate/{key}",
+            f"/organizations/authenticate/{key}/",
+            f"/organizations/authenticate/{key}/extra",
+            f"/%6Frganizations/authenticate/{key}",
+            f"/%256Frganizations/authenticate/{key}",
+            f"/organizations/authenticate/{key}?x=1",
+        ]
+        for url in variants:
+            with self.subTest(url=url):
+                with self.assertLogs(LOGGER, level=logging.DEBUG) as cm:
+                    self.client.get(url, follow_redirects=False)
+                joined = "\n".join(_messages(cm))
+                self.assertNotIn(key, joined)
+                self.assertTrue(any(m.startswith("rid=") for m in _messages(cm)))
+
+    def test_unmatched_paths_logged_as_placeholder(self):
+        with self.assertLogs(LOGGER, level=logging.DEBUG) as cm:
+            response = self.client.get("/no-such-route/secret-looking-value")
+        self.assertEqual(response.status_code, 404)
+        joined = "\n".join(_messages(cm))
+        self.assertIn("path=<unmatched>", joined)
+        self.assertNotIn("secret-looking-value", joined)
+
+    def test_matched_paths_keep_ids_for_debugging(self):
+        with self.assertLogs(LOGGER, level=logging.DEBUG) as cm:
+            self.client.get("/quiz/does-not-exist-123")
+        self.assertIn("path=/quiz/does-not-exist-123", "\n".join(_messages(cm)))
+
+    def test_response_validation_error_does_not_log_values(self):
+        key = "BrokenOrgKey9876543210"
+        # an org record missing its required "name" fails the response model
+        self.db.organization.insert_one({"key": key})
+        self.addCleanup(self.db.organization.delete_one, {"key": key})
+        with self.assertLogs(LOGGER, level=logging.DEBUG) as cm:
+            # handled by the app: TestClient would re-raise an unhandled error
+            response = self.client.get(
+                f"{organizations.router.prefix}/authenticate/{key}"
+            )
+        self.assertEqual(response.status_code, 500)
+        self.assertNotIn(key, response.text)
+        joined = "\n".join(_messages(cm))
+        self.assertNotIn(key, joined)
+        self.assertIn("Response validation failed", joined)
+        self.assertIn("name:missing", joined)
 
 
 class HotPathLoggingTestCase(SessionsBaseTestCase):

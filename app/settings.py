@@ -75,7 +75,8 @@ class CacheSettings(BaseSettings):
     cache_enabled: bool = False
     redis_url: str = "redis://localhost:6379/0"
     redis_max_connections: int = 10
-    cache_namespace: str = "v1"
+    # no ":" so cache_family() can find the family segment in a key
+    cache_namespace: str = Field(default="v1", pattern=r"^[^:]+$")
     redis_timeout_seconds: float = Field(default=0.25, gt=0, le=5)
 
 
