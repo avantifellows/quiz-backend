@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import time
 import redis.asyncio as redis
@@ -149,6 +150,19 @@ def cache_family(key: str) -> str:
     return parts[2] if len(parts) > 2 else "unknown"
 
 
+# Families whose key parts are secrets (org keys embed the raw API key)
+_SECRET_KEY_FAMILIES = {"org"}
+
+
+def _key_ref(key: str) -> str:
+    """Loggable form of a cache key; secret families are hashed, never shown raw."""
+    family = cache_family(key)
+    if family not in _SECRET_KEY_FAMILIES:
+        return key
+    digest = hashlib.sha256(key.encode()).hexdigest()[:12]
+    return f"{family}:sha256={digest}"
+
+
 async def cache_get(key: str):
     """Return cached JSON data, or None on miss / disabled cache / Redis failure."""
     family = cache_family(key)
@@ -173,7 +187,7 @@ async def cache_get(key: str):
         if _should_log_cache_error():
             logger.warning(
                 f"event=cache op=get result=error family={family} "
-                f"key_ref={key} error={type(e).__name__}"
+                f"key_ref={_key_ref(key)} error={type(e).__name__}"
             )
     return None
 
@@ -195,7 +209,7 @@ async def cache_set(key: str, value, ttl_seconds: int = 3600):
         if _should_log_cache_error():
             logger.warning(
                 f"event=cache op=set result=error family={family} "
-                f"key_ref={key} error={type(e).__name__}"
+                f"key_ref={_key_ref(key)} error={type(e).__name__}"
             )
 
 

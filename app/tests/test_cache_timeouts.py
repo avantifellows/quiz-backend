@@ -98,6 +98,36 @@ class CacheTimeoutTest(unittest.IsolatedAsyncioTestCase):
         self.assertIs(cache.redis_client, new)
         new.aclose.assert_not_awaited()
 
+    async def test_error_logs_never_contain_org_api_key(self):
+        api_key = "SuperSecretOrgKey123"
+        client = AsyncMock()
+        client.get.side_effect = ConnectionError("boom")
+        client.setex.side_effect = ConnectionError("boom")
+        key = cache.cache_key("org", "key", api_key)
+        for op in ("get", "set"):
+            with self.subTest(op=op):
+                cache.redis_client = client
+                cache._last_error_log_ts = 0
+                with self.assertLogs("quizenginelogger", level="WARNING") as cm:
+                    if op == "get":
+                        await cache.cache_get(key)
+                    else:
+                        await cache.cache_set(key, {"_id": "org1"})
+                joined = "\n".join(r.getMessage() for r in cm.records)
+                self.assertNotIn(api_key, joined)
+                self.assertIn(f"op={op} result=error family=org", joined)
+                self.assertIn("key_ref=org:sha256=", joined)
+
+    async def test_error_logs_keep_non_secret_keys_readable(self):
+        client = AsyncMock()
+        client.get.side_effect = ConnectionError("boom")
+        cache.redis_client = client
+        cache._last_error_log_ts = 0
+        key = cache.cache_key("quiz", "abc123")
+        with self.assertLogs("quizenginelogger", level="WARNING") as cm:
+            await cache.cache_get(key)
+        self.assertIn(f"key_ref={key}", cm.records[0].getMessage())
+
     def test_invalid_deadlines_rejected(self):
         for value in [0, -1, 6]:
             with self.subTest(value=value), self.assertRaises(ValueError):
