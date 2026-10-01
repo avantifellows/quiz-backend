@@ -150,6 +150,8 @@ class QuizMetadata(NumericStringMetadata):
     next_step_text: Optional[str] = None  # Text to display on the next step button
     next_step_autostart: Optional[bool] = False  # Whether next step should auto-start
     single_page_header_text: Optional[str] = None  # header text for single page mode
+    # Regional language shown under the English for CMS quizzes (e.g. "hi"); None = English only
+    lang_code: Optional[str] = None
 
 
 class Question(BaseModel):
