@@ -692,7 +692,7 @@ class QuizTestCase(BaseTestCase):
 
     def test_regenerate_keeps_the_quiz_language_unless_one_is_sent(self):
         quiz_id, _ = self.post_and_get_quiz(copy.deepcopy(self.homework_quiz_data))
-        self.db.quizzes.update_one(
+        mongo_client.quiz.quizzes.update_one(
             {"_id": quiz_id}, {"$set": {"metadata.lang_code": "hi"}}
         )
 
