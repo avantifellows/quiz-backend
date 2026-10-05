@@ -957,3 +957,124 @@ class FetchAssembledTestParamsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def _bilingual_problem(pid, hi_meta):
+    return _problem(
+        pid,
+        "mcq_single_answer",
+        {"text": "", "options": None, "answer": None},
+        lang_versions=[
+            {
+                "lang_code": "en",
+                "meta_data": {
+                    "text": "Avanti?",
+                    "options": ["A", "B", "C", "D"],
+                    "answer": ["2"],
+                    "solutions": [{"type": "text", "value": "because"}],
+                },
+            },
+            {"lang_code": "hi", "meta_data": hi_meta},
+        ],
+    )
+
+
+_SECTION = [
+    {
+        "type": "mcq_single_answer",
+        "name": "",
+        "compulsory": {"problems": [{"id": 506, "pos_marks": [4], "neg_marks": [1]}]},
+    }
+]
+_HINDI = {
+    "text": "अवंती?",
+    "options": ["क", "ख", "ग", "घ"],
+    "answer": ["2"],
+    "solutions": [{"type": "text", "value": "क्योंकि"}],
+}
+
+
+class TestCmsRegionalLanguage(unittest.TestCase):
+    def _question(self, hi_meta, lang_code="hi"):
+        assembled = _test_with_problems([_bilingual_problem(506, hi_meta)], _SECTION)
+        quiz, warnings = map_cms_test_to_quiz(assembled, lang_code=lang_code)
+        return quiz, quiz["question_sets"][0]["questions"][0], warnings
+
+    def test_shows_the_language_under_english_and_grades_on_english(self):
+        quiz, question, warnings = self._question({**_HINDI, "answer": ["4"]})
+
+        self.assertEqual(question["text"], "Avanti?<br>अवंती?")
+        self.assertEqual(
+            [o["text"] for o in question["options"]],
+            ["A<br>क", "B<br>ख", "C<br>ग", "D<br>घ"],
+        )
+        self.assertEqual(
+            question["correct_answer"], [1]
+        )  # English answer, not the Hindi "4"
+        self.assertEqual(question["solution"], ["because", "क्योंकि"])
+        self.assertEqual(quiz["metadata"]["lang_code"], "hi")
+        self.assertEqual(warnings, [])
+
+    def test_english_only_without_lang_code(self):
+        quiz, question, _ = self._question(_HINDI, lang_code=None)
+
+        self.assertEqual(question["text"], "Avanti?")
+        self.assertEqual([o["text"] for o in question["options"]], ["A", "B", "C", "D"])
+        self.assertEqual(question["solution"], ["because"])
+        self.assertIsNone(quiz["metadata"]["lang_code"])
+
+    def test_falls_back_to_english_when_the_language_is_missing_or_empty(self):
+        for hi_meta in ({**_HINDI, "text": "  "}, None):
+            assembled = _test_with_problems(
+                [
+                    _bilingual_problem(506, hi_meta)
+                    if hi_meta
+                    else _bilingual_problem(506, {})
+                ],
+                _SECTION,
+            )
+            quiz, _ = map_cms_test_to_quiz(assembled, lang_code="hi")
+            question = quiz["question_sets"][0]["questions"][0]
+            self.assertEqual(question["text"], "Avanti?")
+            self.assertEqual(question["options"][0]["text"], "A")
+
+    def test_falls_back_to_english_when_option_counts_differ(self):
+        _, question, warnings = self._question({**_HINDI, "options": ["क", "ख"]})
+
+        self.assertEqual(question["text"], "Avanti?")
+        self.assertEqual(question["options"][0]["text"], "A")
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("option count differs", warnings[0])
+
+    def test_blank_html_translations_are_not_shown(self):
+        _, question, _ = self._question(
+            {
+                **_HINDI,
+                "options": ["<div></div>", "<p>&nbsp;</p>", "ग", '<img src="x.png">'],
+            }
+        )
+
+        self.assertEqual(
+            [o["text"] for o in question["options"]],
+            ["A", "B", "C<br>ग", 'D<br><img src="x.png">'],
+        )
+
+    def test_blank_html_regional_solutions_are_dropped(self):
+        _, question, _ = self._question(
+            {**_HINDI, "solutions": [{"type": "text", "value": "<div><br></div>"}]}
+        )
+
+        self.assertEqual(question["solution"], ["because"])
+
+    def test_instructions_follow_with_the_language(self):
+        assembled = _test_with_problems([_bilingual_problem(506, _HINDI)], _SECTION)
+        assembled["test"]["type_params"]["instruction_lang_versions"] = [
+            {"lang_code": "en", "instructions": "Read carefully"},
+            {"lang_code": "hi", "instructions": "ध्यान से पढ़ें"},
+        ]
+
+        bilingual, _ = map_cms_test_to_quiz(assembled, lang_code="hi")
+        english, _ = map_cms_test_to_quiz(assembled)
+
+        self.assertEqual(bilingual["instructions"], "Read carefully<br>ध्यान से पढ़ें")
+        self.assertEqual(english["instructions"], "Read carefully")

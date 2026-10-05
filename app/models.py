@@ -150,6 +150,8 @@ class QuizMetadata(NumericStringMetadata):
     next_step_text: Optional[str] = None  # Text to display on the next step button
     next_step_autostart: Optional[bool] = False  # Whether next step should auto-start
     single_page_header_text: Optional[str] = None  # header text for single page mode
+    # Regional language shown under the English for CMS quizzes (e.g. "hi"); None = English only
+    lang_code: Optional[str] = None
 
 
 class Question(BaseModel):
@@ -336,6 +338,8 @@ class Quiz(BaseModel):
     require_all_questions: Optional[bool] = False
     navigation_mode: NavigationMode = "linear"
     instructions: Optional[str] = None
+    # legacy, unused: nothing reads this (the player's UI locale toggle is client-side).
+    # Bilingual CMS quiz content is driven by metadata.lang_code instead.
     language: QuizLanguage = "en"
     metadata: Optional[QuizMetadata] = None
 
