@@ -338,6 +338,8 @@ class Quiz(BaseModel):
     require_all_questions: Optional[bool] = False
     navigation_mode: NavigationMode = "linear"
     instructions: Optional[str] = None
+    # legacy, unused: nothing reads this (the player's UI locale toggle is client-side).
+    # Bilingual CMS quiz content is driven by metadata.lang_code instead.
     language: QuizLanguage = "en"
     metadata: Optional[QuizMetadata] = None
 
