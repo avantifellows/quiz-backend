@@ -211,7 +211,11 @@ def _has_content(html: Optional[str]) -> bool:
 def _regional_meta(
     problem: Dict[str, Any], lang_code: Optional[str]
 ) -> Optional[Dict[str, Any]]:
-    """The problem's content in `lang_code`, or None when it has no non-empty version."""
+    """The problem's content in `lang_code`, or None when it has no non-empty version.
+
+    Deliberately all-or-nothing on the question text: a version with translated
+    options but no question text is treated as untranslated, so the student sees
+    a consistent all-English problem rather than a half-translated one."""
     if not lang_code:
         return None
     for version in problem.get("lang_versions") or []:
@@ -222,10 +226,15 @@ def _regional_meta(
 
 
 def _with_regional(english: str, regional: Optional[str]) -> str:
-    """English with the regional text underneath, as the CMS prints bilingual papers."""
-    if _has_content(regional):
-        return f"{english}<br>{regional}"
-    return english
+    """English with the regional text underneath, as the CMS prints bilingual papers.
+
+    When the English side is an empty shell, the regional text stands alone
+    rather than rendering with a dangling leading <br>."""
+    if not _has_content(regional):
+        return english
+    if not _has_content(english):
+        return regional
+    return f"{english}<br>{regional}"
 
 
 def _problem_metadata(problem: Dict[str, Any], subject_name: str) -> Dict[str, Any]:
