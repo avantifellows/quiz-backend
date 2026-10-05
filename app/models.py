@@ -168,6 +168,9 @@ class Question(BaseModel):
     matrix_rows: Optional[List[str]] = None  # for matrix rating/numerical questions
     correct_answer: Union[List[int], List[str], float, int, dict, None] = None
     graded: bool = True
+    # Per-question mandatory flag for forms with require_all_questions: False means
+    # this question may be left unanswered. None/True = required (backward compatible).
+    required: Optional[bool] = None
     force_correct: bool = False
     marking_scheme: Optional[MarkingScheme] = None
     solution: Optional[List[str]] = Field(default_factory=list)
