@@ -137,6 +137,10 @@ def _get_incomplete_required_form_positions(
     position = 0
     for question_set in quiz.get("question_sets") or []:
         for question in question_set.get("questions") or []:
+            # required=False marks a per-question opt-out from require_all_questions
+            if question.get("required") is False:
+                position += 1
+                continue
             answer = (
                 session_answers[position].get("answer")
                 if position < len(session_answers)

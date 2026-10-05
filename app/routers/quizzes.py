@@ -114,6 +114,7 @@ def _aggregate_question_set_subset(question_set_id) -> list:
             {
                 "$project": {
                     "graded": 1,
+                    "required": 1,
                     "force_correct": 1,
                     "type": 1,
                     "matrix_rows": 1,
