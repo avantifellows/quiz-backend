@@ -668,6 +668,46 @@ class QuizTestCase(BaseTestCase):
         assert after["shuffle"] is True
         assert after["show_scores"] is False
 
+    # ---- CMS from-cms: regional language ----
+
+    def test_create_from_cms_passes_normalized_lang_code(self):
+        for sent, expected in (("HI", "hi"), ("en", None), (None, None)):
+            body = {"test_id": 504}
+            if sent is not None:
+                body["lang_code"] = sent
+            with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+                "routers.quizzes.map_cms_test_to_quiz",
+                return_value=(self._cms_quiz_dict(), []),
+            ) as mapper:
+                resp = self.client.post(f"{quizzes.router.prefix}/from-cms", json=body)
+            assert resp.status_code == 201
+            assert mapper.call_args.kwargs["lang_code"] == expected
+
+    def test_create_from_cms_rejects_malformed_lang_code(self):
+        resp = self.client.post(
+            f"{quizzes.router.prefix}/from-cms",
+            json={"test_id": 504, "lang_code": "hin"},
+        )
+        assert resp.status_code == 422
+
+    def test_regenerate_keeps_the_quiz_language_unless_one_is_sent(self):
+        quiz_id, _ = self.post_and_get_quiz(copy.deepcopy(self.homework_quiz_data))
+        mongo_client.quiz.quizzes.update_one(
+            {"_id": quiz_id}, {"$set": {"metadata.lang_code": "hi"}}
+        )
+
+        for body_extra, expected in (({}, "hi"), ({"lang_code": "en"}, None)):
+            with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+                "routers.quizzes.map_cms_test_to_quiz",
+                return_value=(self._cms_quiz_dict(), []),
+            ) as mapper:
+                resp = self.client.put(
+                    f"{quizzes.router.prefix}/{quiz_id}/from-cms",
+                    json={"test_id": 504, **body_extra},
+                )
+            assert resp.status_code == 200
+            assert mapper.call_args.kwargs["lang_code"] == expected
+
     # ---- regenerate in place (PUT /quiz/{id}/from-cms) ----
 
     def test_regenerate_preserves_ids_and_refreshes_content(self):

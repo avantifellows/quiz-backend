@@ -1,9 +1,10 @@
+import re
 from typing import Optional
 
 from fastapi import APIRouter, status, HTTPException, Query
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 from database import client
 from models import Quiz, GetQuizResponse, CreateQuizResponse
 from settings import Settings
@@ -215,6 +216,19 @@ class CmsQuizIngestRequest(BaseModel):
     show_scores: Optional[bool] = None
     # "show answers immediately after submission" in the LMS form.
     review_immediate: Optional[bool] = None
+    # Regional language to show under the English (e.g. "hi"). Omitted/"en" = English only.
+    # On regenerate, omitting it keeps the quiz's existing language.
+    lang_code: Optional[str] = None
+
+    @field_validator("lang_code")
+    @classmethod
+    def _normalize_lang_code(cls, value: Optional[str]) -> Optional[str]:
+        value = (value or "").strip().lower()
+        if value in ("", "en"):
+            return None
+        if not re.fullmatch(r"[a-z]{2}", value):
+            raise ValueError("lang_code must be a two-letter language code")
+        return value
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -245,7 +259,7 @@ async def create_quiz_from_cms(request: CmsQuizIngestRequest):
     try:
         assembled = fetch_assembled_test(request.test_id)
         quiz_dict, warnings = map_cms_test_to_quiz(
-            assembled, quiz_type=request.quiz_type
+            assembled, quiz_type=request.quiz_type, lang_code=request.lang_code
         )
     except CmsIngestError as exc:
         logger.error(f"CMS ingest failed for test {request.test_id}: {exc}")
@@ -313,10 +327,15 @@ async def regenerate_quiz_from_cms(quiz_id: str, request: CmsQuizIngestRequest):
             status_code=status.HTTP_404_NOT_FOUND, detail=f"quiz {quiz_id} not found"
         )
 
+    lang_code = (
+        request.lang_code
+        if "lang_code" in request.model_fields_set
+        else (existing.get("metadata") or {}).get("lang_code")
+    )
     try:
         assembled = fetch_assembled_test(request.test_id)
         new_quiz, warnings = map_cms_test_to_quiz(
-            assembled, quiz_type=request.quiz_type
+            assembled, quiz_type=request.quiz_type, lang_code=lang_code
         )
     except CmsIngestError as exc:
         logger.error(f"CMS regenerate failed for test {request.test_id}: {exc}")

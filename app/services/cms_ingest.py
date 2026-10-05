@@ -53,6 +53,7 @@ silently mapped to single-choice — a wrong question type in a live quiz is wor
 loud failure at create time.
 """
 
+import re
 from typing import Any, Dict, List, Optional, Tuple
 
 import requests
@@ -197,6 +198,45 @@ def _problem_meta(problem: Dict[str, Any]) -> Dict[str, Any]:
     return problem.get("meta_data") or {}
 
 
+def _has_content(html: Optional[str]) -> bool:
+    """True if the HTML shows something: text after removing tags/&nbsp;, or an image.
+    Translators often leave numeric options as an empty `<div></div>`."""
+    if not html:
+        return False
+    if "<img" in str(html):
+        return True
+    return bool(re.sub(r"<[^>]*>|&nbsp;|\s", "", str(html)))
+
+
+def _regional_meta(
+    problem: Dict[str, Any], lang_code: Optional[str]
+) -> Optional[Dict[str, Any]]:
+    """The problem's content in `lang_code`, or None when it has no non-empty version.
+
+    Deliberately all-or-nothing on the question text: a version with translated
+    options but no question text is treated as untranslated, so the student sees
+    a consistent all-English problem rather than a half-translated one."""
+    if not lang_code:
+        return None
+    for version in problem.get("lang_versions") or []:
+        if version.get("lang_code") == lang_code:
+            meta = version.get("meta_data") or {}
+            return meta if _has_content(meta.get("text")) else None
+    return None
+
+
+def _with_regional(english: str, regional: Optional[str]) -> str:
+    """English with the regional text underneath, as the CMS prints bilingual papers.
+
+    When the English side is an empty shell, the regional text stands alone
+    rather than rendering with a dangling leading <br>."""
+    if not _has_content(regional):
+        return english
+    if not _has_content(english):
+        return regional
+    return f"{english}<br>{regional}"
+
+
 def _problem_metadata(problem: Dict[str, Any], subject_name: str) -> Dict[str, Any]:
     return {
         # subject_name is the plain, resolved subject name from the test structure;
@@ -219,24 +259,41 @@ def _map_problem(
     subject: Optional[Dict[str, Any]],
     test_type_params: Optional[Dict[str, Any]],
     subject_name: str = "",
+    lang_code: Optional[str] = None,
 ) -> Tuple[Dict[str, Any], List[str]]:
     """Map one resolved CMS problem to a quiz Question dict. The question carries its own
     base marking_scheme (correct/wrong from the marks cascade; no partial — that is set at
-    the set level once the set's type is known). Returns (question, warnings)."""
+    the set level once the set's type is known). Returns (question, warnings).
+
+    With lang_code, text/options/solutions also show that language under the English;
+    the answer key always comes from English."""
     warnings: List[str] = []
     meta = _problem_meta(problem)
     subtype = problem.get("subtype") or ""
     answers = meta.get("answer") or []
     problem_id = problem.get("id")
 
+    regional = _regional_meta(problem, lang_code)
+    if regional and len(regional.get("options") or []) != len(
+        meta.get("options") or []
+    ):
+        warnings.append(
+            f"problem {problem_id}: '{lang_code}' option count differs from English -> English only"
+        )
+        regional = None
+
     correct, wrong = _cascade_marks(ref, section, subject, test_type_params)
 
     question: Dict[str, Any] = {
-        "text": _inline_paragraph(problem, meta.get("text") or ""),
+        "text": _inline_paragraph(
+            problem,
+            _with_regional(meta.get("text") or "", (regional or {}).get("text")),
+        ),
         "options": [],
         "correct_answer": None,
         "graded": True,
-        "solution": _solutions(meta),
+        "solution": _solutions(meta)
+        + [value for value in _solutions(regional or {}) if _has_content(value)],
         "metadata": _problem_metadata(problem, subject_name),
         "source": QuizSource.nex_gen_cms.value,
         "source_id": str(problem_id),
@@ -277,8 +334,15 @@ def _map_problem(
             "know how to render/grade this question type"
         )
     question["type"] = question_type
+    regional_options = (regional or {}).get("options") or []
     question["options"] = [
-        {"text": str(option), "image": None} for option in (meta.get("options") or [])
+        {
+            "text": _with_regional(
+                str(option), regional_options[i] if i < len(regional_options) else None
+            ),
+            "image": None,
+        }
+        for i, option in enumerate(meta.get("options") or [])
     ]
 
     if not answers:
@@ -404,6 +468,7 @@ def _map_ref_list(
     type_params: Dict[str, Any],
     subject_name: str,
     warnings: List[str],
+    lang_code: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Map a list of problem refs (compulsory or optional) to questions, in order."""
     questions: List[Dict[str, Any]] = []
@@ -415,7 +480,7 @@ def _map_ref_list(
             )
             continue
         question, question_warnings = _map_problem(
-            problem, ref, section, subject, type_params, subject_name
+            problem, ref, section, subject, type_params, subject_name, lang_code
         )
         warnings.extend(question_warnings)
         questions.append(question)
@@ -460,24 +525,32 @@ def _time_limit(type_params: Dict[str, Any]) -> Optional[Dict[str, int]]:
     return {"min": 0, "max": minutes * 60}
 
 
-def _instructions(type_params: Dict[str, Any]) -> Optional[str]:
+def _instructions(
+    type_params: Dict[str, Any], lang_code: Optional[str] = None
+) -> Optional[str]:
     """Resolve the test's instructions, preferring the per-language array.
 
     The CMS is moving `instructions` into `instruction_lang_versions`
     [{lang_code, instructions}] (nex-gen-cms #176, db-service #698); the flat key is
     written in sync until every consumer reads the array. Falls back to it for "en" only,
-    mirroring the CMS's own ResolveInstructions.
+    mirroring the CMS's own ResolveInstructions. With lang_code, that language's
+    instructions (if any) follow the English.
     """
-    for version in type_params.get("instruction_lang_versions") or []:
-        if version.get("lang_code") == CMS_PRIMARY_LANG:
-            text = (version.get("instructions") or "").strip()
-            if text:
-                return text
-    return (type_params.get("instructions") or "").strip() or None
+    by_lang = {
+        version.get("lang_code"): (version.get("instructions") or "").strip()
+        for version in type_params.get("instruction_lang_versions") or []
+    }
+    english = (
+        by_lang.get(CMS_PRIMARY_LANG) or (type_params.get("instructions") or "").strip()
+    )
+    combined = _with_regional(english, by_lang.get(lang_code)) if lang_code else english
+    return combined or None
 
 
 def map_cms_test_to_quiz(
-    assembled: Dict[str, Any], quiz_type: str = "assessment"
+    assembled: Dict[str, Any],
+    quiz_type: str = "assessment",
+    lang_code: Optional[str] = None,
 ) -> Tuple[Dict[str, Any], List[str]]:
     """Map an assembled CMS test into a quiz dict ready for insertion. Returns
     (quiz, warnings). Each CMS section becomes one or more homogeneous question sets
@@ -512,6 +585,7 @@ def map_cms_test_to_quiz(
                 type_params,
                 subject_name,
                 warnings,
+                lang_code,
             )
             runs = _split_by_type(compulsory_qs)
             for run in runs:
@@ -535,6 +609,7 @@ def map_cms_test_to_quiz(
                     type_params,
                     subject_name,
                     warnings,
+                    lang_code,
                 )
                 if optional_qs:
                     distinct_types = {q["type"] for q in optional_qs}
@@ -573,7 +648,7 @@ def map_cms_test_to_quiz(
         "num_graded_questions": num_graded_questions,
         "shuffle": False,
         "time_limit": _time_limit(type_params),
-        "instructions": _instructions(type_params),
+        "instructions": _instructions(type_params, lang_code),
         "metadata": {
             "quiz_type": quiz_type,
             "test_format": test.get("subtype"),
@@ -581,6 +656,7 @@ def map_cms_test_to_quiz(
             "subject": first_subject,
             "source": QuizSource.nex_gen_cms.value,
             "source_id": str(test.get("id")),
+            "lang_code": lang_code,
         },
     }
     return quiz, warnings
