@@ -168,8 +168,11 @@ class Question(BaseModel):
     matrix_rows: Optional[List[str]] = None  # for matrix rating/numerical questions
     correct_answer: Union[List[int], List[str], float, int, dict, None] = None
     graded: bool = True
-    # Per-question mandatory flag for forms with require_all_questions: False means
-    # this question may be left unanswered. None/True = required (backward compatible).
+    # Per-question OPT-OUT from a form's require_all_questions enforcement.
+    # Only consulted when quiz_type == "form" AND require_all_questions is on:
+    # there, None/True means the question must be answered and False exempts it
+    # ("all questions required, except those marked otherwise"). Assessments and
+    # homework never enforce answers, so this flag is ignored for them.
     required: Optional[bool] = None
     force_correct: bool = False
     marking_scheme: Optional[MarkingScheme] = None
