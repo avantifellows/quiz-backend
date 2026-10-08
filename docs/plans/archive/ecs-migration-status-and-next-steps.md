@@ -253,3 +253,26 @@ These are the outstanding items from the original migration plan, prioritized fo
 - A flow (in a separate repo) reads scaling schedules from a Google Sheet
 - Sets min, desired, and max capacity for testing or production ECS clusters on the defined schedule
 - Lightweight mention here — implementation lives elsewhere
+
+---
+
+### Fix: prod deploy task-verification IAM permission (Oct 8, 2026)
+
+**Symptom:** Every "Deploy to ECS Prod" run since Oct 5, 2026 showed **failed**, but the
+deploys actually succeeded — ECS logged `rolloutState=COMPLETED` each time. The red X came
+from a post-deploy verification step (`aws ecs list-tasks` + `check_cache_deployment.py --tasks`,
+added with the cache-deployment work on Oct 5) that errored with
+`AccessDeniedException ... not authorized to perform: ecs:ListTasks`.
+
+**Cause:** The step's IAM grant existed only for staging. The `quiz-backend` deploy user
+(a GitHub-secrets CI user created outside Terraform — see the "via CLI" notes above) had an
+inline policy `ecs-staging-task-verification` (ListTasks/DescribeTasks on `quiz-backend-testing`)
+but no prod equivalent.
+
+**Fix (via CLI, matching the established pattern for this user):** Added inline policy
+`ecs-prod-task-verification` to the `quiz-backend` user — a mirror of the staging policy with
+prod ARNs: `ecs:ListTasks` on `container-instance/quiz-backend-prod/*` and `ecs:DescribeTasks`
+on `task/quiz-backend-prod/*`. No Terraform change (this user is not Terraform-managed).
+
+**Note:** All deploys during the failure window landed successfully; only the verification
+check was blocked. No re-deploy of application code was needed.
