@@ -121,6 +121,9 @@ def _aggregate_question_set_subset(question_set_id) -> list:
                     "correct_answer": 1,
                     "question_set_id": 1,
                     "marking_scheme": 1,
+                    # carried so conditional-display visibility can be evaluated for
+                    # beyond-subset questions on bucketed (non-single-page) paths
+                    "display_condition": 1,
                 }
             },
         ]
