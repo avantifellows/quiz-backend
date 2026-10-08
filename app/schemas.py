@@ -70,6 +70,7 @@ class TestFormat(Enum):
     homework = "homework"
     mock_test = "mock_test"
     combined_chapter_test = "combined_chapter_test"
+    previous_year_test = "previous_year_test"
     questionnaire = "questionnaire"
 
 
