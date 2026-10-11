@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import time
 import redis.asyncio as redis
@@ -149,6 +150,20 @@ def cache_family(key: str) -> str:
     return parts[2] if len(parts) > 2 else "unknown"
 
 
+# Families whose keys hold no secrets and stay readable in logs. Any other key
+# (org keys embed the raw API key; unknown or mis-parsed families) is hashed.
+_READABLE_KEY_FAMILIES = {"quiz", "question", "questions", "omr_options"}
+
+
+def _key_ref(key: str) -> str:
+    """Loggable form of a cache key: readable for safe families, hashed otherwise."""
+    family = cache_family(key)
+    if family in _READABLE_KEY_FAMILIES:
+        return key
+    digest = hashlib.sha256(key.encode()).hexdigest()[:12]
+    return f"{family}:sha256={digest}"
+
+
 async def cache_get(key: str):
     """Return cached JSON data, or None on miss / disabled cache / Redis failure."""
     family = cache_family(key)
@@ -173,7 +188,7 @@ async def cache_get(key: str):
         if _should_log_cache_error():
             logger.warning(
                 f"event=cache op=get result=error family={family} "
-                f"key_ref={key} error={type(e).__name__}"
+                f"key_ref={_key_ref(key)} error={type(e).__name__}"
             )
     return None
 
@@ -195,7 +210,7 @@ async def cache_set(key: str, value, ttl_seconds: int = 3600):
         if _should_log_cache_error():
             logger.warning(
                 f"event=cache op=set result=error family={family} "
-                f"key_ref={key} error={type(e).__name__}"
+                f"key_ref={_key_ref(key)} error={type(e).__name__}"
             )
 
 
