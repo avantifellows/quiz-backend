@@ -543,7 +543,9 @@ class QuizTestCase(BaseTestCase):
         with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
             "routers.quizzes.map_cms_test_to_quiz", return_value=(quiz_dict, [])
         ):
-            resp = self.client.post(f"{quizzes.router.prefix}/from-cms", json={"test_id": 504})
+            resp = self.client.post(
+                f"{quizzes.router.prefix}/from-cms", json={"test_id": 504}
+            )
         assert resp.status_code == 201
         assert resp.json()["time_limit"] == {"min": 0, "max": 3600}
 
@@ -553,7 +555,9 @@ class QuizTestCase(BaseTestCase):
         with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
             "routers.quizzes.map_cms_test_to_quiz", return_value=(new_quiz, [])
         ):
-            resp = self.client.put(f"{quizzes.router.prefix}/{quiz_id}/from-cms", json={"test_id": 504})
+            resp = self.client.put(
+                f"{quizzes.router.prefix}/{quiz_id}/from-cms", json={"test_id": 504}
+            )
         assert resp.status_code == 200
         assert resp.json()["time_limit"] == {"min": 0, "max": 5400}
 
