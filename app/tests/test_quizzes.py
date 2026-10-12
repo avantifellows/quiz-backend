@@ -537,6 +537,30 @@ class QuizTestCase(BaseTestCase):
         # 14:00:00 + 200s duration = 14:03:20
         assert doc["metadata"]["session_end_time"] == "2026-04-15T14:03:20"
 
+    def test_create_from_cms_returns_time_limit(self):
+        # The LMS stores time_limit.max on the session as meta_data.quiz_duration_seconds.
+        quiz_dict = self._cms_quiz_dict(time_limit={"min": 0, "max": 3600})
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(quiz_dict, [])
+        ):
+            resp = self.client.post(
+                f"{quizzes.router.prefix}/from-cms", json={"test_id": 504}
+            )
+        assert resp.status_code == 201
+        assert resp.json()["time_limit"] == {"min": 0, "max": 3600}
+
+    def test_regenerate_returns_the_new_time_limit(self):
+        quiz_id, _ = self.post_and_get_quiz(copy.deepcopy(self.homework_quiz_data))
+        new_quiz = self._cms_quiz_dict(time_limit={"min": 0, "max": 5400})
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(new_quiz, [])
+        ):
+            resp = self.client.put(
+                f"{quizzes.router.prefix}/{quiz_id}/from-cms", json={"test_id": 504}
+            )
+        assert resp.status_code == 200
+        assert resp.json()["time_limit"] == {"min": 0, "max": 5400}
+
     def test_create_from_cms_without_session_end_time_leaves_it_unset(self):
         quiz_dict = self._cms_quiz_dict(time_limit={"min": 0, "max": 200})
         with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
