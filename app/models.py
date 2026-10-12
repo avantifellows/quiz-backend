@@ -149,6 +149,10 @@ class QuizMetadata(NumericStringMetadata):
     next_step_url: Optional[str] = None  # URL to redirect to after quiz completion
     next_step_text: Optional[str] = None  # Text to display on the next step button
     next_step_autostart: Optional[bool] = False  # Whether next step should auto-start
+    # When true, the next step (a survey) is shown BEFORE the scorecard: ending the test
+    # redirects straight into the survey, which returns to the scorecard afterwards. When
+    # false/absent, the next step keeps its default scorecard-CTA behaviour (e.g. NVS survey).
+    next_step_before_scores: Optional[bool] = False
     single_page_header_text: Optional[str] = None  # header text for single page mode
     # Regional language shown under the English for CMS quizzes (e.g. "hi"); None = English only
     lang_code: Optional[str] = None
