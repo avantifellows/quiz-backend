@@ -2,7 +2,7 @@ import json
 from unittest.mock import patch
 from bson import ObjectId
 from .base import SessionsBaseTestCase
-from routers import session_answers
+from routers import session_answers, sessions
 
 
 class SessionAnswerTestCase(SessionsBaseTestCase):
@@ -341,3 +341,59 @@ class SessionAnswerTestCase(SessionsBaseTestCase):
             ).json()
             for field, value in expected.items():
                 assert stored[field] == value
+
+
+class AnswerWritesAfterQuizEndedTestCase(SessionsBaseTestCase):
+    """Once a session has has_quiz_ended=True, every answer-write path must 409 and must not
+    mutate the stored answers. Regresses the 8 Oct incident where a reopened quiz page replayed
+    blank answers onto a submitted attempt and zeroed the student's report.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.session_id = self.homework_session["_id"]
+        # Seed a real answer at position 0, then mark the attempt as submitted.
+        self.db.sessions.update_one(
+            {"_id": self.session_id},
+            {"$set": {"session_answers.0.answer": [1], "has_quiz_ended": True}},
+        )
+
+    def _stored_answer(self, position):
+        return self.client.get(
+            f"{session_answers.router.prefix}/{self.session_id}/{position}"
+        ).json()["answer"]
+
+    def test_batch_update_rejected_after_quiz_ended(self):
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/update-multiple-answers",
+            json=[[0, {"answer": None}]],
+        )
+        assert response.status_code == 409
+        # the submitted answer must survive untouched
+        assert self._stored_answer(0) == [1]
+
+    def test_single_update_rejected_after_quiz_ended(self):
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/0",
+            json={"answer": None},
+        )
+        assert response.status_code == 409
+        assert self._stored_answer(0) == [1]
+
+    def test_folded_answer_update_on_event_rejected_after_quiz_ended(self):
+        # a heartbeat (dummy event) carrying answer_updates must be rejected
+        response = self.client.patch(
+            f"{sessions.router.prefix}/{self.session_id}",
+            json={"event": "dummy-event", "answer_updates": [[0, {"answer": None}]]},
+        )
+        assert response.status_code == 409
+        assert self._stored_answer(0) == [1]
+
+    def test_bare_event_still_allowed_after_quiz_ended(self):
+        # a bare event (no answer_updates) must still pass so review-mode timing keeps working
+        response = self.client.patch(
+            f"{sessions.router.prefix}/{self.session_id}",
+            json={"event": "dummy-event"},
+        )
+        assert response.status_code == 200
+        assert self._stored_answer(0) == [1]

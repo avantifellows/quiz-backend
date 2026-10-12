@@ -664,6 +664,21 @@ async def update_session(session_id: str, session_updates: UpdateSession):
     # positional set, so it needs the answer count (for bounds validation) but not the answers
     # array itself — which is why the lightweight read above is sufficient.
     if session_updates.answer_updates:
+        # Reject folded answer writes once the attempt has been submitted. A reopened quiz page
+        # keeps emitting its heartbeat (dummy/resume) and can carry blank answer_updates that would
+        # overwrite the submitted answers in place and zero the student's report. Only the answer
+        # payload is final; the bare event itself is still allowed through (so review-mode timing
+        # keeps working), which is why this guards the fold rather than the whole request.
+        if has_ended:
+            error_message = (
+                f"Answer writes are not allowed after the quiz has ended for session: {session_id} "
+                f"(user: {user_id}, quiz: {quiz_id})"
+            )
+            logger.error(error_message)
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=error_message,
+            )
         try:
             validate_answer_update_bounds(
                 session_updates.answer_updates,
