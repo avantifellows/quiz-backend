@@ -298,6 +298,8 @@ async def create_quiz_from_cms(request: CmsQuizIngestRequest):
             "id": quiz_id,
             "source_id": str(request.test_id),
             "warnings": warnings,
+            # The LMS stores time_limit.max on the session (meta_data.quiz_duration_seconds).
+            "time_limit": quiz.get("time_limit"),
         },
     )
 
@@ -455,6 +457,7 @@ async def regenerate_quiz_from_cms(quiz_id: str, request: CmsQuizIngestRequest):
             "source_id": str(request.test_id),
             "warnings": warnings,
             "regenerated": True,
+            "time_limit": new_quiz.get("time_limit"),
         },
     )
 
