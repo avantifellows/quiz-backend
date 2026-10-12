@@ -58,6 +58,7 @@ async def update_session_answers_at_specific_positions(
                 "_id": 0,
                 "user_id": 1,
                 "quiz_id": 1,
+                "has_quiz_ended": 1,
                 **session_answers_meta_projection(),
             }
         },
@@ -75,6 +76,21 @@ async def update_session_answers_at_specific_positions(
     user_id, quiz_id = session_meta["user_id"], session_meta["quiz_id"]
     log_message += f"(user: {user_id}, quiz: {quiz_id})"
     logger.info(log_message)
+
+    # Reject answer writes once the attempt has been submitted. A reopened quiz page (a second
+    # login or a reload after end-quiz) replays the whole answers array as blanks, which would
+    # otherwise overwrite the submitted answers in place and zero the student's report. The attempt
+    # is final once has_quiz_ended is True, so a 409 here is the authoritative stop.
+    if session_meta.get("has_quiz_ended") is True:
+        error_message = (
+            f"Answer writes are not allowed after the quiz has ended for session: {session_id} "
+            f"(user: {user_id}, quiz: {quiz_id})"
+        )
+        logger.error(error_message)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=error_message,
+        )
 
     # Post-read validation (answers array exists + positions in bounds)
     try:
@@ -155,6 +171,19 @@ async def update_session_answer_in_a_session(
     user_id, quiz_id = session["user_id"], session["quiz_id"]
     log_message += f"(user: {user_id}, quiz: {quiz_id})"
     logger.info(log_message)
+
+    # Reject answer writes once the attempt has been submitted (see the batch endpoint above for
+    # the full rationale): a reopened/reloaded quiz page must not overwrite a submitted answer.
+    if session.get("has_quiz_ended") is True:
+        error_message = (
+            f"Answer writes are not allowed after the quiz has ended for session: {session_id} "
+            f"(user: {user_id}, quiz: {quiz_id}), position: {position_index}"
+        )
+        logger.error(error_message)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=error_message,
+        )
 
     # check if the session has session answers key
     if "session_answers" not in session or session["session_answers"] is None:
