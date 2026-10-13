@@ -179,6 +179,18 @@ class CmsQuizIngestRequest(BaseModel):
     # On regenerate, omitting it keeps the quiz's existing language.
     lang_code: Optional[str] = None
 
+    # Optional post-test "next step" (a chained survey/form) written onto the quiz doc's
+    # metadata, which the quiz-taking frontend reads. The CMS test carries no notion of a
+    # next step, so the caller (the LMS) supplies these when e.g. an AIAT should show a
+    # feedback survey before its scorecard. Omitted (None) => no next step / leave existing.
+    # next_step_url supports the frontend's {apiKey}/{quizId}/{return_to} templating.
+    next_step_url: Optional[str] = None
+    next_step_text: Optional[str] = None
+    # When True, the next step is shown BEFORE the scorecard (survey gates the score);
+    # when False/omitted it is a CTA on the scorecard. See QuizMetadata.next_step_before_scores.
+    next_step_before_scores: Optional[bool] = None
+    next_step_autostart: Optional[bool] = None
+
     @field_validator("lang_code")
     @classmethod
     def _normalize_lang_code(cls, value: Optional[str]) -> Optional[str]:
@@ -208,6 +220,24 @@ async def create_quiz(quiz: Quiz):
     quiz = jsonable_encoder(quiz)
     quiz_id = await _insert_quiz_with_questions(quiz)
     return JSONResponse(status_code=status.HTTP_201_CREATED, content={"id": quiz_id})
+
+
+# The four next_step_* fields a CMS ingest request may carry, mapped onto quiz metadata.
+_NEXT_STEP_FIELDS = (
+    "next_step_url",
+    "next_step_text",
+    "next_step_before_scores",
+    "next_step_autostart",
+)
+
+
+def _apply_next_step(metadata: dict, request: "CmsQuizIngestRequest") -> None:
+    """Write any supplied next_step_* fields from the ingest request onto quiz metadata.
+    Only fields explicitly set on the request are applied, so a caller that omits them
+    leaves whatever is already there untouched (see regenerate's preservation)."""
+    for field in _NEXT_STEP_FIELDS:
+        if field in request.model_fields_set:
+            metadata[field] = getattr(request, field)
 
 
 @router.post("/from-cms", status_code=status.HTTP_201_CREATED)
@@ -241,6 +271,11 @@ async def create_quiz_from_cms(request: CmsQuizIngestRequest):
         value = getattr(request, field)
         if value is not None:
             quiz_dict[field] = value
+
+    # Chained next-step (e.g. an AIAT's before-scorecard survey) the LMS attaches. Written
+    # onto the quiz doc's metadata because that is where the frontend reads it (the ingest
+    # pipeline does not otherwise copy next_step onto the quiz doc).
+    _apply_next_step(quiz_dict.setdefault("metadata", {}), request)
 
     # Validate + fill defaults (ids, etc.) through the same model the direct endpoint uses.
     quiz = jsonable_encoder(Quiz(**quiz_dict))
@@ -387,6 +422,12 @@ async def regenerate_quiz_from_cms(quiz_id: str, request: CmsQuizIngestRequest):
         )
     elif old_meta.get("session_end_time") is not None:
         new_meta["session_end_time"] = old_meta["session_end_time"]
+    # Preserve the chained next-step (e.g. an AIAT survey) across a regenerate: keep whatever
+    # is on the existing doc, then let the request override if it supplied new values.
+    for field in _NEXT_STEP_FIELDS:
+        if old_meta.get(field) is not None:
+            new_meta[field] = old_meta[field]
+    _apply_next_step(new_meta, request)
     new_quiz["metadata"] = new_meta
 
     # Back-fill any other top-level keys the old doc carried but the new one lacks (legacy
