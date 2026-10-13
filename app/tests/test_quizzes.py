@@ -577,6 +577,74 @@ class QuizTestCase(BaseTestCase):
         doc = mongo_client.quiz.quizzes.find_one({"_id": resp.json()["id"]})
         assert doc["metadata"].get("session_end_time") is None
 
+    # ---- CMS from-cms create/regenerate: chained next-step (e.g. AIAT survey) ----
+
+    def test_create_from_cms_stores_next_step_when_supplied(self):
+        quiz_dict = self._cms_quiz_dict()
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(quiz_dict, [])
+        ):
+            resp = self.client.post(
+                f"{quizzes.router.prefix}/from-cms",
+                json={
+                    "test_id": 504,
+                    "next_step_url": "https://quiz.avantifellows.org/form/survey1?apiKey={apiKey}&return_to={quizId}",
+                    "next_step_text": "Continue to survey",
+                    "next_step_before_scores": True,
+                    "next_step_autostart": True,
+                },
+            )
+        assert resp.status_code == 201
+        meta = mongo_client.quiz.quizzes.find_one({"_id": resp.json()["id"]})[
+            "metadata"
+        ]
+        assert meta["next_step_url"].endswith("return_to={quizId}")
+        assert meta["next_step_text"] == "Continue to survey"
+        assert meta["next_step_before_scores"] is True
+        assert meta["next_step_autostart"] is True
+
+    def test_create_from_cms_without_next_step_leaves_it_unset(self):
+        quiz_dict = self._cms_quiz_dict()
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(quiz_dict, [])
+        ):
+            resp = self.client.post(
+                f"{quizzes.router.prefix}/from-cms", json={"test_id": 504}
+            )
+        assert resp.status_code == 201
+        meta = mongo_client.quiz.quizzes.find_one({"_id": resp.json()["id"]})[
+            "metadata"
+        ]
+        # mapper default metadata carries no next_step; absent request => still absent
+        assert meta.get("next_step_url") is None
+
+    def test_regenerate_preserves_next_step_when_request_omits_it(self):
+        # Create with a survey attached, then regenerate WITHOUT next_step: it must survive.
+        quiz_dict = self._cms_quiz_dict()
+        with patch("routers.quizzes.fetch_assembled_test", return_value={}), patch(
+            "routers.quizzes.map_cms_test_to_quiz", return_value=(quiz_dict, [])
+        ):
+            created = self.client.post(
+                f"{quizzes.router.prefix}/from-cms",
+                json={
+                    "test_id": 504,
+                    "next_step_url": "https://quiz.avantifellows.org/form/survey1?apiKey={apiKey}",
+                    "next_step_before_scores": True,
+                },
+            )
+            quiz_id = created.json()["id"]
+            regen_quiz = self._cms_quiz_dict()
+            with patch(
+                "routers.quizzes.map_cms_test_to_quiz", return_value=(regen_quiz, [])
+            ):
+                resp = self.client.put(
+                    f"{quizzes.router.prefix}/{quiz_id}/from-cms", json={"test_id": 504}
+                )
+        assert resp.status_code == 200
+        meta = mongo_client.quiz.quizzes.find_one({"_id": quiz_id})["metadata"]
+        assert meta["next_step_url"].endswith("apiKey={apiKey}")
+        assert meta["next_step_before_scores"] is True
+
     def test_create_from_cms_accepts_but_ignores_deprecated_curriculum_and_grade(self):
         """Deprecated no-ops: older callers still send them so the request must not 422, but
         they must never reach the CMS."""
