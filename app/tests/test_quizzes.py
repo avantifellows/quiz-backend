@@ -592,7 +592,7 @@ class QuizTestCase(BaseTestCase):
                 },
             )
         assert resp.status_code == 201
-        meta = mongo_client.quiz.quizzes.find_one({"_id": resp.json()["id"]})["metadata"]
+        meta = self.db.quizzes.find_one({"_id": resp.json()["id"]})["metadata"]
         assert meta["next_step_url"].endswith("return_to={quizId}")
         assert meta["next_step_text"] == "Continue to survey"
         assert meta["next_step_before_scores"] is True
@@ -607,7 +607,7 @@ class QuizTestCase(BaseTestCase):
                 f"{quizzes.router.prefix}/from-cms", json={"test_id": 504}
             )
         assert resp.status_code == 201
-        meta = mongo_client.quiz.quizzes.find_one({"_id": resp.json()["id"]})["metadata"]
+        meta = self.db.quizzes.find_one({"_id": resp.json()["id"]})["metadata"]
         # mapper default metadata carries no next_step; absent request => still absent
         assert meta.get("next_step_url") is None
 
@@ -634,7 +634,7 @@ class QuizTestCase(BaseTestCase):
                     f"{quizzes.router.prefix}/{quiz_id}/from-cms", json={"test_id": 504}
                 )
         assert resp.status_code == 200
-        meta = mongo_client.quiz.quizzes.find_one({"_id": quiz_id})["metadata"]
+        meta = self.db.quizzes.find_one({"_id": quiz_id})["metadata"]
         assert meta["next_step_url"].endswith("apiKey={apiKey}")
         assert meta["next_step_before_scores"] is True
 
