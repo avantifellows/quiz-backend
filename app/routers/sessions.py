@@ -18,7 +18,10 @@ from logger_config import get_logger
 from typing import Any, Dict, List, Optional
 from settings import Settings
 from services.scoring import compute_session_metrics
-from services.form_visibility import compute_form_question_visibility
+from services.form_visibility import (
+    answer_option_indices,
+    compute_form_question_visibility,
+)
 from services.session_answer_updates import (
     validate_answer_updates_before_read,
     validate_answer_update_bounds,
@@ -105,6 +108,17 @@ def _is_required_form_answer_complete(question: Dict[str, Any], answer: Any) -> 
     if question_type in ["numerical-integer", "numerical-float"]:
         return isinstance(answer, (int, float))
 
+    if question_type == "single-choice-other":
+        selected = answer_option_indices(answer, question_type)
+        if not selected:
+            return False
+        # the LAST option is "Other": choosing it requires the free text to be filled
+        other_index = len(question.get("options") or []) - 1
+        if other_index >= 0 and other_index in selected:
+            other_text = answer.get("other_text")
+            return isinstance(other_text, str) and other_text.strip() != ""
+        return True
+
     if question_type in ["matrix-rating", "matrix-numerical", "matrix-subjective"]:
         if not isinstance(answer, dict):
             return False
@@ -128,16 +142,25 @@ def _is_required_form_answer_complete(question: Dict[str, Any], answer: Any) -> 
     return isinstance(answer, list) and len(answer) > 0
 
 
-def _hydrate_required_form_matrix_rows(quiz: Dict[str, Any]) -> None:
+def _hydrate_required_form_question_details(quiz: Dict[str, Any]) -> None:
+    """Load full question docs for a question set when the required-answer check needs
+    fields the quiz doc trims from beyond-subset questions: `matrix_rows` for matrix
+    types, `options` for single-choice-other (to know which option is "Other")."""
     for question_set_index, question_set in enumerate(quiz.get("question_sets") or []):
         questions = question_set.get("questions") or []
-        has_missing_matrix_rows = any(
-            question.get("type")
-            in ["matrix-rating", "matrix-numerical", "matrix-subjective"]
-            and not question.get("matrix_rows")
+        has_missing_details = any(
+            (
+                question.get("type")
+                in ["matrix-rating", "matrix-numerical", "matrix-subjective"]
+                and not question.get("matrix_rows")
+            )
+            or (
+                question.get("type") == "single-choice-other"
+                and not question.get("options")
+            )
             for question in questions
         )
-        if has_missing_matrix_rows:
+        if has_missing_details:
             quiz["question_sets"][question_set_index]["questions"] = list(
                 client.quiz.questions.find(
                     {"question_set_id": question_set["_id"]}
@@ -655,7 +678,7 @@ async def update_session(session_id: str, session_updates: UpdateSession):
             if (quiz.get("metadata") or {}).get(
                 "quiz_type"
             ) == QuizType.form.value and quiz.get("require_all_questions") is True:
-                _hydrate_required_form_matrix_rows(quiz)
+                _hydrate_required_form_question_details(quiz)
                 incomplete_positions = _get_incomplete_required_form_positions(
                     quiz, session
                 )

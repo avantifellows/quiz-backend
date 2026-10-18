@@ -2,13 +2,19 @@
 a student is shown. Used by the session routes (required-answer check on end-quiz) and by
 scoring (session metrics), so both always agree."""
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 
-def answer_option_indices(answer: Any) -> List[int]:
-    """Selected 0-based option indices from a single/multi-choice answer (stored as a list
-    of indices). Other answer shapes (matrix dicts, numerical values) cannot drive a v1
-    display_condition, so they contribute no indices."""
+def answer_option_indices(
+    answer: Any, question_type: Optional[str] = None
+) -> List[int]:
+    """Selected 0-based option indices from a choice answer. Single/multi-choice store a
+    list of indices; single-choice-other stores {"selected": [...], "other_text": ...}.
+    Other answer shapes (matrix dicts, numerical values) cannot drive a display_condition,
+    so they contribute no indices. The question type is needed because matrix answers are
+    dicts too."""
+    if question_type == "single-choice-other":
+        answer = answer.get("selected") if isinstance(answer, dict) else None
     if isinstance(answer, list):
         return [index for index in answer if isinstance(index, int)]
     return []
@@ -49,6 +55,7 @@ def compute_form_question_visibility(
             if source_position < len(session_answers)
             else None
         )
-        selected = set(answer_option_indices(answer))
+        trigger_type = flat_questions[source_position].get("type")
+        selected = set(answer_option_indices(answer, trigger_type))
         visibility.append(bool(selected.intersection(option_indices)))
     return visibility
