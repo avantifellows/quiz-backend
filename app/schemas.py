@@ -33,6 +33,9 @@ class PyObjectId(ObjectId):
 
 class QuestionType(Enum):
     single_choice = "single-choice"
+    # single-choice whose LAST option is "Other" with a free-text box; the answer is
+    # {"selected": [index], "other_text": str | None}
+    single_choice_other = "single-choice-other"
     multi_choice = "multi-choice"
     subjective = "subjective"
     numerical_integer = "numerical-integer"
