@@ -1,14 +1,22 @@
-"""Unit tests for the conditional-display (display_condition) rule on the backend:
+"""Tests for the conditional-display (display_condition) rule on the backend:
 `_compute_form_question_visibility` (the single visibility evaluator) and its use in
-`_get_incomplete_required_form_positions`. Pure functions — no MongoDB needed."""
+`_get_incomplete_required_form_positions` (pure functions — no MongoDB needed), plus the
+POST /quiz creation checks (API, real test MongoDB)."""
 
+import json
 import unittest
+from copy import deepcopy
+from pathlib import Path
 
 from routers.sessions import (
     _answer_option_indices,
     _compute_form_question_visibility,
     _get_incomplete_required_form_positions,
 )
+
+from .base import BaseTestCase
+
+_DUMMY_DATA = Path(__file__).resolve().parent / "dummy_data"
 
 
 def _q(qtype="single-choice", display_condition=None, required=None):
@@ -190,6 +198,116 @@ class RequiredFlagWithDisplayConditionTests(unittest.TestCase):
         )
         session = _session([1], None, None, None, None)
         self.assertEqual(_get_incomplete_required_form_positions(quiz, session), [3, 4])
+
+
+class CreateQuizDisplayConditionValidationTests(BaseTestCase):
+    """POST /quiz rejects a display_condition the runtime could never satisfy, and any
+    display_condition outside a form. Fixture positions (one set): 0 subjective,
+    1 single-choice (3 options), 2 multi-choice (3), 3 single-choice (7), 4 matrix-rating,
+    5 matrix-numerical, 6 subjective, 7 subjective."""
+
+    def setUp(self):
+        super().setUp()
+        self.form = json.load(open(_DUMMY_DATA / "form_questionnaire.json"))
+
+    def _post(self, quiz):
+        return self.client.post("/quiz/", json=quiz)
+
+    def _form_with(self, *conditions):
+        """The form fixture with (position, display_condition) pairs attached."""
+        form = deepcopy(self.form)
+        questions = form["question_sets"][0]["questions"]
+        for position, condition in conditions:
+            questions[position]["display_condition"] = condition
+        return form
+
+    def _assert_rejected(self, quiz, *fragments):
+        num_quizzes = self.db.quizzes.count_documents({})
+        response = self._post(quiz)
+        self.assertEqual(response.status_code, 422, response.text)
+        detail = " | ".join(response.json()["detail"])
+        for fragment in fragments:
+            self.assertIn(fragment, detail)
+        # nothing stored
+        self.assertEqual(self.db.quizzes.count_documents({}), num_quizzes)
+
+    def test_valid_conditions_are_created(self):
+        response = self._post(
+            self._form_with((6, _cond(1, [0])), (7, _cond(2, [0, 2])))
+        )
+        self.assertEqual(response.status_code, 201, response.text)
+        stored = self.db.questions.find_one(
+            {
+                "display_condition": {"$exists": True},
+                "text": self.form["question_sets"][0]["questions"][6]["text"],
+            }
+        )
+        self.assertEqual(stored["display_condition"], _cond(1, [0]))
+
+    def test_chained_condition_is_created(self):
+        response = self._post(self._form_with((3, _cond(1, [0])), (6, _cond(3, [6]))))
+        self.assertEqual(response.status_code, 201, response.text)
+
+    def test_form_without_conditions_is_created(self):
+        self.assertEqual(self._post(self.form).status_code, 201)
+
+    def test_forward_reference_rejected(self):
+        self._assert_rejected(
+            self._form_with((1, _cond(3, [0]))),
+            "position 1: source_position 3 must point to an earlier question",
+        )
+
+    def test_self_reference_rejected(self):
+        self._assert_rejected(
+            self._form_with((3, _cond(3, [0]))), "position 3: source_position 3"
+        )
+
+    def test_negative_source_rejected(self):
+        self._assert_rejected(
+            self._form_with((6, _cond(-1, [0]))), "position 6: source_position -1"
+        )
+
+    def test_out_of_range_source_rejected(self):
+        self._assert_rejected(
+            self._form_with((6, _cond(99, [0]))), "position 6: source_position 99"
+        )
+
+    def test_non_choice_trigger_rejected(self):
+        self._assert_rejected(
+            self._form_with((6, _cond(0, [0])), (7, _cond(4, [0]))),
+            "trigger at position 0 must be one of single-choice, multi-choice, not subjective",
+            "trigger at position 4",
+        )
+
+    def test_empty_option_indices_rejected(self):
+        self._assert_rejected(
+            self._form_with((6, _cond(1, []))), "option_indices must not be empty"
+        )
+
+    def test_out_of_range_option_index_rejected(self):
+        self._assert_rejected(
+            self._form_with((6, _cond(1, [0, 3]))),
+            "option_indices [0, 3] must be between 0 and 2 (the trigger has 3 options)",
+        )
+
+    def test_negative_option_index_rejected(self):
+        self._assert_rejected(
+            self._form_with((6, _cond(1, [-1]))), "option_indices [-1]"
+        )
+
+    def test_display_condition_rejected_outside_forms(self):
+        for quiz_type in ("assessment", "homework", "omr-assessment"):
+            with self.subTest(quiz_type=quiz_type):
+                quiz = self._form_with((6, _cond(1, [0])))
+                quiz["metadata"]["quiz_type"] = quiz_type
+                self._assert_rejected(
+                    quiz, "position 6: display_condition is only allowed on forms"
+                )
+
+    def test_display_condition_rejected_without_metadata(self):
+        quiz = self._form_with((6, _cond(1, [0])))
+        del quiz["metadata"]
+        self._assert_rejected(quiz, "only allowed on forms")
 
 
 if __name__ == "__main__":
