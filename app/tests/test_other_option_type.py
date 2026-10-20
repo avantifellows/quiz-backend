@@ -206,6 +206,36 @@ class EndQuizApiTests(BaseTestCase):
             json={"event": EventType.end_quiz.value},
         )
 
+    def test_can_trigger_a_follow_up_at_creation(self):
+        form = {
+            "title": "Other trigger form",
+            "max_marks": 0,
+            "num_graded_questions": 0,
+            "metadata": {"quiz_type": "form"},
+            "question_sets": [
+                {
+                    "max_questions_allowed_to_attempt": 2,
+                    "questions": [
+                        {
+                            "text": "Why?",
+                            "type": "single-choice-other",
+                            "options": OPTIONS,
+                        },
+                        {
+                            "text": "Tell us more",
+                            "type": "subjective",
+                            "display_condition": {
+                                "source_position": 0,
+                                "option_indices": [OTHER_INDEX],
+                            },
+                        },
+                    ],
+                }
+            ],
+        }
+        response = self.client.post(quizzes.router.prefix + "/", json=form)
+        assert response.status_code == 201, response.text
+
     def test_question_type_and_options_are_served(self):
         form = self.client.get(
             f"{forms.router.prefix}/{self.quiz_id}", params={"single_page_mode": True}
