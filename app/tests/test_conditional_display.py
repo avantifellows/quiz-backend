@@ -279,7 +279,8 @@ class CreateQuizDisplayConditionValidationTests(BaseTestCase):
     def test_non_choice_trigger_rejected(self):
         self._assert_rejected(
             self._form_with((6, _cond(0, [0])), (7, _cond(4, [0]))),
-            "trigger at position 0 must be one of single-choice, multi-choice, not subjective",
+            "trigger at position 0 must be one of single-choice, single-choice-other, "
+            "multi-choice, not subjective",
             "trigger at position 4",
         )
 

@@ -135,6 +135,7 @@ def _aggregate_question_set_subset(question_set_id) -> list:
 # display_condition (mirrors sessionCreator's trigger check).
 _DISPLAY_CONDITION_TRIGGER_TYPES = (
     QuestionType.single_choice.value,
+    QuestionType.single_choice_other.value,
     QuestionType.multi_choice.value,
 )
 
