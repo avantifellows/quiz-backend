@@ -18,6 +18,7 @@ from logger_config import get_logger
 from typing import Any, Dict, List, Optional
 from settings import Settings
 from services.scoring import compute_session_metrics
+from services.form_visibility import compute_form_question_visibility
 from cache import get_cached_quiz, cache_get, cache_set, cache_key
 from services.session_answer_updates import (
     validate_answer_updates_before_read,
@@ -130,55 +131,6 @@ async def _hydrate_required_form_matrix_rows(db, quiz: Dict[str, Any]) -> None:
             )
 
 
-def _answer_option_indices(answer: Any) -> List[int]:
-    """Selected 0-based option indices from a single/multi-choice answer (stored as a list
-    of indices). Other answer shapes (matrix dicts, numerical values) cannot drive a v1
-    display_condition, so they contribute no indices."""
-    if isinstance(answer, list):
-        return [index for index in answer if isinstance(index, int)]
-    return []
-
-
-def _compute_form_question_visibility(
-    flat_questions: List[Dict[str, Any]], session_answers: List[Dict[str, Any]]
-) -> List[bool]:
-    """Visibility of every question by flat position — the single source of truth for the
-    conditional-display rule on the backend.
-
-    A question with no `display_condition` is always visible. Otherwise it is visible only
-    when its trigger question is itself visible AND the trigger's submitted answer selects
-    one of the required `option_indices`. Visibility is transitive: a dependent of a hidden
-    trigger is hidden. Triggers always precede their dependents (validated at creation), so
-    a single forward pass that reads earlier positions' visibility resolves whole chains. A
-    condition whose `source_position` is missing, out of range, or points at/after the
-    dependent itself can never be satisfied, so the question stays hidden.
-    """
-    visibility: List[bool] = []
-    for question in flat_questions:
-        condition = question.get("display_condition")
-        if not condition:
-            visibility.append(True)
-            continue
-        source_position = condition.get("source_position")
-        option_indices = condition.get("option_indices") or []
-        if (
-            not isinstance(source_position, int)
-            or source_position < 0
-            or source_position >= len(visibility)
-            or not visibility[source_position]
-        ):
-            visibility.append(False)
-            continue
-        answer = (
-            session_answers[source_position].get("answer")
-            if source_position < len(session_answers)
-            else None
-        )
-        selected = set(_answer_option_indices(answer))
-        visibility.append(bool(selected.intersection(option_indices)))
-    return visibility
-
-
 def _get_incomplete_required_form_positions(
     quiz: Dict[str, Any], session: Dict[str, Any]
 ) -> List[int]:
@@ -189,7 +141,7 @@ def _get_incomplete_required_form_positions(
         for question_set in quiz.get("question_sets") or []
         for question in question_set.get("questions") or []
     ]
-    visibility = _compute_form_question_visibility(flat_questions, session_answers)
+    visibility = compute_form_question_visibility(flat_questions, session_answers)
     for position, question in enumerate(flat_questions):
         # A hidden question is never required — its answer legitimately stays null, so
         # skip it. Without this a form with any conditional question could never be

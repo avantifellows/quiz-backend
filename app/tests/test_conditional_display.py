@@ -1,5 +1,5 @@
 """Tests for the conditional-display (display_condition) rule on the backend:
-`_compute_form_question_visibility` (the single visibility evaluator) and its use in
+`compute_form_question_visibility` (the single visibility evaluator, services/form_visibility.py) and its use in
 `_get_incomplete_required_form_positions` (pure functions — no MongoDB needed), plus the
 POST /quiz creation checks (API, real test MongoDB)."""
 
@@ -8,10 +8,13 @@ import unittest
 from copy import deepcopy
 from pathlib import Path
 
-from routers.sessions import (
-    _answer_option_indices,
-    _compute_form_question_visibility,
-    _get_incomplete_required_form_positions,
+from routers import quizzes, sessions, session_answers
+from routers.sessions import _get_incomplete_required_form_positions
+from schemas import EventType
+from settings import Settings
+from services.form_visibility import (
+    answer_option_indices,
+    compute_form_question_visibility,
 )
 
 from .base import BaseTestCase
@@ -43,21 +46,21 @@ def _session(*answers):
 
 class AnswerOptionIndicesTests(unittest.TestCase):
     def test_list_answer_returns_int_indices(self):
-        self.assertEqual(_answer_option_indices([0, 2]), [0, 2])
+        self.assertEqual(answer_option_indices([0, 2]), [0, 2])
 
     def test_non_list_shapes_contribute_nothing(self):
         # matrix dict, numerical, string, None cannot drive a v1 condition
-        self.assertEqual(_answer_option_indices({"row": 1}), [])
-        self.assertEqual(_answer_option_indices(3), [])
-        self.assertEqual(_answer_option_indices("text"), [])
-        self.assertEqual(_answer_option_indices(None), [])
+        self.assertEqual(answer_option_indices({"row": 1}), [])
+        self.assertEqual(answer_option_indices(3), [])
+        self.assertEqual(answer_option_indices("text"), [])
+        self.assertEqual(answer_option_indices(None), [])
 
 
 class VisibilityTests(unittest.TestCase):
     def test_no_conditions_all_visible(self):
         questions = [_q(), _q(), _q()]
         self.assertEqual(
-            _compute_form_question_visibility(questions, []),
+            compute_form_question_visibility(questions, []),
             [True, True, True],
         )
 
@@ -65,7 +68,7 @@ class VisibilityTests(unittest.TestCase):
         questions = [_q(), _q(display_condition=_cond(0, [0]))]
         answers = [{"answer": [0]}, {"answer": None}]
         self.assertEqual(
-            _compute_form_question_visibility(questions, answers),
+            compute_form_question_visibility(questions, answers),
             [True, True],
         )
 
@@ -73,7 +76,7 @@ class VisibilityTests(unittest.TestCase):
         questions = [_q(), _q(display_condition=_cond(0, [0]))]
         answers = [{"answer": [1]}, {"answer": None}]
         self.assertEqual(
-            _compute_form_question_visibility(questions, answers),
+            compute_form_question_visibility(questions, answers),
             [True, False],
         )
 
@@ -81,7 +84,7 @@ class VisibilityTests(unittest.TestCase):
         questions = [_q("multi-choice"), _q(display_condition=_cond(0, [2]))]
         answers = [{"answer": [1, 2]}, {"answer": None}]
         self.assertEqual(
-            _compute_form_question_visibility(questions, answers),
+            compute_form_question_visibility(questions, answers),
             [True, True],
         )
 
@@ -93,7 +96,7 @@ class VisibilityTests(unittest.TestCase):
         ]
         answers = [{"answer": [0]}, {"answer": None}, {"answer": None}]
         self.assertEqual(
-            _compute_form_question_visibility(questions, answers),
+            compute_form_question_visibility(questions, answers),
             [True, True, True],
         )
 
@@ -107,7 +110,7 @@ class VisibilityTests(unittest.TestCase):
         ]
         answers = [{"answer": [1]}, {"answer": [0]}, {"answer": [0]}]
         self.assertEqual(
-            _compute_form_question_visibility(questions, answers),
+            compute_form_question_visibility(questions, answers),
             [True, False, False],
         )
 
@@ -119,7 +122,7 @@ class VisibilityTests(unittest.TestCase):
             _q(display_condition=_cond(None, [0])),  # missing
         ]
         self.assertEqual(
-            _compute_form_question_visibility(questions, [{"answer": [0]}]),
+            compute_form_question_visibility(questions, [{"answer": [0]}]),
             [False, False, False],
         )
 
@@ -308,6 +311,92 @@ class CreateQuizDisplayConditionValidationTests(BaseTestCase):
         quiz = self._form_with((6, _cond(1, [0])))
         del quiz["metadata"]
         self._assert_rejected(quiz, "only allowed on forms")
+
+
+class EndQuizMetricsApiTests(BaseTestCase):
+    """The metrics stored on a form session at end-quiz leave out hidden questions. The
+    follow-up sits beyond the first subset_size questions, whose details the quiz doc
+    trims, so this also covers display_condition reaching scoring from the quiz doc."""
+
+    def setUp(self):
+        super().setUp()
+        subset_size = Settings().subset_size
+        options = [{"text": "Yes"}, {"text": "No"}]
+        filler = [
+            {"text": f"Q{i}", "type": "single-choice", "options": options}
+            for i in range(1, subset_size + 1)
+        ]
+        self.num_questions = subset_size + 2
+        self.follow_up_position = subset_size + 1
+        form = {
+            "title": "Conditional metrics form",
+            "max_marks": 0,
+            "num_graded_questions": 0,
+            "metadata": {"quiz_type": "form"},
+            "question_sets": [
+                {
+                    "title": "Section",
+                    "max_questions_allowed_to_attempt": self.num_questions,
+                    "questions": [
+                        {"text": "Trigger", "type": "single-choice", "options": options}
+                    ]
+                    + filler
+                    + [
+                        {
+                            "text": "Why?",
+                            "type": "subjective",
+                            "display_condition": {
+                                "source_position": 0,
+                                "option_indices": [0],
+                            },
+                        }
+                    ],
+                }
+            ],
+        }
+        response = self.client.post(quizzes.router.prefix + "/", json=form)
+        assert response.status_code == 201, response.text
+        quiz_id = response.json()["id"]
+        response = self.client.post(
+            sessions.router.prefix + "/", json={"quiz_id": quiz_id, "user_id": 1}
+        )
+        self.session_id = response.json()["_id"]
+        self.client.patch(
+            f"{sessions.router.prefix}/{self.session_id}",
+            json={"event": EventType.start_quiz.value},
+        )
+
+    def _end_with(self, trigger_answer, follow_up_answer):
+        updates = [[0, {"answer": trigger_answer}]]
+        updates += [[i, {"answer": [1]}] for i in range(1, self.follow_up_position)]
+        updates.append([self.follow_up_position, {"answer": follow_up_answer}])
+        response = self.client.patch(
+            f"{session_answers.router.prefix}/{self.session_id}/update-multiple-answers",
+            json=updates,
+        )
+        assert response.status_code == 200, response.text
+        response = self.client.patch(
+            f"{sessions.router.prefix}/{self.session_id}",
+            json={"event": EventType.end_quiz.value},
+        )
+        assert response.status_code == 200, response.text
+        return self.db.sessions.find_one({"_id": self.session_id})["metrics"]
+
+    def test_hidden_follow_up_is_not_skipped(self):
+        # trigger "No": the follow-up is hidden; its old answer must not count either
+        metrics = self._end_with([1], "old answer")
+        qset = metrics["qset_metrics"][0]
+        shown = self.num_questions - 1
+        self.assertEqual(qset["num_answered"], shown)
+        self.assertEqual(qset["num_skipped"], 0)
+        self.assertAlmostEqual(qset["attempt_rate"], 1.0, places=4)
+
+    def test_shown_unanswered_follow_up_is_skipped(self):
+        # trigger "Yes": the follow-up is shown and left blank
+        metrics = self._end_with([0], None)
+        qset = metrics["qset_metrics"][0]
+        self.assertEqual(qset["num_answered"], self.num_questions - 1)
+        self.assertEqual(qset["num_skipped"], 1)
 
 
 if __name__ == "__main__":
