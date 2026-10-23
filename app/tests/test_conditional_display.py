@@ -7,6 +7,7 @@ import json
 import unittest
 from copy import deepcopy
 from pathlib import Path
+from unittest.mock import patch
 
 from routers import quizzes, sessions, session_answers
 from routers.sessions import _get_incomplete_required_form_positions
@@ -397,6 +398,57 @@ class EndQuizMetricsApiTests(BaseTestCase):
         qset = metrics["qset_metrics"][0]
         self.assertEqual(qset["num_answered"], self.num_questions - 1)
         self.assertEqual(qset["num_skipped"], 1)
+
+
+# random.shuffle replaced by an in-place reverse, so "shuffled" is deterministic
+_REVERSE_SHUFFLE = patch(
+    "routers.sessions.random.shuffle", side_effect=lambda block: block.reverse()
+)
+
+
+class ShuffleQuestionOrderTests(unittest.TestCase):
+    """A conditional form is never shuffled, whatever its shuffle flag; other quizzes
+    shuffle as before."""
+
+    def _quiz(self, quiz_type, *questions):
+        quiz = _quiz(*questions)
+        quiz["metadata"] = {"quiz_type": quiz_type}
+        return quiz
+
+    @_REVERSE_SHUFFLE
+    def test_conditional_form_keeps_sequential_order(self, _shuffle):
+        quiz = self._quiz("form", _q(), _q(), _q("subjective", _cond(0, [0])))
+        self.assertEqual(sessions.shuffle_question_order(quiz, shuffle=True), [0, 1, 2])
+
+    @_REVERSE_SHUFFLE
+    def test_form_without_conditions_still_shuffles(self, _shuffle):
+        quiz = self._quiz("form", _q(), _q(), _q("subjective"))
+        self.assertEqual(sessions.shuffle_question_order(quiz, shuffle=True), [2, 1, 0])
+
+    @_REVERSE_SHUFFLE
+    def test_non_form_still_shuffles(self, _shuffle):
+        quiz = self._quiz("assessment", _q(), _q(), _q())
+        self.assertEqual(sessions.shuffle_question_order(quiz, shuffle=True), [2, 1, 0])
+
+
+class CreateSessionShuffleApiTests(BaseTestCase):
+    """POST /sessions on a conditional form created with shuffle=True stores a sequential
+    question_order."""
+
+    @_REVERSE_SHUFFLE
+    def test_conditional_form_session_is_not_shuffled(self, _shuffle):
+        form = json.load(open(_DUMMY_DATA / "form_questionnaire.json"))
+        form["shuffle"] = True
+        form["question_sets"][0]["questions"][6]["display_condition"] = _cond(1, [0])
+        response = self.client.post(quizzes.router.prefix + "/", json=form)
+        self.assertEqual(response.status_code, 201, response.text)
+        response = self.client.post(
+            sessions.router.prefix + "/",
+            json={"quiz_id": response.json()["id"], "user_id": 1},
+        )
+        self.assertEqual(response.status_code, 201, response.text)
+        num_questions = len(form["question_sets"][0]["questions"])
+        self.assertEqual(response.json()["question_order"], list(range(num_questions)))
 
 
 if __name__ == "__main__":
