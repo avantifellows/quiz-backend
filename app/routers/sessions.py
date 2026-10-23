@@ -39,8 +39,23 @@ def str_to_datetime(value) -> Optional[datetime]:
     return datetime.fromisoformat(value)
 
 
+def _is_conditional_form(quiz) -> bool:
+    """A form with at least one display_condition (conditional follow-up question)."""
+    if (quiz.get("metadata") or {}).get("quiz_type") != QuizType.form.value:
+        return False
+    return any(
+        question.get("display_condition") is not None
+        for question_set in quiz.get("question_sets") or []
+        for question in question_set.get("questions") or []
+    )
+
+
 def shuffle_question_order(quiz, shuffle=False):
     """returns shuffled question order for a quiz if shuffle is True, else returns sequential order"""
+    # A conditional form is never shuffled, whatever its shuffle flag: a follow-up must stay
+    # below its trigger.
+    if _is_conditional_form(quiz):
+        shuffle = False
     question_sets = quiz["question_sets"]
     question_order = []
     bucket_size = Settings().subset_size
