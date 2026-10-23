@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from database import get_quiz_db
 from models import Quiz, GetQuizResponse, CreateQuizResponse
 from settings import Settings
-from schemas import QuizType
+from schemas import QuestionType, QuizType
 from services.cms_ingest import (
     fetch_assembled_test,
     map_cms_test_to_quiz,
@@ -76,6 +76,9 @@ async def _aggregate_question_set_subset(question_set_id) -> list:
                     "correct_answer": 1,
                     "question_set_id": 1,
                     "marking_scheme": 1,
+                    # carried so conditional-display visibility can be evaluated for
+                    # beyond-subset questions on bucketed (non-single-page) paths
+                    "display_condition": 1,
                 }
             },
         ]
@@ -83,6 +86,60 @@ async def _aggregate_question_set_subset(question_set_id) -> list:
     subset_with_details = await cursor_with_details.to_list(length=None)
     subset_without_details = await cursor_without_details.to_list(length=None)
     return subset_with_details + subset_without_details
+
+
+# Question types whose answer is a list of option indices, so they can drive a
+# display_condition (mirrors sessionCreator's trigger check).
+_DISPLAY_CONDITION_TRIGGER_TYPES = (
+    QuestionType.single_choice.value,
+    QuestionType.multi_choice.value,
+)
+
+
+def _display_condition_errors(quiz: dict) -> list:
+    """Problems with the display_conditions of a quiz being created (already
+    jsonable-encoded); empty when there are none. Conditions are form-only. On a form each
+    condition must point at an EARLIER choice question (flat position) and name at least
+    one of its existing options — otherwise the runtime evaluators would silently hide the
+    question forever."""
+    questions = [
+        question
+        for question_set in quiz.get("question_sets") or []
+        for question in question_set.get("questions") or []
+    ]
+    is_form = (quiz.get("metadata") or {}).get("quiz_type") == QuizType.form.value
+    errors = []
+    for position, question in enumerate(questions):
+        condition = question.get("display_condition")
+        if condition is None:
+            continue
+        where = f"question at position {position}"
+        if not is_form:
+            errors.append(f"{where}: display_condition is only allowed on forms")
+            continue
+        source = condition["source_position"]
+        if not 0 <= source < position:
+            errors.append(
+                f"{where}: source_position {source} must point to an earlier question"
+            )
+            continue
+        trigger = questions[source]
+        if trigger.get("type") not in _DISPLAY_CONDITION_TRIGGER_TYPES:
+            errors.append(
+                f"{where}: trigger at position {source} must be one of "
+                f"{', '.join(_DISPLAY_CONDITION_TRIGGER_TYPES)}, not {trigger.get('type')}"
+            )
+            continue
+        option_indices = condition["option_indices"]
+        num_options = len(trigger.get("options") or [])
+        if not option_indices:
+            errors.append(f"{where}: option_indices must not be empty")
+        elif any(not 0 <= index < num_options for index in option_indices):
+            errors.append(
+                f"{where}: option_indices {option_indices} must be between 0 and "
+                f"{num_options - 1} (the trigger has {num_options} options)"
+            )
+    return errors
 
 
 async def _insert_quiz_with_questions(quiz: dict) -> str:
@@ -218,6 +275,12 @@ class CmsQuizIngestRequest(BaseModel):
 @router.post("/", response_model=CreateQuizResponse)
 async def create_quiz(quiz: Quiz):
     quiz = jsonable_encoder(quiz)
+    display_condition_errors = _display_condition_errors(quiz)
+    if display_condition_errors:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=display_condition_errors,
+        )
     quiz_id = await _insert_quiz_with_questions(quiz)
     return JSONResponse(status_code=status.HTTP_201_CREATED, content={"id": quiz_id})
 

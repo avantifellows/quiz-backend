@@ -18,6 +18,7 @@ from logger_config import get_logger
 from typing import Any, Dict, List, Optional
 from settings import Settings
 from services.scoring import compute_session_metrics
+from services.form_visibility import compute_form_question_visibility
 from cache import get_cached_quiz, cache_get, cache_set, cache_key
 from services.session_answer_updates import (
     validate_answer_updates_before_read,
@@ -39,8 +40,23 @@ def str_to_datetime(value) -> Optional[datetime]:
     return datetime.fromisoformat(value)
 
 
+def _is_conditional_form(quiz) -> bool:
+    """A form with at least one display_condition (conditional follow-up question)."""
+    if (quiz.get("metadata") or {}).get("quiz_type") != QuizType.form.value:
+        return False
+    return any(
+        question.get("display_condition") is not None
+        for question_set in quiz.get("question_sets") or []
+        for question in question_set.get("questions") or []
+    )
+
+
 def shuffle_question_order(quiz, shuffle=False):
     """returns shuffled question order for a quiz if shuffle is True, else returns sequential order"""
+    # A conditional form is never shuffled, whatever its shuffle flag: a follow-up must stay
+    # below its trigger.
+    if _is_conditional_form(quiz):
+        shuffle = False
     question_sets = quiz["question_sets"]
     question_order = []
     bucket_size = Settings().subset_size
@@ -135,21 +151,28 @@ def _get_incomplete_required_form_positions(
 ) -> List[int]:
     positions = []
     session_answers = session.get("session_answers") or []
-    position = 0
-    for question_set in quiz.get("question_sets") or []:
-        for question in question_set.get("questions") or []:
-            # required=False marks a per-question opt-out from require_all_questions
-            if question.get("required") is False:
-                position += 1
-                continue
-            answer = (
-                session_answers[position].get("answer")
-                if position < len(session_answers)
-                else None
-            )
-            if not _is_required_form_answer_complete(question, answer):
-                positions.append(position)
-            position += 1
+    flat_questions = [
+        question
+        for question_set in quiz.get("question_sets") or []
+        for question in question_set.get("questions") or []
+    ]
+    visibility = compute_form_question_visibility(flat_questions, session_answers)
+    for position, question in enumerate(flat_questions):
+        # A hidden question is never required — its answer legitimately stays null, so
+        # skip it. Without this a form with any conditional question could never be
+        # submitted under require_all_questions.
+        if not visibility[position]:
+            continue
+        # required=False marks a per-question opt-out from require_all_questions
+        if question.get("required") is False:
+            continue
+        answer = (
+            session_answers[position].get("answer")
+            if position < len(session_answers)
+            else None
+        )
+        if not _is_required_form_answer_complete(question, answer):
+            positions.append(position)
     return positions
 
 
