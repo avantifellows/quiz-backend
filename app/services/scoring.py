@@ -1,5 +1,7 @@
 from typing import Any, Dict, Optional
 
+from services.form_visibility import compute_form_question_visibility
+
 
 NUMERICAL_FLOAT_TOLERANCE = 0.05
 
@@ -197,9 +199,23 @@ def compute_session_metrics(
     total_marked_for_review = 0
     total_marks = 0.0
 
+    # Forms: which questions the student was shown. A hidden conditional question counts as
+    # neither answered nor skipped, even if it still holds an old answer.
+    visibility = None
+    if quiz_type == "form":
+        flat_questions = [
+            question
+            for question_set in question_sets
+            for question in question_set.get("questions") or []
+        ]
+        visibility = compute_form_question_visibility(flat_questions, session_answers)
+
     session_answer_index = 0
+    flat_position = 0
     for question_set in question_sets:
         questions = question_set.get("questions") or []
+        qset_start = flat_position
+        flat_position += len(questions)
         qset_title = question_set.get("title")
         if qset_title is None:
             qset_title = ""
@@ -218,6 +234,7 @@ def compute_session_metrics(
         for question in questions:
             if session_answer_index >= len(session_answers):
                 break
+            position = session_answer_index
             session_answer = session_answers[session_answer_index]
             session_answer_index += 1
 
@@ -225,7 +242,9 @@ def compute_session_metrics(
                 qset_num_marked_for_review += 1
 
             if quiz_type == "form":
-                if _is_form_answered(session_answer.get("answer")):
+                if visibility[position] and _is_form_answered(
+                    session_answer.get("answer")
+                ):
                     qset_num_answered += 1
                 continue
 
@@ -260,7 +279,8 @@ def compute_session_metrics(
                     qset_num_wrong += 1
 
         if quiz_type == "form":
-            max_questions_allowed = len(questions)
+            # questions the student was shown in this set
+            max_questions_allowed = sum(visibility[qset_start:flat_position])
             qset_num_skipped = max_questions_allowed - qset_num_answered
             qset_marks_scored = 0.0
         else:
