@@ -19,6 +19,7 @@ from services.form_visibility import (
 )
 
 from .base import BaseTestCase
+from ..database import client as mongo_client
 
 _DUMMY_DATA = Path(__file__).resolve().parent / "dummy_data"
 
@@ -226,21 +227,21 @@ class CreateQuizDisplayConditionValidationTests(BaseTestCase):
         return form
 
     def _assert_rejected(self, quiz, *fragments):
-        num_quizzes = self.db.quizzes.count_documents({})
+        num_quizzes = mongo_client.quiz.quizzes.count_documents({})
         response = self._post(quiz)
         self.assertEqual(response.status_code, 422, response.text)
         detail = " | ".join(response.json()["detail"])
         for fragment in fragments:
             self.assertIn(fragment, detail)
         # nothing stored
-        self.assertEqual(self.db.quizzes.count_documents({}), num_quizzes)
+        self.assertEqual(mongo_client.quiz.quizzes.count_documents({}), num_quizzes)
 
     def test_valid_conditions_are_created(self):
         response = self._post(
             self._form_with((6, _cond(1, [0])), (7, _cond(2, [0, 2])))
         )
         self.assertEqual(response.status_code, 201, response.text)
-        stored = self.db.questions.find_one(
+        stored = mongo_client.quiz.questions.find_one(
             {
                 "display_condition": {"$exists": True},
                 "text": self.form["question_sets"][0]["questions"][6]["text"],
@@ -382,7 +383,7 @@ class EndQuizMetricsApiTests(BaseTestCase):
             json={"event": EventType.end_quiz.value},
         )
         assert response.status_code == 200, response.text
-        return self.db.sessions.find_one({"_id": self.session_id})["metrics"]
+        return mongo_client.quiz.sessions.find_one({"_id": self.session_id})["metrics"]
 
     def test_hidden_follow_up_is_not_skipped(self):
         # trigger "No": the follow-up is hidden; its old answer must not count either
