@@ -1,5 +1,6 @@
 import re
 from copy import deepcopy
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, status, HTTPException, Query
@@ -9,12 +10,13 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from database import get_quiz_db
 from models import Quiz, GetQuizResponse, CreateQuizResponse
 from settings import Settings
-from schemas import QuestionType, QuizType
+from schemas import QuestionType, QuizSource, QuizType
 from services.cms_ingest import (
     fetch_assembled_test,
     map_cms_test_to_quiz,
     CmsIngestError,
 )
+from services.form_definition_build import FormBuildError, build_quiz
 from services.quiz_time import answer_visibility_end_time
 from logger_config import get_logger
 from cache import get_cached_quiz, cache_get, cache_set, cache_key
@@ -523,6 +525,193 @@ async def regenerate_quiz_from_cms(quiz_id: str, request: CmsQuizIngestRequest):
             "time_limit": new_quiz.get("time_limit"),
         },
     )
+
+
+def _normalize_lang_code(value: Optional[str]) -> Optional[str]:
+    """Empty or "en" -> None (English only); otherwise a two-letter code."""
+    value = (value or "").strip().lower()
+    if value in ("", "en"):
+        return None
+    if not re.fullmatch(r"[a-z]{2}", value):
+        raise ValueError("lang_code must be a two-letter language code")
+    return value
+
+
+class FormDefinitionQuizRequest(BaseModel):
+    """Body for POST /quiz/from-form-definition and PUT /quiz/{id}/from-form-definition."""
+
+    # Required on create; on regenerate it defaults to the form the quiz was built from.
+    definition_id: Optional[str] = None
+    # Extra language shown under the English (e.g. "hi"); omitted/"en" = English only. On
+    # regenerate, omitting it keeps the quiz's language (decisions D15, D21).
+    lang_code: Optional[str] = None
+
+    @field_validator("lang_code")
+    @classmethod
+    def _lang_code(cls, value: Optional[str]) -> Optional[str]:
+        return _normalize_lang_code(value)
+
+
+def _build_form_quiz(
+    definition: dict, definition_id: str, lang_code: Optional[str]
+) -> dict:
+    """Build + validate (422) the jsonable quiz a session gets from a form definition."""
+    try:
+        quiz_dict = build_quiz(definition, definition_id, lang_code)
+    except FormBuildError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors
+        )
+    quiz = jsonable_encoder(Quiz(**quiz_dict))
+    display_condition_errors = _display_condition_errors(quiz)
+    if display_condition_errors:  # build_quiz already checks; kept as the shared guard
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=display_condition_errors,
+        )
+    return quiz
+
+
+@router.post("/from-form-definition", status_code=status.HTTP_201_CREATED)
+async def create_quiz_from_form_definition(request: FormDefinitionQuizRequest):
+    """Build a session's quiz from a form-builder definition and lock the definition
+    (decision D13: a form used by a session can no longer be edited or deleted).
+
+    The lock is taken FIRST and the definition re-read after it, so the quiz is always built
+    from the final content (a save racing this call either lands before the lock or is
+    refused). If the definition can't be built, a lock taken by this call is released.
+    """
+    if not request.definition_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="definition_id is required",
+        )
+    definition_id = request.definition_id
+    logger.info(
+        f"Form-builder quiz: definition {definition_id} lang {request.lang_code}"
+    )
+    db = get_quiz_db()
+    lock = await db.form_definitions.update_one(
+        {"_id": definition_id, "locked_at": None},
+        {"$set": {"locked_at": datetime.utcnow()}},
+    )
+    definition = await db.form_definitions.find_one({"_id": definition_id})
+    if definition is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"form definition {definition_id} not found",
+        )
+    try:
+        quiz = _build_form_quiz(definition, definition_id, request.lang_code)
+    except HTTPException:
+        if lock.modified_count:
+            await db.form_definitions.update_one(
+                {"_id": definition_id}, {"$set": {"locked_at": None}}
+            )
+        raise
+    quiz_id = await _insert_quiz_with_questions(quiz)
+    return JSONResponse(
+        status_code=status.HTTP_201_CREATED,
+        content={"id": quiz_id, "source_id": definition_id},
+    )
+
+
+@router.put("/{quiz_id}/from-form-definition")
+async def regenerate_quiz_from_form_definition(
+    quiz_id: str, request: FormDefinitionQuizRequest
+):
+    """Rebuild a form-builder quiz IN PLACE from its definition: same quiz, set and question
+    _ids by position, so the session and submitted answers stay linked. A used definition is
+    locked, so the content can't have changed; what regenerate can change is the language.
+    Preserves the session-editable settings on the quiz (title, shuffle, show_scores,
+    review_immediate, grade, header text, session_end_time, next step)."""
+    db = get_quiz_db()
+    existing = await db.quizzes.find_one({"_id": quiz_id})
+    if existing is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"quiz {quiz_id} not found"
+        )
+    old_meta = existing.get("metadata") or {}
+    if old_meta.get("source") != QuizSource.form_builder.value:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"quiz {quiz_id} was not built from a form definition",
+        )
+    definition_id = old_meta.get("source_id")
+    if request.definition_id and request.definition_id != definition_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"quiz {quiz_id} was built from form {definition_id}, not "
+            f"{request.definition_id}; create a new session to use another form",
+        )
+    definition = await db.form_definitions.find_one({"_id": definition_id})
+    if definition is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"form definition {definition_id} not found",
+        )
+    lang_code = (
+        request.lang_code
+        if "lang_code" in request.model_fields_set
+        else old_meta.get("lang_code")
+    )
+    new_quiz = _build_form_quiz(definition, definition_id, lang_code)
+
+    # Positional identity check before any write (cannot fail for a locked definition, but a
+    # mismatch would silently remap answers, so refuse rather than trust it).
+    old_sets = existing.get("question_sets") or []
+    new_sets = new_quiz["question_sets"]
+    old_questions = {}  # (set index, question index) -> full existing question doc
+    mismatch = None
+    if len(old_sets) != len(new_sets):
+        mismatch = f"question-set count changed ({len(old_sets)} -> {len(new_sets)})"
+    for i, (old_set, new_set) in enumerate(zip(old_sets, new_sets)):
+        if mismatch:
+            break
+        if len(old_set.get("questions") or []) != len(new_set["questions"]):
+            mismatch = f"question count in set {i} changed"
+            break
+        for j, (old_q, new_q) in enumerate(
+            zip(old_set["questions"], new_set["questions"])
+        ):
+            old_doc = await db.questions.find_one({"_id": old_q["_id"]}) or {}
+            old_questions[(i, j)] = old_doc
+            if old_doc.get("source_id") != new_q["source_id"]:
+                mismatch = f"question {j} in set {i} is a different question"
+                break
+    if mismatch:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"the form no longer matches quiz {quiz_id}: {mismatch}",
+        )
+
+    # Same write order as the CMS regenerate (questions, then the quiz doc; not atomic).
+    new_quiz["_id"] = quiz_id
+    for i, new_set in enumerate(new_sets):
+        new_set["_id"] = old_sets[i]["_id"]
+        for j, new_q in enumerate(new_set["questions"]):
+            new_q["_id"] = old_sets[i]["questions"][j]["_id"]
+            new_q["question_set_id"] = new_set["_id"]
+            for key, value in old_questions[(i, j)].items():
+                new_q.setdefault(key, value)
+            await db.questions.replace_one({"_id": new_q["_id"]}, new_q)
+        new_set["questions"] = await _aggregate_question_set_subset(new_set["_id"])
+
+    for field in _SESSION_EDITABLE_QUIZ_FIELDS:
+        if field in existing:
+            new_quiz[field] = existing[field]
+    new_meta = new_quiz["metadata"]
+    for field in (
+        _SESSION_EDITABLE_METADATA_FIELDS + ("session_end_time",) + _NEXT_STEP_FIELDS
+    ):
+        if old_meta.get(field) is not None:
+            new_meta[field] = old_meta[field]
+    for key, value in existing.items():
+        new_quiz.setdefault(key, value)
+
+    await db.quizzes.replace_one({"_id": quiz_id}, new_quiz)
+    logger.info(f"Regenerated quiz {quiz_id} from form definition {definition_id}")
+    return {"id": quiz_id, "source_id": definition_id, "regenerated": True}
 
 
 class QuizPatchRequest(BaseModel):
