@@ -158,6 +158,21 @@ class QuizMetadata(NumericStringMetadata):
     lang_code: Optional[str] = None
 
 
+class DisplayCondition(BaseModel):
+    """Conditional-display rule attached to a dependent question. The question is shown
+    only when the trigger question at `source_position` (flat 0-based position across all
+    question sets, in quiz-document order) has a submitted answer whose selected option
+    indices intersect `option_indices`. Absent ⇒ the question is always visible, so every
+    existing quiz/form is unaffected. Position (not question_id) is used because questions
+    are created in one payload before ids exist, and position is how session answers and
+    the reporting ETL already address questions. Visibility is transitive and evaluated in
+    position order — triggers always precede their dependents (validated at creation).
+    """
+
+    source_position: int
+    option_indices: List[int]
+
+
 class Question(BaseModel):
     """Model for the body of the request that creates a question"""
 
@@ -184,6 +199,7 @@ class Question(BaseModel):
     metadata: Optional[QuestionMetadata] = None
     source: Optional[str] = None
     source_id: Optional[str] = None
+    display_condition: Optional[DisplayCondition] = None
 
     model_config = ConfigDict(
         populate_by_name=True,
