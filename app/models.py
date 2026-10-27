@@ -1,4 +1,4 @@
-from typing import Optional, List, Tuple, Union
+from typing import Literal, Optional, List, Tuple, Union
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from schemas import (
     QuestionType,
@@ -621,3 +621,99 @@ class UpdateSessionResponse(BaseModel):
 
     time_remaining: Optional[int] = None  # time in seconds
     metrics: Optional[SessionMetrics] = None
+
+
+# ---- Form builder: editable form definitions (collection `form_definitions`) ----------
+# A definition is what quiz-creator's form builder saves. It is NOT a quiz: text is kept per
+# language, ids are stable strings chosen by the builder, and conditions point at question /
+# option ids. A quiz is built from it per session (POST /quiz/from-form-definition, see
+# services/form_definition_build.py), which is where positions are materialised.
+
+FormDefinitionLanguage = Literal["en", "hi"]
+FormQuestionType = Literal[
+    "single-choice",
+    "single-choice-other",
+    "multi-choice",
+    "subjective",
+    "matrix-rating",
+]
+
+
+class FormLangText(BaseModel):
+    """One piece of text per language; English is always required (it may be empty while a
+    draft is being built — the build step rejects empty English where it matters)."""
+
+    en: str = ""
+    hi: str = ""
+
+
+class FormDefinitionOption(BaseModel):
+    id: str
+    text: FormLangText
+
+
+class FormDefinitionShowIf(BaseModel):
+    """Show this question only when the trigger question has one of these options chosen."""
+
+    question_id: str
+    option_ids: List[str]
+
+
+class FormDefinitionQuestion(BaseModel):
+    id: str
+    type: FormQuestionType
+    text: FormLangText
+    required: bool = True
+    # choice questions; for single-choice-other the LAST option is the fixed "Other"
+    options: List[FormDefinitionOption] = Field(default_factory=list)
+    # matrix-rating: rows to rate and the rating scale (comma-separated per language)
+    rows: List[FormDefinitionOption] = Field(default_factory=list)
+    scale: Optional[FormLangText] = None
+    show_if: Optional[FormDefinitionShowIf] = None
+
+
+class FormDefinitionSection(BaseModel):
+    id: str
+    title: str = ""  # English only in v1
+    questions: List[FormDefinitionQuestion] = Field(default_factory=list)
+
+
+class FormDefinitionContent(BaseModel):
+    """The editable content of a form — the body of create / save requests."""
+
+    title: str
+    languages: List[FormDefinitionLanguage] = Field(default_factory=lambda: ["en"])
+    sections: List[FormDefinitionSection] = Field(default_factory=list)
+
+    @field_validator("languages")
+    @classmethod
+    def _english_always(cls, value: List[str]) -> List[str]:
+        # English first, no duplicates; English is mandatory (decision D15).
+        return ["en"] + sorted(set(value) - {"en"})
+
+
+class FormDefinitionWrite(FormDefinitionContent):
+    """Create / save request: the content plus who is saving (quiz-creator sends the signed-in
+    user's email; quiz-backend has no auth of its own)."""
+
+    actor: Optional[str] = None
+
+
+class FormDefinition(FormDefinitionContent):
+    """A stored definition."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    # Set when the first session's quiz is built from it; a locked form can't be saved or
+    # deleted (decision D13).
+    locked_at: Optional[datetime] = None
+    question_count: int = 0
+    conditional_count: int = 0
+    # True when a session could be built from it now (nothing left to fill in); drafts may
+    # be saved incomplete, and the session picker only offers ready forms.
+    ready: bool = False
+    created_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_by: Optional[str] = None
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
