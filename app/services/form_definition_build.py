@@ -93,9 +93,7 @@ def structure_errors(definition: dict) -> List[str]:
             errors.append(f"{where}: its trigger must be a choice question")
             continue
         trigger_option_ids = {option["id"] for option in trigger.get("options") or []}
-        if not show_if.get("option_ids"):
-            errors.append(f"{where}: no trigger option chosen")
-        elif not set(show_if["option_ids"]) <= trigger_option_ids:
+        if not set(show_if.get("option_ids") or []) <= trigger_option_ids:
             errors.append(f"{where}: it refers to an option its trigger doesn't have")
     return errors
 
@@ -115,6 +113,11 @@ def completeness_errors(definition: dict) -> List[str]:
         where = _label(question, position)
         if not ((question.get("text") or {}).get("en") or "").strip():
             errors.append(f"{where}: missing English text")
+        show_if = question.get("show_if")
+        if show_if and not show_if.get("option_ids"):
+            # a follow-up just added in the builder: the author still has to pick the
+            # option(s) that reveal it
+            errors.append(f"{where}: no trigger option chosen for its condition")
         if question["type"] in _CHOICE_TYPES:
             options = question.get("options") or []
             if len(options) < 2:

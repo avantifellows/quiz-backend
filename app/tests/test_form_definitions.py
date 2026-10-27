@@ -191,6 +191,16 @@ class FormDefinitionBuildTestCase(unittest.TestCase):
         q5["show_if"] = {"question_id": "q1", "option_ids": ["nope"]}
         self.assertTrue(any("doesn't have" in e for e in structure_errors(definition)))
 
+    def test_a_follow_up_without_its_option_is_incomplete_not_inconsistent(self):
+        definition = sample_definition()
+        definition["sections"][0]["questions"][1]["show_if"]["option_ids"] = []
+        self.assertEqual(structure_errors(definition), [])
+        self.assertTrue(
+            any(
+                "no trigger option chosen" in e for e in completeness_errors(definition)
+            )
+        )
+
     def test_completeness_errors(self):
         definition = sample_definition()
         definition["sections"][0]["questions"][0]["text"]["en"] = " "
