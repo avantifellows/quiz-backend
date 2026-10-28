@@ -156,6 +156,15 @@ def _split_scale(scale: dict, lang_code: Optional[str]) -> List[str]:
     ]
 
 
+def _header_text(definition: dict) -> Optional[str]:
+    """The form's header as typed (one text, not per language); None when empty. A header
+    stored per language during development ({en, hi}) gives its English."""
+    header = definition.get("header_text") or ""
+    if isinstance(header, dict):
+        header = header.get("en") or ""
+    return header.strip() or None
+
+
 def build_quiz(definition: dict, definition_id: str, lang_code: Optional[str]) -> dict:
     """The quiz dict (input to models.Quiz) a session gets from this definition.
 
@@ -243,9 +252,7 @@ def build_quiz(definition: dict, definition_id: str, lang_code: Optional[str]) -
             "source": QuizSource.form_builder.value,
             "source_id": definition_id,
             "lang_code": lang_code,
-            # empty header -> None, like a form without one
-            "single_page_header_text": _text(definition.get("header_text"), lang_code)
-            or None,
+            "single_page_header_text": _header_text(definition),
         },
     }
 
