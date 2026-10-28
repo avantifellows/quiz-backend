@@ -683,6 +683,9 @@ class FormDefinitionContent(BaseModel):
 
     title: str
     languages: List[FormDefinitionLanguage] = Field(default_factory=lambda: ["en"])
+    # Shown at the top of the form (the quiz's single_page_header_text); optional. Part of the
+    # form, so it is locked with it once a session uses the form (decision D23).
+    header_text: FormLangText = Field(default_factory=FormLangText)
     sections: List[FormDefinitionSection] = Field(default_factory=list)
 
     @field_validator("languages")

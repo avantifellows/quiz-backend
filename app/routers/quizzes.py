@@ -624,7 +624,8 @@ async def regenerate_quiz_from_form_definition(
     _ids by position, so the session and submitted answers stay linked. A used definition is
     locked, so the content can't have changed; what regenerate can change is the language.
     Preserves the session-editable settings on the quiz (title, shuffle, show_scores,
-    review_immediate, grade, header text, session_end_time, next step)."""
+    review_immediate, grade, session_end_time, next step); the header text is the form's.
+    """
     db = get_quiz_db()
     existing = await db.quizzes.find_one({"_id": quiz_id})
     if existing is None:
@@ -701,9 +702,9 @@ async def regenerate_quiz_from_form_definition(
         if field in existing:
             new_quiz[field] = existing[field]
     new_meta = new_quiz["metadata"]
-    for field in (
-        _SESSION_EDITABLE_METADATA_FIELDS + ("session_end_time",) + _NEXT_STEP_FIELDS
-    ):
+    # The header text comes from the form (decision D23), so it is rebuilt — in the chosen
+    # language — rather than kept; the other session-editable metadata is kept.
+    for field in ("grade", "session_end_time") + _NEXT_STEP_FIELDS:
         if old_meta.get(field) is not None:
             new_meta[field] = old_meta[field]
     for key, value in existing.items():

@@ -30,6 +30,7 @@ def sample_definition():
     return {
         "title": "Mentorship Screener",
         "languages": ["en", "hi"],
+        "header_text": _text("Please answer honestly", "कृपया ईमानदारी से उत्तर दें"),
         "sections": [
             {
                 "id": "s1",
@@ -129,6 +130,7 @@ class FormDefinitionBuildTestCase(unittest.TestCase):
                 "source": "form-builder",
                 "source_id": "def1",
                 "lang_code": None,
+                "single_page_header_text": "Please answer honestly",
             },
         )
         self.assertTrue(quiz["require_all_questions"])
@@ -155,6 +157,25 @@ class FormDefinitionBuildTestCase(unittest.TestCase):
             questions[3]["options"], [{"text": "Low\nकम"}, {"text": "High\nज़्यादा"}]
         )
         self.assertEqual(questions[3]["matrix_rows"], ["Maths\nगणित", "Physics"])
+
+    def test_header_text_comes_from_the_form(self):
+        self.assertEqual(
+            build_quiz(sample_definition(), "def1", None)["metadata"][
+                "single_page_header_text"
+            ],
+            "Please answer honestly",
+        )
+        self.assertEqual(
+            build_quiz(sample_definition(), "def1", "hi")["metadata"][
+                "single_page_header_text"
+            ],
+            "Please answer honestly\nकृपया ईमानदारी से उत्तर दें",
+        )
+        definition = sample_definition()
+        definition["header_text"] = _text("")
+        self.assertIsNone(
+            build_quiz(definition, "def1", None)["metadata"]["single_page_header_text"]
+        )
 
     def test_type_specific_fields(self):
         questions = _flat(build_quiz(sample_definition(), "def1", None))
@@ -402,15 +423,9 @@ class FormDefinitionApiTestCase(BaseTestCase):
         definition_id = self.create()
         quiz_id = self.build_quiz(definition_id).json()["id"]
         before = self.db.quizzes.find_one({"_id": quiz_id})
-        # what sessionCreator writes after create
+        # what sessionCreator writes after create (it leaves a form-builder header alone)
         self.db.quizzes.update_one(
-            {"_id": quiz_id},
-            {
-                "$set": {
-                    "title": "G12 Screener – Cycle 1",
-                    "metadata.single_page_header_text": "Please answer honestly",
-                }
-            },
+            {"_id": quiz_id}, {"$set": {"title": "G12 Screener – Cycle 1"}}
         )
         response = self.client.put(
             f"{quizzes.router.prefix}/{quiz_id}/from-form-definition",
@@ -423,8 +438,10 @@ class FormDefinitionApiTestCase(BaseTestCase):
             [[q["_id"] for q in s["questions"]] for s in before["question_sets"]],
         )
         self.assertEqual(after["title"], "G12 Screener – Cycle 1")
+        # the header is the form's, rebuilt in the new language (decision D23)
         self.assertEqual(
-            after["metadata"]["single_page_header_text"], "Please answer honestly"
+            after["metadata"]["single_page_header_text"],
+            "Please answer honestly\nकृपया ईमानदारी से उत्तर दें",
         )
         self.assertEqual(after["metadata"]["lang_code"], "hi")
         first_question = self.db.questions.find_one(

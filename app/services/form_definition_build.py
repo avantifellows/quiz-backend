@@ -243,6 +243,9 @@ def build_quiz(definition: dict, definition_id: str, lang_code: Optional[str]) -
             "source": QuizSource.form_builder.value,
             "source_id": definition_id,
             "lang_code": lang_code,
+            # empty header -> None, like a form without one
+            "single_page_header_text": _text(definition.get("header_text"), lang_code)
+            or None,
         },
     }
 
