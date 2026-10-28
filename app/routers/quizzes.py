@@ -702,8 +702,8 @@ async def regenerate_quiz_from_form_definition(
         if field in existing:
             new_quiz[field] = existing[field]
     new_meta = new_quiz["metadata"]
-    # The header text comes from the form (decision D23), so it is rebuilt — in the chosen
-    # language — rather than kept; the other session-editable metadata is kept.
+    # The header text comes from the form (decision D23), so it is taken from there rather
+    # than kept; the other session-editable metadata is kept.
     for field in ("grade", "session_end_time") + _NEXT_STEP_FIELDS:
         if old_meta.get(field) is not None:
             new_meta[field] = old_meta[field]

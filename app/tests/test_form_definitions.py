@@ -30,7 +30,7 @@ def sample_definition():
     return {
         "title": "Mentorship Screener",
         "languages": ["en", "hi"],
-        "header_text": _text("Please answer honestly", "कृपया ईमानदारी से उत्तर दें"),
+        "header_text": "Please answer honestly",
         "sections": [
             {
                 "id": "s1",
@@ -158,23 +158,25 @@ class FormDefinitionBuildTestCase(unittest.TestCase):
         )
         self.assertEqual(questions[3]["matrix_rows"], ["Maths\nगणित", "Physics"])
 
-    def test_header_text_comes_from_the_form(self):
-        self.assertEqual(
-            build_quiz(sample_definition(), "def1", None)["metadata"][
-                "single_page_header_text"
-            ],
-            "Please answer honestly",
-        )
-        self.assertEqual(
-            build_quiz(sample_definition(), "def1", "hi")["metadata"][
-                "single_page_header_text"
-            ],
-            "Please answer honestly\nकृपया ईमानदारी से उत्तर दें",
-        )
+    def test_header_text_comes_from_the_form_as_typed(self):
+        # one text, not stacked with the session's language
+        for lang_code in (None, "hi"):
+            self.assertEqual(
+                build_quiz(sample_definition(), "def1", lang_code)["metadata"][
+                    "single_page_header_text"
+                ],
+                "Please answer honestly",
+            )
         definition = sample_definition()
-        definition["header_text"] = _text("")
+        definition["header_text"] = "  "
         self.assertIsNone(
             build_quiz(definition, "def1", None)["metadata"]["single_page_header_text"]
+        )
+        # stored per language during development: its English is used
+        definition["header_text"] = _text("Old header", "पुराना")
+        self.assertEqual(
+            build_quiz(definition, "def1", None)["metadata"]["single_page_header_text"],
+            "Old header",
         )
 
     def test_type_specific_fields(self):
@@ -438,10 +440,9 @@ class FormDefinitionApiTestCase(BaseTestCase):
             [[q["_id"] for q in s["questions"]] for s in before["question_sets"]],
         )
         self.assertEqual(after["title"], "G12 Screener – Cycle 1")
-        # the header is the form's, rebuilt in the new language (decision D23)
+        # the header is the form's (decision D23), as typed
         self.assertEqual(
-            after["metadata"]["single_page_header_text"],
-            "Please answer honestly\nकृपया ईमानदारी से उत्तर दें",
+            after["metadata"]["single_page_header_text"], "Please answer honestly"
         )
         self.assertEqual(after["metadata"]["lang_code"], "hi")
         first_question = self.db.questions.find_one(
