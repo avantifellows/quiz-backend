@@ -49,6 +49,13 @@ GET    /health                     - ALB health check (no DB, no auth)
 POST   /quiz                      - Create quiz with embedded questions
 GET    /quiz/{quiz_id}            - Get quiz
 GET    /form/{form_id}            - Get form (quiz_type must be "form")
+POST   /quiz/from-form-definition - Build a session's form quiz from a form definition (locks it)
+PUT    /quiz/{quiz_id}/from-form-definition - Rebuild that quiz in place (regenerate)
+GET    /form-definitions/?search=&limit=&offset=&ready_only= - List form-builder forms
+GET    /form-definitions/{id}     - Get a form definition
+GET    /form-definitions/{id}/sessions - Quizzes built from it (one per session)
+POST   /form-definitions          - Create; PUT /form-definitions/{id} - save (409 if locked)
+DELETE /form-definitions/{id}     - Delete (409 if locked)
 GET    /questions/{question_id}   - Get question
 GET    /questions/?question_set_id=...&skip=...&limit=...
 POST   /organizations             - Create org (generates API key)

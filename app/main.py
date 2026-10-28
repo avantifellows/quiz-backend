@@ -17,6 +17,7 @@ from routers import (
     sessions,
     organizations,
     forms,
+    form_definitions,
 )
 
 logger = setup_logger()
@@ -88,6 +89,7 @@ def create_app():
     app.include_router(questions.router)
     app.include_router(quizzes.router)
     app.include_router(forms.router)
+    app.include_router(form_definitions.router)
     app.include_router(sessions.router)
     app.include_router(session_answers.router)
     app.include_router(organizations.router)

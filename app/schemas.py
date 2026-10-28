@@ -90,3 +90,5 @@ class QuizSource(str, Enum):
     ("cms" = old CMS, "gsheet-form", etc.) so old and new CMS stay distinguishable."""
 
     nex_gen_cms = "nex-gen-cms"  # new CMS (nex-gen-cms) assembled chapter-test JSON
+    # quiz-creator form builder (definitions in the form_definitions collection)
+    form_builder = "form-builder"
