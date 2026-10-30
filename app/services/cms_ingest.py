@@ -82,7 +82,7 @@ CMS_PRIMARY_LANG = "en"
 _SET_TYPE_INSTRUCTION = {
     "single-choice": "MCQs with SINGLE correct option",
     "multi-choice": "MCQs with ONE or MORE correct options",
-    "numerical-integer": "Non-Negative Integer answer",
+    "numerical-integer": "Integer answer",
     "numerical-float": "Numerical Answer (rounded off to TWO decimal places)",
 }
 
