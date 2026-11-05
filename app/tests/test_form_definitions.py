@@ -164,6 +164,12 @@ class FormDefinitionBuildTestCase(unittest.TestCase):
             [q["required"] for q in _flat(quiz)], [True, True, True, False, True]
         )
 
+    def test_a_rating_question_without_a_scale_is_refused_not_a_crash(self):
+        definition = sample_definition()
+        definition["sections"][1]["questions"][2]["scale"] = None  # q4, the rating grid
+        with self.assertRaises(FormBuildError):
+            build_quiz(definition, "def1", None)
+
     def test_english_only_when_no_language_chosen(self):
         questions = _flat(build_quiz(sample_definition(), "def1", None))
         self.assertEqual(questions[0]["text"], "Do you have a study group?")
