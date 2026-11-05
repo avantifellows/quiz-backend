@@ -93,6 +93,24 @@ def sample_definition():
     }
 
 
+def with_a_chain():
+    """sample_definition with q2 turned into a choice question that has its own follow-up."""
+    definition = sample_definition()
+    questions = definition["sections"][0]["questions"]
+    questions[1].update(
+        type="single-choice", options=[_option("o8", "A"), _option("o9", "B")]
+    )
+    questions.append(
+        {
+            "id": "q6",
+            "type": "subjective",
+            "text": _text("Tell us more"),
+            "show_if": {"question_id": "q2", "option_ids": ["o8"]},
+        }
+    )
+    return definition
+
+
 def _flat(quiz):
     return [q for qset in quiz["question_sets"] for q in qset["questions"]]
 
@@ -221,6 +239,16 @@ class FormDefinitionBuildTestCase(unittest.TestCase):
         self.assertTrue(
             any(
                 "no trigger option chosen" in e for e in completeness_errors(definition)
+            )
+        )
+
+    def test_a_follow_up_of_a_follow_up_is_incomplete_not_inconsistent(self):
+        definition = with_a_chain()
+        self.assertEqual(structure_errors(definition), [])
+        self.assertTrue(
+            any(
+                "trigger is itself a follow-up" in e
+                for e in completeness_errors(definition)
             )
         )
 
@@ -398,6 +426,16 @@ class FormDefinitionApiTestCase(BaseTestCase):
         definition_id = self.create(definition)
         response = self.build_quiz(definition_id)
         self.assertEqual(response.status_code, 422)
+        self.assertIsNone(
+            self.client.get(f"{DEFINITIONS}/{definition_id}").json()["locked_at"]
+        )
+
+    def test_a_form_with_a_chain_saves_as_draft_but_is_refused(self):
+        definition_id = self.create(with_a_chain())
+        self.assertFalse(
+            self.client.get(f"{DEFINITIONS}/{definition_id}").json()["ready"]
+        )
+        self.assertEqual(self.build_quiz(definition_id).status_code, 422)
         self.assertIsNone(
             self.client.get(f"{DEFINITIONS}/{definition_id}").json()["locked_at"]
         )

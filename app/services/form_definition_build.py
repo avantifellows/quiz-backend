@@ -104,6 +104,7 @@ def completeness_errors(definition: dict) -> List[str]:
     if not (definition.get("title") or "").strip():
         errors.append("the form has no title")
     questions = _questions(definition)
+    by_id = {question["id"]: question for question in questions}
     if not questions:
         errors.append("the form has no questions")
     for index, section in enumerate(definition.get("sections") or []):
@@ -118,6 +119,11 @@ def completeness_errors(definition: dict) -> List[str]:
             # a follow-up just added in the builder: the author still has to pick the
             # option(s) that reveal it
             errors.append(f"{where}: no trigger option chosen for its condition")
+        trigger = by_id.get(show_if["question_id"]) if show_if else None
+        if trigger and trigger.get("show_if"):
+            # one level of follow-ups (decision D24); checked here, not in structure_errors,
+            # so a draft caught mid-edit with a chain still saves
+            errors.append(f"{where}: its trigger is itself a follow-up")
         if question["type"] in _CHOICE_TYPES:
             options = question.get("options") or []
             if len(options) < 2:
