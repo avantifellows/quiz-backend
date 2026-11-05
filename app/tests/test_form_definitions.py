@@ -27,7 +27,7 @@ def _option(oid, en, hi=""):
 
 
 def sample_definition():
-    """Two sections, five questions: q2 follows q1 "Yes"; q5 follows q3 "Other"."""
+    """Two sections, five questions: q2 follows q1 "Yes"; q5 follows q3 "Other" (q3, q5, q4)."""
     return {
         "title": "Mentorship Screener",
         "languages": ["en", "hi"],
@@ -71,6 +71,14 @@ def sample_definition():
                         ],
                     },
                     {
+                        "id": "q5",
+                        "type": "multi-choice",
+                        "text": _text("Which ones?"),
+                        "required": False,
+                        "options": [_option("o6", "A"), _option("o7", "B")],
+                        "show_if": {"question_id": "q3", "option_ids": ["o5"]},
+                    },
+                    {
                         "id": "q4",
                         "type": "matrix-rating",
                         "text": _text("Rate these"),
@@ -79,14 +87,6 @@ def sample_definition():
                             _option("r2", "Physics"),
                         ],
                         "scale": _text("Low, High", "कम, ज़्यादा"),
-                    },
-                    {
-                        "id": "q5",
-                        "type": "multi-choice",
-                        "text": _text("Which ones?"),
-                        "required": False,
-                        "options": [_option("o6", "A"), _option("o7", "B")],
-                        "show_if": {"question_id": "q3", "option_ids": ["o5"]},
                     },
                 ],
             },
@@ -112,6 +112,14 @@ def with_a_chain():
     return definition
 
 
+def with_a_separated_follow_up():
+    """sample_definition with q5 (a follow-up of q3) moved below q4: q3, q4, q5."""
+    definition = sample_definition()
+    questions = definition["sections"][1]["questions"]
+    questions[1], questions[2] = questions[2], questions[1]
+    return definition
+
+
 def _flat(quiz):
     return [q for qset in quiz["question_sets"] for q in qset["questions"]]
 
@@ -129,11 +137,11 @@ class FormDefinitionBuildTestCase(unittest.TestCase):
             {"source_position": 0, "option_indices": [0]},
         )
         self.assertEqual(
-            questions[4]["display_condition"],
+            questions[3]["display_condition"],
             {"source_position": 2, "option_indices": [2]},
         )
         self.assertEqual(
-            [q["source_id"] for q in questions], ["q1", "q2", "q3", "q4", "q5"]
+            [q["source_id"] for q in questions], ["q1", "q2", "q3", "q5", "q4"]
         )
         self.assertTrue(
             all(q["source"] == "form-builder" and not q["graded"] for q in questions)
@@ -154,7 +162,7 @@ class FormDefinitionBuildTestCase(unittest.TestCase):
         )
         self.assertTrue(quiz["require_all_questions"])
         self.assertEqual(
-            [q["required"] for q in _flat(quiz)], [True, True, True, True, False]
+            [q["required"] for q in _flat(quiz)], [True, True, True, False, True]
         )
 
     def test_english_only_when_no_language_chosen(self):
@@ -173,9 +181,9 @@ class FormDefinitionBuildTestCase(unittest.TestCase):
         # no Hindi text -> English alone
         self.assertEqual(questions[2]["text"], "Where do you study?")
         self.assertEqual(
-            questions[3]["options"], [{"text": "Low\nकम"}, {"text": "High\nज़्यादा"}]
+            questions[4]["options"], [{"text": "Low\nकम"}, {"text": "High\nज़्यादा"}]
         )
-        self.assertEqual(questions[3]["matrix_rows"], ["Maths\nगणित", "Physics"])
+        self.assertEqual(questions[4]["matrix_rows"], ["Maths\nगणित", "Physics"])
 
     def test_header_text_comes_from_the_form_as_typed(self):
         # one text, not stacked with the session's language
@@ -225,7 +233,7 @@ class FormDefinitionBuildTestCase(unittest.TestCase):
 
     def test_condition_on_a_non_choice_or_missing_option(self):
         definition = sample_definition()
-        q5 = definition["sections"][1]["questions"][2]
+        q5 = definition["sections"][1]["questions"][1]
         q5["show_if"] = {"question_id": "q2", "option_ids": ["o1"]}
         self.assertTrue(
             any("choice question" in e for e in structure_errors(definition))
@@ -253,10 +261,33 @@ class FormDefinitionBuildTestCase(unittest.TestCase):
             )
         )
 
+    def test_a_follow_up_away_from_its_trigger_is_incomplete_not_inconsistent(self):
+        definition = with_a_separated_follow_up()
+        self.assertEqual(structure_errors(definition), [])
+        self.assertTrue(
+            any(
+                "must come right after its trigger" in e
+                for e in completeness_errors(definition)
+            )
+        )
+
+    def test_follow_ups_right_under_their_trigger_are_complete(self):
+        definition = sample_definition()
+        # a second follow-up of q1, after the first one: still directly under q1
+        definition["sections"][0]["questions"].append(
+            {
+                "id": "q6",
+                "type": "subjective",
+                "text": _text("Since when?"),
+                "show_if": {"question_id": "q1", "option_ids": ["o1"]},
+            }
+        )
+        self.assertEqual(completeness_errors(definition), [])
+
     def test_completeness_errors(self):
         definition = sample_definition()
         definition["sections"][0]["questions"][0]["text"]["en"] = " "
-        definition["sections"][1]["questions"][2]["options"] = [_option("o6", "A")]
+        definition["sections"][1]["questions"][1]["options"] = [_option("o6", "A")]
         definition["sections"].append({"id": "s3", "title": "", "questions": []})
         errors = completeness_errors(definition)
         self.assertTrue(any("missing English text" in e for e in errors))
@@ -443,6 +474,13 @@ class FormDefinitionApiTestCase(BaseTestCase):
         self.assertIsNone(
             self.client.get(f"{DEFINITIONS}/{definition_id}").json()["locked_at"]
         )
+
+    def test_a_form_with_a_separated_follow_up_saves_as_draft_but_is_refused(self):
+        definition_id = self.create(with_a_separated_follow_up())
+        self.assertFalse(
+            self.client.get(f"{DEFINITIONS}/{definition_id}").json()["ready"]
+        )
+        self.assertEqual(self.build_quiz(definition_id).status_code, 422)
 
     def test_build_unknown_definition_is_404(self):
         self.assertEqual(self.build_quiz("nope").status_code, 404)

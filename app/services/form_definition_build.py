@@ -107,9 +107,18 @@ def completeness_errors(definition: dict) -> List[str]:
     by_id = {question["id"]: question for question in questions}
     if not questions:
         errors.append("the form has no questions")
+    # A follow-up sits directly under its trigger (decision D26): its trigger must be the
+    # nearest question above it, in its section, that isn't a follow-up.
+    expected_trigger: Dict[str, Optional[str]] = {}
     for index, section in enumerate(definition.get("sections") or []):
         if not section.get("questions"):
             errors.append(f"section {index + 1} has no questions")
+        above = None
+        for question in section.get("questions") or []:
+            if question.get("show_if"):
+                expected_trigger[question["id"]] = above
+            else:
+                above = question["id"]
     for position, question in enumerate(questions):
         where = _label(question, position)
         if not ((question.get("text") or {}).get("en") or "").strip():
@@ -124,6 +133,11 @@ def completeness_errors(definition: dict) -> List[str]:
             # one level of follow-ups (decision D24); checked here, not in structure_errors,
             # so a draft caught mid-edit with a chain still saves
             errors.append(f"{where}: its trigger is itself a follow-up")
+        elif show_if and show_if["question_id"] != expected_trigger.get(question["id"]):
+            errors.append(
+                f"{where}: it must come right after its trigger question "
+                "(or the trigger's other follow-ups)"
+            )
         if question["type"] in _CHOICE_TYPES:
             options = question.get("options") or []
             if len(options) < 2:
