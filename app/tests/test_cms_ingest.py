@@ -282,6 +282,35 @@ class TestCmsMapper(unittest.TestCase):
         self.assertEqual(question["correct_answer"], 9)
         self.assertFalse(any("unknown subtype" in w for w in warnings))
 
+    def test_negative_integer_answer_keeps_its_sign(self):
+        # JEE Advanced numerical answers can be negative, so the integer set's instruction
+        # must not tell students the answer is non-negative.
+        assembled = _test_with_problems(
+            problems=[
+                _problem(
+                    711,
+                    "numerical_answer",
+                    {"text": "b2?", "options": [], "answer": ["-7"], "solutions": []},
+                ),
+            ],
+            sections=[
+                {
+                    "type": "numerical_answer",
+                    "name": "Numerical",
+                    "compulsory": {
+                        "problems": [{"id": 711, "pos_marks": [4], "neg_marks": [0]}]
+                    },
+                }
+            ],
+        )
+
+        quiz, _ = map_cms_test_to_quiz(assembled)
+        question_set = quiz["question_sets"][0]
+        self.assertEqual(question_set["questions"][0]["type"], "numerical-integer")
+        self.assertEqual(question_set["questions"][0]["correct_answer"], -7)
+        self.assertIn("<u>Integer answer</u>", question_set["description"])
+        self.assertNotIn("Non-Negative", question_set["description"])
+
     def test_numerical_range_warns_and_stores_midpoint(self):
         # A [low, high] range collapses to its midpoint (the engine grades a point +/-
         # tolerance, so the midpoint is the least-biased answer), not the low bound.
