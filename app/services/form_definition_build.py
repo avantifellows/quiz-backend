@@ -226,7 +226,8 @@ def build_quiz(definition: dict, definition_id: str, lang_code: Optional[str]) -
             built["max_char_limit"] = SUBJECTIVE_MAX_CHARS
         if question["type"] == QuestionType.matrix_rating.value:
             built["options"] = [
-                {"text": label} for label in _split_scale(question["scale"], lang_code)
+                {"text": label}
+                for label in _split_scale(question.get("scale") or {}, lang_code)
             ]
             built["matrix_rows"] = [
                 _text(row["text"], lang_code) for row in question["rows"]
