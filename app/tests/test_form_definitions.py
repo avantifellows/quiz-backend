@@ -331,9 +331,9 @@ class FormDefinitionApiTestCase(BaseTestCase):
 
     def test_stored_questions_have_metadata_for_the_etl(self):
         quiz_id = self.build_quiz(self.create()).json()["id"]
-        quiz = self.db.quizzes.find_one({"_id": quiz_id})
+        quiz = mongo_client.quiz.quizzes.find_one({"_id": quiz_id})
         ids = [q["_id"] for s in quiz["question_sets"] for q in s["questions"]]
-        for question in self.db.questions.find({"_id": {"$in": ids}}):
+        for question in mongo_client.quiz.questions.find({"_id": {"$in": ids}}):
             self.assertIsInstance(question["metadata"], dict)
             self.assertIn("subject", question["metadata"])
             self.assertEqual(question["correct_answer"], [])
