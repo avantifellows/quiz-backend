@@ -22,6 +22,24 @@ OTHER_MAX_CHARS = 500
 SUBJECTIVE_MAX_CHARS = 500
 # Forms are ungraded; an explicit zero scheme keeps scoring from falling back to a default.
 FORM_MARKING_SCHEME = {"correct": 0, "wrong": 0, "skipped": 0}
+# A question's metadata, as sessionCreator writes it for a Google-Sheet form (subject, chapter
+# … are assessment fields, empty for a form). The quizzes ETL reads it for every question and
+# fails on a missing one, so form-builder questions carry the same, never None.
+FORM_QUESTION_METADATA = {
+    "grade": None,
+    "subject": "",
+    "chapter": "",
+    "chapter_id": "",
+    "topic": "",
+    "topic_id": "",
+    "competency": None,
+    "difficulty": "",
+    "skill": "",
+    "skill_id": "",
+    "concept": "",
+    "concept_id": "",
+    "priority": "low",
+}
 
 _CHOICE_TYPES = (
     QuestionType.single_choice.value,
@@ -208,7 +226,11 @@ def build_quiz(definition: dict, definition_id: str, lang_code: Optional[str]) -
             "type": question["type"],
             "options": [],
             "graded": False,
-            "correct_answer": None,
+            # empty values rather than None, like a Google-Sheet form's questions
+            "correct_answer": [],
+            "matrix_rows": [],
+            "matrix_size": [],
+            "metadata": dict(FORM_QUESTION_METADATA),
             "required": question.get("required", True),
             "marking_scheme": FORM_MARKING_SCHEME,
             "source": QuizSource.form_builder.value,
@@ -253,6 +275,7 @@ def build_quiz(definition: dict, definition_id: str, lang_code: Optional[str]) -
         question_sets.append(
             {
                 "title": section.get("title") or "",
+                "description": "",
                 "max_questions_allowed_to_attempt": len(built_questions),
                 "marking_scheme": FORM_MARKING_SCHEME,
                 "questions": built_questions,
@@ -272,6 +295,10 @@ def build_quiz(definition: dict, definition_id: str, lang_code: Optional[str]) -
             "test_format": TestFormat.questionnaire.value,
             "source": QuizSource.form_builder.value,
             "source_id": definition_id,
+            # as for a Google-Sheet form (assessment fields, empty here)
+            "subject": "Form Questionnaire",
+            "chapter": "",
+            "topic": "",
             "lang_code": lang_code,
             "single_page_header_text": _header_text(definition),
         },
