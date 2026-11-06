@@ -147,6 +147,21 @@ class FormDefinitionBuildTestCase(unittest.TestCase):
             all(q["source"] == "form-builder" and not q["graded"] for q in questions)
         )
 
+    def test_questions_carry_a_google_sheet_forms_empty_fields(self):
+        # the quizzes ETL reads question["metadata"]["subject"] etc. for every question
+        quiz = build_quiz(sample_definition(), "def1", None)
+        self.assertTrue(all(s["description"] == "" for s in quiz["question_sets"]))
+        for question in _flat(quiz):
+            self.assertEqual(question["metadata"]["subject"], "")
+            self.assertEqual(question["metadata"]["priority"], "low")
+            self.assertEqual(question["correct_answer"], [])
+            self.assertEqual(question["matrix_size"], [])
+            if question["type"] != "matrix-rating":
+                self.assertEqual(question["matrix_rows"], [])
+        # each question has its own copy, not one shared dict
+        first, second = _flat(quiz)[:2]
+        self.assertIsNot(first["metadata"], second["metadata"])
+
     def test_form_metadata_and_required(self):
         quiz = build_quiz(sample_definition(), "def1", None)
         self.assertEqual(
@@ -156,6 +171,9 @@ class FormDefinitionBuildTestCase(unittest.TestCase):
                 "test_format": "questionnaire",
                 "source": "form-builder",
                 "source_id": "def1",
+                "subject": "Form Questionnaire",
+                "chapter": "",
+                "topic": "",
                 "lang_code": None,
                 "single_page_header_text": "Please answer honestly",
             },
@@ -310,6 +328,15 @@ class FormDefinitionApiTestCase(BaseTestCase):
         )
         self.assertEqual(response.status_code, 201, response.text)
         return response.json()["id"]
+
+    def test_stored_questions_have_metadata_for_the_etl(self):
+        quiz_id = self.build_quiz(self.create()).json()["id"]
+        quiz = self.db.quizzes.find_one({"_id": quiz_id})
+        ids = [q["_id"] for s in quiz["question_sets"] for q in s["questions"]]
+        for question in self.db.questions.find({"_id": {"$in": ids}}):
+            self.assertIsInstance(question["metadata"], dict)
+            self.assertIn("subject", question["metadata"])
+            self.assertEqual(question["correct_answer"], [])
 
     def build_quiz(self, definition_id, lang_code=None):
         body = {"definition_id": definition_id}
