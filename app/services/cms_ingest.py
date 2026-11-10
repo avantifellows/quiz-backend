@@ -237,6 +237,20 @@ def _with_regional(english: str, regional: Optional[str]) -> str:
     return f"{english}<br>{regional}"
 
 
+def _first_topic_id(problem: Dict[str, Any]) -> Optional[str]:
+    """The problem's topic id for question metadata, as a single string.
+
+    The new CMS scopes a problem to a chapter with an optional list of topics and
+    now sends `topic_ids` (avantifellows/nex-gen-cms#216); the legacy single
+    `topic_id` is gone from the assembled payload. metadata (and the quizzes ETL)
+    carry one topic, so we keep the first. `topic_id` stays a fallback for any
+    older payload still in flight."""
+    topic_ids = problem.get("topic_ids")
+    if topic_ids:
+        return str(topic_ids[0])
+    return str(problem["topic_id"]) if problem.get("topic_id") else None
+
+
 def _problem_metadata(problem: Dict[str, Any], subject_name: str) -> Dict[str, Any]:
     return {
         # subject_name is the plain, resolved subject name from the test structure;
@@ -247,7 +261,7 @@ def _problem_metadata(problem: Dict[str, Any], subject_name: str) -> Dict[str, A
         # list, flattened to the English name; chapter_id rides alongside it.
         "chapter": _chapter_name(problem),
         "chapter_id": str(problem["chapter_id"]) if problem.get("chapter_id") else None,
-        "topic_id": str(problem["topic_id"]) if problem.get("topic_id") else None,
+        "topic_id": _first_topic_id(problem),
         "difficulty": problem.get("difficulty_level") or None,
     }
 
