@@ -170,6 +170,51 @@ class TestCmsMapper(unittest.TestCase):
         self.assertIsNone(meta["chapter"])
         self.assertIsNone(meta["chapter_id"])
 
+    def _topic_meta(self, **problem_extra):
+        """Build a one-problem test and return the question's metadata."""
+        assembled = _test_with_problems(
+            problems=[
+                _problem(
+                    506,
+                    "mcq_single_answer",
+                    {
+                        "text": "Q?",
+                        "options": ["A", "B", "C", "D"],
+                        "answer": ["1"],
+                        "solutions": [{"type": "text", "value": ""}],
+                    },
+                    **problem_extra,
+                )
+            ],
+            sections=[
+                {
+                    "type": "mcq_single_answer",
+                    "name": "",
+                    "compulsory": {
+                        "problems": [{"id": 506, "pos_marks": [4], "neg_marks": [1]}]
+                    },
+                }
+            ],
+        )
+        quiz, _ = map_cms_test_to_quiz(assembled)
+        return quiz["question_sets"][0]["questions"][0]["metadata"]
+
+    def test_topic_id_read_from_topic_ids_list(self):
+        # The new CMS (nex-gen-cms#216) sends topic_ids (chapter-scoped, optional);
+        # metadata carries one topic, so we keep the first, as a string.
+        meta = self._topic_meta(topic_ids=[7, 12, 90])
+        self.assertEqual(meta["topic_id"], "7")
+
+    def test_topic_id_falls_back_to_legacy_single_field(self):
+        # An older payload still carrying only topic_id must keep working.
+        meta = self._topic_meta(topic_id=7)
+        self.assertEqual(meta["topic_id"], "7")
+
+    def test_topic_id_none_when_neither_present(self):
+        # Empty topic_ids (a problem with no topics) and a missing field both -> None.
+        self.assertIsNone(self._topic_meta(topic_ids=[])["topic_id"])
+        self.assertIsNone(self._topic_meta()["topic_id"])
+
     def test_multi_choice_partial_ladder(self):
         assembled = _test_with_problems(
             problems=[
