@@ -48,6 +48,43 @@ def _problem(pid, subtype, meta, **extra):
 
 
 class TestCmsMapper(unittest.TestCase):
+    def _single_choice_test(self, subtype):
+        return _test_with_problems(
+            problems=[
+                _problem(
+                    506,
+                    "mcq_single_answer",
+                    {
+                        "text": "Avanti?",
+                        "options": ["a", "b", "c", "d"],
+                        "answer": ["2"],
+                        "solutions": [{"type": "text", "value": ""}],
+                    },
+                )
+            ],
+            sections=[
+                {
+                    "type": "mcq_single_answer",
+                    "name": "",
+                    "compulsory": {
+                        "problems": [{"id": 506, "pos_marks": [4], "neg_marks": [1]}]
+                    },
+                }
+            ],
+            subtype=subtype,
+        )
+
+    def test_nta_test_maps_to_previous_year_test(self):
+        # The CMS calls previous-year papers nta_test; TestFormat has no such value,
+        # so passing it through would fail quiz creation.
+        quiz, _ = map_cms_test_to_quiz(self._single_choice_test("nta_test"))
+        self.assertEqual(quiz["metadata"]["test_format"], "previous_year_test")
+
+    def test_other_subtypes_pass_through_as_test_format(self):
+        for subtype in ("mock_test", "part_test", "full_syllabus_test"):
+            quiz, _ = map_cms_test_to_quiz(self._single_choice_test(subtype))
+            self.assertEqual(quiz["metadata"]["test_format"], subtype)
+
     def test_single_choice(self):
         assembled = _test_with_problems(
             problems=[

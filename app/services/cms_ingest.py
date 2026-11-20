@@ -516,6 +516,19 @@ def _build_set(
     }
 
 
+# CMS test subtypes whose name differs from the quiz-engine TestFormat they map to.
+# The CMS calls previous-year papers "nta_test"; downstream (TestFormat, Gurukul,
+# reporting) knows them as previous_year_test. Every other subtype passes through.
+CMS_SUBTYPE_TO_TEST_FORMAT = {
+    "nta_test": "previous_year_test",
+}
+
+
+def _test_format(test: Dict[str, Any]) -> Optional[str]:
+    subtype = test.get("subtype")
+    return CMS_SUBTYPE_TO_TEST_FORMAT.get(subtype, subtype)
+
+
 def _test_name(test: Dict[str, Any]) -> str:
     for name in test.get("name") or []:
         if name.get("lang_code") == "en":
@@ -665,7 +678,7 @@ def map_cms_test_to_quiz(
         "instructions": _instructions(type_params, lang_code),
         "metadata": {
             "quiz_type": quiz_type,
-            "test_format": test.get("subtype"),
+            "test_format": _test_format(test),
             "grade": None,
             "subject": first_subject,
             "source": QuizSource.nex_gen_cms.value,
